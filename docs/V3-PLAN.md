@@ -1,7 +1,10 @@
 # Over n' Out — V3 Plan (QUEUED — do not start until v2 ships and Brett approves)
 
-Status: PLANNED ONLY. Brett's order on Oct 23, 2026: finish version 2
-first. This team does no work until v2 is shipped and Brett says go.
+Status: **ACTIVE — Brett opened the gate Oct 24, 2026**, after v0.2
+shipped and went live. A third team joins the mobilization: Team Lumen,
+30 graphics & frame-rate specialists (docs/GRAPHICS-TEAM.md).
+**Total mobilized for v3: 83 seats** (33 studio + 20 Division Zero +
+30 Team Lumen).
 
 ## Mission
 
