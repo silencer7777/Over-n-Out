@@ -4,7 +4,7 @@ import { Player } from './player.js';
 import { Bot } from './bots.js';
 import { Sfx } from './audio.js';
 import { WEAPONS, WEAPON_ORDER, getWeapon } from './weapons.js';
-import { STORY, briefingForWave, objectiveForWave, deathLine, clearLine } from './story.js';
+import { STORY, briefingForWave, objectiveForWave, deathLine, clearLine, streakLine } from './story.js';
 import { FpsMeter } from './perfmeter.js';
 import { QualityScaler } from './quality.js';
 import { applyBiome, clearBiome } from './biomes.js';
@@ -17,7 +17,7 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.95;
+renderer.toneMappingExposure = 1.10;   // Phase 2 readability revision (was 0.95 in the Phase 1 grade — Brett's playtest: too dark)
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 400);
@@ -41,6 +41,19 @@ scene.traverse(o => {
 });
 const player = new Player(scene, camera, world);
 const sfx = new Sfx();
+
+// Explosive barrels placed by buildWorld (V3 Phase 2 fun feature):
+// keep mesh + collider refs so explosions can remove them and
+// startRun() can restore them for the next run.
+const barrelMeshes = world.shootables.filter(s => s.userData && s.userData.explosive);
+const barrelColliderOf = new Map();
+for (const m of barrelMeshes) {
+  const c = world.colliders.find(c =>
+    Math.abs((c.min.x + c.max.x) / 2 - m.position.x) < 0.01 &&
+    Math.abs((c.min.z + c.max.z) / 2 - m.position.z) < 0.01 &&
+    Math.abs(c.max.y - 1.12) < 0.01);
+  if (c) barrelColliderOf.set(m, c);
+}
 const perfMeter = new FpsMeter(renderer);
 const quality = new QualityScaler(renderer, scene);
 
@@ -163,6 +176,117 @@ let lastSpawnedId = null;
 const input = { forward: false, back: false, left: false, right: false, sprint: false, jump: false };
 let firing = false;
 let triggerPressed = false;   // fresh-mousedown edge for semi-auto weapons
+
+// ---------------- fun features (V3 Phase 2, Board 003 picks) ----------------
+// Explosive barrels, health/ammo pickups, kill-streak callouts in
+// Relay's voice, kill-confirm hitmarker, weapon inspect (F).
+const explodedBarrels = new Set();
+let killStreak = 0, streakTimer = 0;
+const STREAK_WINDOW = 5;      // seconds between kills to keep a streak alive
+let inspectT = 0;
+const INSPECT_LEN = 1.15;
+const pickups = [];
+
+// Explosion visual pool: 3 additive spheres, scaled/faded in tick().
+const explosionPool = [];
+for (let i = 0; i < 3; i++) {
+  const m = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 18, 12),
+    new THREE.MeshBasicMaterial({ color: 0xff8c3a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  m.visible = false;
+  scene.add(m);
+  explosionPool.push({ mesh: m, life: 0 });
+}
+let explosionCursor = 0;
+function spawnExplosionVisual(pos) {
+  const slot = explosionPool[explosionCursor];
+  explosionCursor = (explosionCursor + 1) % explosionPool.length;
+  slot.life = 0.38;
+  slot.mesh.position.set(pos.x, 0.9, pos.z);
+  slot.mesh.visible = true;
+}
+
+function makePickupMesh(kind) {
+  const g = new THREE.Group();
+  if (kind === 'health') {
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.16, 0.38),
+      new THREE.MeshStandardMaterial({ color: 0xe9e9e9, roughness: 0.6 }));
+    const crossMat = new THREE.MeshStandardMaterial({ color: 0x2ecc71, roughness: 0.5, emissive: 0x0d5a2a });
+    const cv = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.30, 0.09), crossMat); cv.position.y = 0.22;
+    const ch = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.09, 0.09), crossMat); ch.position.y = 0.22;
+    g.add(base, cv, ch);
+  } else {
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.24, 0.28),
+      new THREE.MeshStandardMaterial({ color: 0x5a6238, roughness: 0.7 }));
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.06, 0.30),
+      new THREE.MeshStandardMaterial({ color: 0xb08d3e, roughness: 0.4, metalness: 0.6 }));
+    lid.position.y = 0.15;
+    g.add(base, lid);
+  }
+  return g;
+}
+
+// Drop cadence: every 4th kill drops health, every 4th+2 drops ammo
+// (deterministic — no RNG droughts), capped at 3 active pickups.
+function maybeDropPickup(pos) {
+  if (pickups.length >= 3) return;
+  let kind = null;
+  if (kills % 4 === 0) kind = 'health';
+  else if (kills % 4 === 2) kind = 'ammo';
+  if (!kind) return;
+  const mesh = makePickupMesh(kind);
+  mesh.position.set(pos.x, pos.y + 0.55, pos.z);
+  scene.add(mesh);
+  pickups.push({ mesh, kind, life: 20, baseY: pos.y });
+}
+
+// Single funnel for every bot death (gunfire or barrel): score,
+// streak callouts, pickup drops all hang off this.
+function onBotKilled(bot) {
+  kills++;
+  uiKills.textContent = kills;
+  killStreak++;
+  streakTimer = STREAK_WINDOW;
+  const line = streakLine(killStreak);
+  if (line && contextLineEl) {
+    contextLineEl.textContent = line;
+    contextLineEl.style.opacity = 1;
+    setTimeout(() => contextLineEl.style.opacity = 0, 2200);
+  }
+  maybeDropPickup(bot.root.position);
+}
+
+function explodeBarrel(mesh) {
+  if (!mesh || explodedBarrels.has(mesh)) return;
+  explodedBarrels.add(mesh);
+  mesh.visible = false;
+  const si = world.shootables.indexOf(mesh);
+  if (si !== -1) world.shootables.splice(si, 1);
+  const col = barrelColliderOf.get(mesh);
+  if (col) {
+    const ci = world.colliders.indexOf(col);
+    if (ci !== -1) world.colliders.splice(ci, 1);
+  }
+  const spec = mesh.userData.explosive;
+  spawnExplosionVisual(mesh.position);
+  sfx.explosion();
+  for (const b of [...bots]) {
+    if (b.dead) continue;
+    const d = Math.hypot(b.root.position.x - mesh.position.x, b.root.position.z - mesh.position.z);
+    if (d <= spec.radius) {
+      const dmg = spec.damage * (1 - (d / spec.radius) * 0.6);
+      if (b.damage(dmg, false)) onBotKilled(b);
+    }
+  }
+  const pd = Math.hypot(player.position.x - mesh.position.x, player.position.z - mesh.position.z);
+  if (pd <= spec.radius) damagePlayer(spec.damage * 0.45 * (1 - (pd / spec.radius) * 0.6));
+  for (const other of barrelMeshes) {
+    if (other === mesh || explodedBarrels.has(other)) continue;
+    const d = Math.hypot(other.position.x - mesh.position.x, other.position.z - mesh.position.z);
+    if (d <= spec.radius) setTimeout(() => explodeBarrel(other), 90);
+  }
+}
 
 function currentWeapon() { return getWeapon(currentId); }
 
@@ -348,7 +472,9 @@ function shoot() {
         const isHead = hit.object.userData.part === 'head';
         if (isHead) headAny = true;
         const killed = bot.damage(falloffDamage(weapon, hit.distance), isHead);
-        if (killed) { kills++; killedAny = true; }
+        if (killed) { killedAny = true; onBotKilled(bot); }
+      } else if (hit.object.userData.explosive) {
+        explodeBarrel(hit.object);
       }
     } else {
       _end.copy(_origin).addScaledVector(_dir, 120);
@@ -359,13 +485,16 @@ function shoot() {
   }
 
   // Hit feedback is once per pull, however many pellets landed.
+  // A kill upgrades the hitmarker (red, larger, longer) — the
+  // kill-confirm pick from Board 003.
   if (hitAny) {
     hits++;
     sfx.hit();
     if (headAny && sfx.headshot) sfx.headshot();
+    hitmarker.classList.toggle('kill', killedAny);
     hitmarker.style.opacity = 1;
-    setTimeout(() => hitmarker.style.opacity = 0, 70);
-    if (killedAny) { uiKills.textContent = kills; sfx.kill(); }
+    setTimeout(() => hitmarker.style.opacity = 0, killedAny ? 150 : 70);
+    if (killedAny) sfx.kill();
   }
 
   if (mags[currentId] === 0) reload();
@@ -410,6 +539,7 @@ function updateHealth() {
 
 function die() {
   state = 'dead';
+  killStreak = 0; streakTimer = 0;
   document.exitPointerLock();
   const acc = shots ? Math.round((hits / shots) * 100) : 0;
   // Built with DOM APIs, not innerHTML — this was the codebase's only
@@ -428,6 +558,18 @@ function startRun() {
   applySelectedBiome();
   bots.forEach(b => scene.remove(b.root));
   bots = []; kills = 0; shots = 0; hits = 0; wave = 0;
+  // Fun-feature reset: barrels restored, pickups cleared, streak cold.
+  explodedBarrels.clear();
+  for (const m of barrelMeshes) {
+    m.visible = true;
+    if (!world.shootables.includes(m)) world.shootables.push(m);
+    const col = barrelColliderOf.get(m);
+    if (col && !world.colliders.includes(col)) world.colliders.push(col);
+  }
+  for (const pk of pickups) scene.remove(pk.mesh);
+  pickups.length = 0;
+  killStreak = 0; streakTimer = 0; inspectT = 0;
+  player.gun.rotation.set(0, 0, 0);
   currentId = getWeapon(startingId).id;   // canonicalize (Aegis, Board 001)
   for (const w of WEAPONS) mags[w.id] = w.mag;
   reloading = 0; fireCooldown = 0; bloom = 0;
@@ -493,6 +635,7 @@ const KEYMAP = { KeyW: 'forward', KeyS: 'back', KeyA: 'left', KeyD: 'right', Shi
 addEventListener('keydown', e => {
   if (KEYMAP[e.code] !== undefined) { input[KEYMAP[e.code]] = true; if (e.code === 'Space') e.preventDefault(); }
   if (e.code === 'KeyR' && state === 'playing') reload();
+  if (e.code === 'KeyF' && state === 'playing' && inspectT <= 0) inspectT = INSPECT_LEN;
   if (state === 'playing' && e.code.startsWith('Digit')) {
     const n = Number(e.code.slice(5));
     if (n >= 1 && n <= WEAPON_ORDER.length) switchWeapon(WEAPON_ORDER[n - 1]);
@@ -564,6 +707,47 @@ function tick() {
       if (t.life <= 0) t.line.visible = false;
     }
     vignette.style.opacity = Math.max(0, vignette.style.opacity - dt * 1.6);
+
+    // --- fun features tick ---
+    if (streakTimer > 0) {
+      streakTimer -= dt;
+      if (streakTimer <= 0) killStreak = 0;
+    }
+    for (const e of explosionPool) {
+      if (e.life <= 0) continue;
+      e.life -= dt;
+      const k = Math.max(0, e.life / 0.38);
+      const r = 0.6 + (1 - k) * 6.0;
+      e.mesh.scale.set(r, r * 0.7, r);
+      e.mesh.material.opacity = k * 0.55;
+      if (e.life <= 0) e.mesh.visible = false;
+    }
+    for (let i = pickups.length - 1; i >= 0; i--) {
+      const pk = pickups[i];
+      pk.life -= dt;
+      pk.mesh.rotation.y += dt * 2.2;
+      pk.mesh.position.y = pk.baseY + 0.55 + Math.sin(performance.now() * 0.003 + i * 1.7) * 0.08;
+      const dx = player.position.x - pk.mesh.position.x;
+      const dz = player.position.z - pk.mesh.position.z;
+      const near = dx * dx + dz * dz < 1.6 && Math.abs(player.position.y - pk.baseY) < 2.2;
+      if (near) {
+        if (pk.kind === 'health') { player.hp = Math.min(100, player.hp + 40); updateHealth(); }
+        else { for (const w of WEAPONS) mags[w.id] = w.mag; ammoNum.textContent = mags[currentId]; }
+        sfx.pickup();
+        scene.remove(pk.mesh);
+        pickups.splice(i, 1);
+      } else if (pk.life <= 0) {
+        scene.remove(pk.mesh);
+        pickups.splice(i, 1);
+      }
+    }
+    if (inspectT > 0) {
+      inspectT -= dt;
+      const p = 1 - Math.max(0, inspectT) / INSPECT_LEN;
+      const k = Math.sin(p * Math.PI);
+      player.gun.rotation.set(k * 0.28, k * 0.85, k * 0.12);
+      if (inspectT <= 0) player.gun.rotation.set(0, 0, 0);
+    }
   }
 
   quality.update(dt);
