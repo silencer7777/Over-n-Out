@@ -1,0 +1,16 @@
+name: Over n' Out CI
+# Runs on GitHub's servers on every push/PR — this is the always-on
+# safety net: no broken code ever lands quietly.
+on:
+  push:
+  pull_request:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax + server smoke test
+        run: node tools/smoke.mjs
