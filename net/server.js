@@ -38,6 +38,7 @@ import { WEAPONS } from '../js/weapons.js';
 import { MODE_ORDER } from '../js/modes.js';
 import { validateClass } from '../js/loadouts.js';
 import { XP_VALUES } from '../js/progression.js';
+import { isMapId, DEFAULT_MAP_ID } from '../js/maps.js';
 import {
   createMatch,
   startWaveSim,
@@ -46,6 +47,17 @@ import {
   addSimPlayer,
   removeSimPlayer,
 } from './sim.js';
+
+// XP sources priced OUTSIDE js/progression.js XP_VALUES for
+// now: the UAV denial bonus (Havoc's ruling prices the
+// shoot-down at 75 XP; js/streaks.js already names 'uavDenial'
+// as an XP source that feeds the streak meter zero). Flagged
+// to the Coordinator: XP_VALUES should absorb this key, at
+// which point this table can retire.
+const XP_EXTRA = { uavDenial: 75 };
+function xpPrice(source) {
+  return XP_VALUES[source] !== undefined ? XP_VALUES[source] : XP_EXTRA[source];
+}
 import { pathToFileURL } from 'node:url';
 
 // Deterministic per-room sim seed (FNV-1a over the room code), so
@@ -155,17 +167,19 @@ export class GameServer {
     return this._timer !== null;
   }
 
-  // createRoom(code, { mode }) -> room. Idempotent per code:
+  // createRoom(code, { mode, map }) -> room. Idempotent per code:
   // asking for an existing room returns it (a second `hello` for
-  // the same code must not wipe the match — or its mode).
-  // `mode` is a js/modes.js id; an unknown id falls back to
-  // DEFAULT_MODE rather than inventing a mode the sim can't run.
-  createRoom(code, { mode } = {}) {
+  // the same code must not wipe the match — or its mode/map).
+  // `mode` is a js/modes.js id and `map` a js/maps.js id; unknown
+  // ids fall back to the defaults rather than inventing a mode or
+  // a map the sim can't run.
+  createRoom(code, { mode, map } = {}) {
     const existing = this.rooms.get(code);
     if (existing) return existing;
     const room = {
       code,
       mode: MODE_ORDER.includes(mode) ? mode : DEFAULT_MODE,
+      map: isMapId(map) ? map : DEFAULT_MAP_ID,
       players: new Map(),
       tick: 0,
       state: 'lobby',
@@ -174,6 +188,7 @@ export class GameServer {
       pendingEvents: [],     // sim events awaiting delivery on the next tick
       xp: new Map(),         // M4: playerId -> { counts: {source: n} } session XP tallies
       resultsSent: false,    // M4: the `results` event fires exactly once per match
+      _modeSettled: false,   // V5: matchWin/matchLoss settle exactly once, on mode_end (or run_over)
       _headMarks: new Map(), // M4: botId -> playerId of the latest headshot (XP bonus)
       _snapAcc: 0,           // snapshot-rate accumulator
     };
@@ -295,6 +310,12 @@ export class GameServer {
         if (msg.mode !== undefined && !MODE_ORDER.includes(msg.mode)) {
           return this._error(playerId, 'bad_mode', `unknown mode: ${msg.mode}`);
         }
+        // Map membership (Board 005 §3.3, js/maps.js owns the
+        // ids): same discipline as mode — bad_map mirrors
+        // bad_mode.
+        if (msg.map !== undefined && !isMapId(msg.map)) {
+          return this._error(playerId, 'bad_map', `unknown map: ${msg.map}`);
+        }
         // Loadout (Board 004 §3): the class is validated against
         // the SAME tables the client built it from, before the
         // sim ever sees the player. The sanitized class — never
@@ -307,10 +328,12 @@ export class GameServer {
           }
           loadout = vc.cls;
         }
-        // The first hello to a FRESH room sets the room's mode;
-        // later hellos join the mode the room already runs.
-        if (!room.match && room.players.size === 0 && msg.mode !== undefined) {
-          room.mode = msg.mode;
+        // The first hello to a FRESH room sets the room's mode
+        // and map; later hellos join the mode/map the room
+        // already runs.
+        if (!room.match && room.players.size === 0) {
+          if (msg.mode !== undefined) room.mode = msg.mode;
+          if (msg.map !== undefined) room.map = msg.map;
         }
         const player = {
           id: playerId,
@@ -324,22 +347,27 @@ export class GameServer {
         room.players.set(playerId, player);
         if (!room.xp.has(playerId)) room.xp.set(playerId, { counts: {} });
         // M1: the first hello boots the room's headless match and
-        // every hello adds a sim player to it. The wave-1 event
-        // queued by startWaveSim rides the next tick's delivery.
+        // every hello adds a sim player to it. The match is
+        // constructed WITH the room's mode and map (V5): the
+        // sim's mode layer and world both key off them at
+        // creation — assigning modeId afterwards would leave a
+        // waves-shaped mode state under a round-mode id. The
+        // sanitized loadout class goes into the sim with the
+        // player (Board 004 §3). The wave-1 event queued by
+        // startWaveSim rides the next tick's delivery; the
+        // round modes have no wave director to start.
         if (!room.match) {
-          room.match = createMatch(seedFromCode(room.code));
-          // Mode carriage into the sim: the mode layer reads its
-          // id off the match state; snapshots report it back.
-          room.match.modeId = room.mode;
+          room.match = createMatch(seedFromCode(room.code), { modeId: room.mode, mapId: room.map });
           room.state = 'playing';
-          startWaveSim(room.match, room.pendingEvents);
+          if (room.mode === 'waves') startWaveSim(room.match, room.pendingEvents);
         }
         if (!room.match.players.has(playerId)) {
-          addSimPlayer(room.match, playerId, msg.name);
+          addSimPlayer(room.match, playerId, msg.name, loadout);
         }
         // Welcome (§5.1) — carrying the server's weapons table so
         // a client can catch version skew at the handshake, plus
-        // the room's mode and the accepted (sanitized) loadout.
+        // the room's mode, map, and the accepted (sanitized)
+        // loadout.
         const welcome = {
           t: MSG.WELCOME,
           playerId,
@@ -349,6 +377,7 @@ export class GameServer {
           snapshotRate: this.snapshotRate,
           room: room.code,
           mode: room.mode,
+          map: room.map,
           loadout,
           weapons: WEAPONS,
         };
@@ -449,30 +478,71 @@ export class GameServer {
       } else if (ev.kind === 'wave_clear') {
         for (const pid of room.players.keys()) bump(pid, 'waveClear');
       }
-      if (ev.xp && room.players.has(ev.xp.player) && XP_VALUES[ev.xp.source] !== undefined) {
+      if (ev.xp && room.players.has(ev.xp.player) && xpPrice(ev.xp.source) !== undefined) {
         bump(ev.xp.player, ev.xp.source, Math.max(1, Math.floor(ev.xp.count) || 1));
       }
     }
   }
 
-  _resultsEvent(room) {
+  // The session XP summary in the shape both `results` and the
+  // contract's mode_end carriage use: { pid: { gained, bySource } }.
+  _xpSummary(room) {
     const xp = {};
     for (const [pid, rec] of room.xp) {
       const bySource = {};
       let gained = 0;
       for (const [source, count] of Object.entries(rec.counts)) {
-        const per = XP_VALUES[source];
+        const per = xpPrice(source);
         if (!per || !count) continue;
         bySource[source] = per * count;
         gained += per * count;
       }
       xp[pid] = { gained, bySource };
     }
+    return xp;
+  }
+
+  _resultsEvent(room) {
+    const m = room.match;
     return {
-      t: MSG.EVENT, kind: 'results', tick: room.match.tick,
-      room: room.code, mode: room.mode,
-      wave: room.match.wave, kills: room.match.kills, xp,
+      t: MSG.EVENT, kind: 'results', tick: m.tick,
+      room: room.code, mode: room.mode, map: room.map,
+      wave: m.wave, kills: m.kills,
+      result: m.mode && m.mode.result ? m.mode.result : null,
+      scoreYou: m.mode ? (m.mode.scoreYou || 0) : 0,
+      scoreThem: m.mode ? (m.mode.scoreThem || 0) : 0,
+      xp: this._xpSummary(room),
     };
+  }
+
+  // Settle the mode layer's ending exactly once (V5): a mode_end
+  // event pays matchWin / matchLoss to every player in the room;
+  // a Wave Defense run that ends without the wave-10 win pays
+  // matchLoss at run_over. The sim stays the only decider — this
+  // layer only prices its verdict.
+  _settleModeEnd(room, events) {
+    const bumpAll = (source) => {
+      for (const pid of room.players.keys()) {
+        const rec = room.xp.get(pid);
+        if (rec) rec.counts[source] = (rec.counts[source] || 0) + 1;
+      }
+    };
+    for (const ev of events) {
+      if (ev.kind === 'mode_end' && !room._modeSettled) {
+        room._modeSettled = true;
+        bumpAll(ev.result === 'win' ? 'matchWin' : 'matchLoss');
+        // Contract §4 carriage: the mode_end event itself
+        // reports the settled XP maps.
+        const xp = this._xpSummary(room);
+        const xpBySource = {};
+        for (const [pid, entry] of Object.entries(xp)) xpBySource[pid] = entry.bySource;
+        ev.xp = Object.fromEntries(Object.entries(xp).map(([pid, entry]) => [pid, entry.gained]));
+        ev.xpBySource = xpBySource;
+      } else if (ev.kind === 'run_over' && !room._modeSettled) {
+        room._modeSettled = true;
+        bumpAll('matchLoss');
+      }
+    }
   }
 
   // onTick(room) — M1: step the room's headless sim one tick
@@ -491,9 +561,20 @@ export class GameServer {
     stepMatch(room.match, 1 / this.tickRate, events);
     if (events.length) {
       this._tallyXp(room, events);
+      this._settleModeEnd(room, events);
       for (const ev of events) {
-        const msg = { t: MSG.EVENT, tick: room.match.tick, ...ev };
-        for (const pid of room.players.keys()) this._reply(pid, msg);
+        if (ev.kind === 'flash_explode' && ev.blinds) {
+          // Per-recipient delivery (contract §4): each client
+          // learns only its OWN blind duration; the blinds map
+          // never leaves the server.
+          for (const pid of room.players.keys()) {
+            const { blinds, ...rest } = ev;
+            this._reply(pid, { t: MSG.EVENT, tick: room.match.tick, ...rest, blind: blinds[pid] ?? 0 });
+          }
+        } else {
+          const msg = { t: MSG.EVENT, tick: room.match.tick, ...ev };
+          for (const pid of room.players.keys()) this._reply(pid, msg);
+        }
       }
       events.length = 0;
     }
@@ -503,6 +584,7 @@ export class GameServer {
       for (const pid of room.players.keys()) {
         const snap = buildSnapshot(room.match, pid);
         snap.match.mode = room.mode;
+        snap.match.map = room.map;
         snap.match.objectives = room.match.objectives ?? null;
         this._reply(pid, snap);
       }
