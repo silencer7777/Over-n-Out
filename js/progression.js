@@ -83,6 +83,22 @@ export const UNLOCKS = [
   { level: 16, kind: 'attachment', id: 'shortbarrel', label: 'SHORT BARREL' },
   { level: 17, kind: 'attachment', id: 'suppressor', label: 'SUPPRESSOR' },
   { level: 18, kind: 'classSlot', slot: 5, label: 'CLASS SLOT 5' },
+  // V5 perks (Board 005 Addendum 3 — Havoc's frame: sprinkled
+  // L3–L17 beside the attachment rungs; rungs assigned by the
+  // Coordinator). Perks are power-lane (bounded single-axis
+  // modifiers), so they live on the power ladder, not prestige.
+  { level: 3, kind: 'perk', id: 'lightweight', label: 'PERK — LIGHTWEIGHT' },
+  { level: 5, kind: 'perk', id: 'flak', label: 'PERK — FLAK JACKET' },
+  { level: 7, kind: 'perk', id: 'ghost', label: 'PERK — GHOST' },
+  { level: 9, kind: 'perk', id: 'stalker', label: 'PERK — STALKER' },
+  { level: 11, kind: 'perk', id: 'shade', label: 'PERK — SHADE' },
+  { level: 13, kind: 'perk', id: 'coldblooded', label: 'PERK — COLD-BLOODED' },
+  { level: 15, kind: 'perk', id: 'engineer', label: 'PERK — ENGINEER' },
+  { level: 17, kind: 'perk', id: 'scavenger', label: 'PERK — SCAVENGER' },
+  // V5 attachments (Board 005 §10).
+  { level: 10, kind: 'attachment', id: 'compensator', label: 'COMPENSATOR' },
+  { level: 12, kind: 'attachment', id: 'angledgrip', label: 'ANGLED GRIP' },
+  { level: 14, kind: 'attachment', id: 'cqbstock', label: 'CQB STOCK' },
 ];
 
 export function unlockedClassSlots(level) {
@@ -96,6 +112,16 @@ export function isAttachmentUnlocked(level, attachmentId) {
   return !u || level >= u.level;   // unlisted attachments are never gated
 }
 
+export function isPerkUnlocked(level, perkId) {
+  const u = UNLOCKS.find(x => x.kind === 'perk' && x.id === perkId);
+  return !u || level >= u.level;   // unlisted perks are never gated
+}
+
+export function isCamoUnlocked(level, camoId) {
+  const u = PRESTIGE.find(x => x.kind === 'camo' && x.id === camoId);
+  return !u || level >= u.level;   // woodland (unlisted) is always available
+}
+
 // Prestige track (Havoc ruling §4): L19–30 rewards — titles and
 // tracer tints ONLY. Zero power past L18, by rule. Prestige never
 // gates attachments or class slots.
@@ -107,6 +133,13 @@ export const PRESTIGE = [
   { level: 27, kind: 'prestige', id: 'tower-warden', label: 'TITLE — TOWER WARDEN' },
   { level: 29, kind: 'prestige', id: 'void-tracers', label: 'VOID TRACERS (tracer tint)' },
   { level: 30, kind: 'prestige', id: 'meridian-master', label: 'TITLE — MERIDIAN MASTER · MAX RANK' },
+  // V5 camo unlocks (Board 005 §10 + Addendum 3): the cosmetic
+  // lane extends onto the prestige track — zero power, as ruled.
+  // Ids are js/camo.js CAMO_IDS; 'woodland' is the unlisted base.
+  { level: 20, kind: 'camo', id: 'desert', label: 'CAMO — DESERT (weapon + uniform)' },
+  { level: 22, kind: 'camo', id: 'arctic', label: 'CAMO — ARCTIC (weapon + uniform)' },
+  { level: 24, kind: 'camo', id: 'urban', label: 'CAMO — URBAN (weapon + uniform)' },
+  { level: 26, kind: 'camo', id: 'night', label: 'CAMO — NIGHT (weapon + uniform)' },
 ];
 
 // Everything earned between two levels: power unlocks + prestige,
