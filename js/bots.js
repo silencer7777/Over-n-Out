@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { collide } from './world.js';
 import { getWeapon } from './weapons.js';
+import { mergeColoredParts } from './geo.js';
+import { buildBotGun } from './gunmodels.js';
 
 const _v = new THREE.Vector3();
 const _ray = new THREE.Raycaster();
@@ -54,14 +56,86 @@ const MOVEMENT = {
   pistol: { close: 14, strafeMin: 5, strafeMax: 15, backoff: 5, speedMult: 1.0 },
 };
 
-// Gun visual scales per weapon id.
-const GUN_SCALES = {
-  ar: [1, 1, 1],
-  smg: [1.35, 1.3, 0.62],
-  shotgun: [1.5, 1.5, 1.3],
-  dmr: [0.85, 0.9, 1.6],
-  pistol: [0.9, 1.0, 0.38],
+// CHARACTER REALISM (V3 Phase 2, workstream 2 — Silhouette Ricci /
+// Polygon Dvorak modelling, Verity sign-off): the bot body is built
+// from ~35 shaped parts (legs + boots + knee pads; torso + plate
+// vest + pouches + arms + backpack + antenna; head + helmet + jaw
+// guard) with believable humanoid proportions (~1.85 m), then each
+// hit region is MERGED into a single vertex-coloured mesh via
+// geo.js. Draw calls per bot are UNCHANGED (legs / torso / head /
+// visor / gun / 2 HP sprites = 7) — detail came from geometry, not
+// from more meshes (Nakamura's rule). Hit volumes are preserved:
+// legs, torso and head keep the exact boxes the v0.2 raycast tuned
+// against; gear sits ON those volumes, never inside the silhouette
+// the player aims at. One shared body material for every bot.
+// READABILITY (Phase 2 playtest fix — Verity ruling: readability
+// wins ties): the shared body material carries a faint warm
+// emissive floor (0x180505) so a bot in full shadow never crushes
+// to pure black, and the suit reds are lifted a step. Zero draw
+// calls, zero per-frame cost — it is the same one material.
+const BOT_BODY_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.05, emissive: 0x180505 });
+const BOT_COLORS = {
+  suit: 0x8c3636,      // hostile red-brown uniform, lifted for dusk readability (was 0x7a2e2e)
+  suitDark: 0x6e2a2a,
+  dark: 0x23272c,      // trousers / sleeves
+  gear: 0x2e3238,      // vest, helmet, pack
+  gearLight: 0x3a4046, // pouches
+  skin: 0xc9a189,
+  boot: 0x14161a,
+  steel: 0x3a3f45,
 };
+const _box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+const _cylY = (r, len, seg = 8) => new THREE.CylinderGeometry(r, r, len, seg);
+function _part(list, geo, color, x, y, z, rx = 0, ry = 0, rz = 0) {
+  list.push({ geo, color, x, y, z, rx, ry, rz });
+}
+
+function buildBotLegs() {
+  const L = [];
+  for (const s of [-1, 1]) {
+    _part(L, _box(0.21, 0.78, 0.25), BOT_COLORS.dark, s * 0.145, 0.48, 0);          // leg
+    _part(L, _box(0.22, 0.15, 0.37), BOT_COLORS.boot, s * 0.145, 0.075, -0.045);   // boot
+    _part(L, _box(0.17, 0.19, 0.06), BOT_COLORS.gear, s * 0.145, 0.52, -0.145);    // knee pad
+    _part(L, _box(0.23, 0.10, 0.27), BOT_COLORS.suitDark, s * 0.145, 0.90, 0);      // thigh pocket block
+  }
+  return new THREE.Mesh(mergeColoredParts(L), BOT_BODY_MAT);
+}
+
+function buildBotTorso() {
+  const L = [];
+  _part(L, _box(0.66, 0.72, 0.38), BOT_COLORS.suit, 0, 1.11, 0);                    // torso core (hitbox)
+  _part(L, _box(0.56, 0.24, 0.34), BOT_COLORS.suitDark, 0, 0.84, 0);                // pelvis / belt line
+  _part(L, _box(0.58, 0.54, 0.10), BOT_COLORS.gear, 0, 1.17, -0.225);               // plate vest (front)
+  _part(L, _box(0.58, 0.54, 0.07), BOT_COLORS.gear, 0, 1.17, 0.215);                // vest back panel
+  for (const px of [-0.17, 0, 0.17]) {
+    _part(L, _box(0.13, 0.19, 0.055), BOT_COLORS.gearLight, px, 1.04, -0.285);      // magazine pouches
+  }
+  _part(L, _box(0.30, 0.11, 0.30), BOT_COLORS.gear, 0, 1.505, 0);                   // collar / neck guard
+  for (const s of [-1, 1]) {
+    _part(L, _box(0.25, 0.21, 0.31), BOT_COLORS.suit, s * 0.445, 1.385, 0);          // shoulder / deltoid
+    _part(L, _box(0.16, 0.20, 0.20), BOT_COLORS.gear, s * 0.45, 1.44, 0);           // shoulder pad
+  }
+  _part(L, _box(0.15, 0.42, 0.17), BOT_COLORS.dark, -0.465, 1.12, 0);               // left upper arm
+  _part(L, _box(0.15, 0.40, 0.17), BOT_COLORS.dark, 0.44, 1.15, -0.09, 0.5);        // right upper arm (forward)
+  _part(L, _box(0.13, 0.13, 0.40), BOT_COLORS.dark, 0.35, 1.17, -0.30);             // right forearm (to gun)
+  _part(L, _box(0.13, 0.13, 0.36), BOT_COLORS.dark, -0.33, 1.10, -0.24, 0.25);      // left forearm (support hand)
+  _part(L, _box(0.47, 0.56, 0.19), BOT_COLORS.gear, 0, 1.18, 0.295);                // backpack
+  _part(L, _box(0.32, 0.24, 0.06), BOT_COLORS.gearLight, 0, 1.02, 0.415);           // pack pouch
+  _part(L, _cylY(0.008, 0.52), BOT_COLORS.steel, 0.16, 1.70, 0.31);                 // antenna
+  return new THREE.Mesh(mergeColoredParts(L), BOT_BODY_MAT);
+}
+
+function buildBotHead() {
+  const L = [];
+  _part(L, _box(0.34, 0.36, 0.34), BOT_COLORS.skin, 0, 1.66, 0);                    // head core (hitbox)
+  _part(L, _box(0.43, 0.21, 0.43), BOT_COLORS.gear, 0, 1.795, 0);                   // helmet dome
+  _part(L, _box(0.45, 0.05, 0.45), BOT_COLORS.gear, 0, 1.705, 0);                   // helmet brim
+  _part(L, _box(0.31, 0.13, 0.06), BOT_COLORS.gear, 0, 1.545, -0.185);              // jaw guard
+  _part(L, _box(0.36, 0.10, 0.38), BOT_COLORS.suitDark, 0, 1.565, 0.01);            // neck / balaclava
+  const head = new THREE.Mesh(mergeColoredParts(L), BOT_BODY_MAT);
+  head.userData.part = 'head';
+  return head;
+}
 
 function rollBurstCooldown(weaponId) {
   const c = BURST_COOLDOWNS[weaponId] || BURST_COOLDOWNS.ar;
@@ -120,34 +194,20 @@ export class Bot {
     this.cachedLOS = false;
 
     const root = new THREE.Group();
-    const suit = new THREE.MeshStandardMaterial({ color: 0x7a2e2e, roughness: 0.8 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x23272c, roughness: 0.7 });
-    const skin = new THREE.MeshStandardMaterial({ color: 0xc9a189, roughness: 0.9 });
-
-    const legs = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.75, 0.34), dark); legs.position.y = 0.375;
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.72, 0.38), suit); torso.position.y = 1.11;
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.36, 0.34), skin); head.position.y = 1.66;
-    head.userData.part = 'head';
+    // Character realism build (see BOT_BODY_MAT note above): three
+    // merged hit-region meshes + visor + the realistic merged gun
+    // from js/gunmodels.js (scope included in the DMR geometry —
+    // no separate scope mesh any more).
+    const legs = buildBotLegs();
+    const torso = buildBotTorso();
+    const head = buildBotHead();
     const visor = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.09, 0.02),
       new THREE.MeshStandardMaterial({ color: 0xff4444, emissive: 0xaa1111 }));
-    visor.position.set(0, 1.70, -0.18);
-    // Gun: its OWN material coloured by weapon tint (never mutate the
-    // shared dark material — the legs use it).
-    const gunMat = new THREE.MeshStandardMaterial({ color: this.weapon.tint, roughness: 0.7 });
-    const gun = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, 0.55), gunMat);
-    const gs = GUN_SCALES[this.weaponId] || GUN_SCALES.ar;
-    gun.scale.set(gs[0], gs[1], gs[2]);
+    visor.position.set(0, 1.70, -0.185);
+    const gun = buildBotGun(this.weaponId);
     const gunY = this.weaponId === 'pistol' ? 1.18 : 1.22;
-    // Re-centre z so the butt stays at the hand: z = -(0.025 + length/2),
-    // length = 0.55 * scale.z (original: -(0.025 + 0.275) = -0.3).
-    const gunZ = -(0.025 + (0.55 * gs[2]) / 2);
-    gun.position.set(0.3, gunY, gunZ);
+    gun.position.set(0.3, gunY, -0.10);
     root.add(legs, torso, head, visor, gun);
-    if (this.weaponId === 'dmr') {
-      const scope = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, 0.18), gunMat);
-      scope.position.set(0.3, gunY + (0.1 * gs[1]) / 2 + 0.03, gunZ);
-      root.add(scope);
-    }
     root.traverse(o => { o.userData.botRef = this; });
     this.hitMeshes = [legs, torso, head];
     this.root = root;
