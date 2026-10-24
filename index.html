@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>OVER N' OUT — Browser FPS</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="crosshair"><span></span><span></span><span></span><span></span></div>
+  <div id="hitmarker">✕</div>
+  <div id="wave-banner"></div>
+  <div id="stats-top">
+    <div>WAVE <b id="ui-wave">1</b></div>
+    <div>KILLS <b id="ui-kills">0</b></div>
+    <div>HOSTILES <b id="ui-left">0</b></div>
+  </div>
+  <div id="health-wrap">
+    <div id="health-label">INTEGRITY</div>
+    <div id="health-bar"><div id="health-fill"></div></div>
+    <div id="health-num">100</div>
+  </div>
+  <div id="ammo-wrap">
+    <div id="ammo-num">30</div>
+    <div id="ammo-label">/ ∞ &nbsp;·&nbsp; R — RELOAD</div>
+  </div>
+  <div id="vignette"></div>
+</div>
+
+<!-- MENU / PAUSE / DEATH overlay -->
+<div id="menu">
+  <h1>OVER <span>N'</span> OUT</h1>
+  <p class="tag">TACTICAL BROWSER FPS · v0.1 “FIRST DROP”</p>
+  <p id="menu-msg">Hostile waves inbound. Hold the compound.</p>
+  <button id="play-btn">▶ &nbsp;DEPLOY</button>
+  <div class="controls">
+    <div><b>W A S D</b> Move</div>
+    <div><b>MOUSE</b> Aim</div>
+    <div><b>CLICK</b> Fire</div>
+    <div><b>SHIFT</b> Sprint</div>
+    <div><b>SPACE</b> Jump</div>
+    <div><b>R</b> Reload</div>
+  </div>
+  <p class="fine">Desktop + mouse recommended for now — mobile controls are on the roadmap.</p>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js" } }
+</script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
