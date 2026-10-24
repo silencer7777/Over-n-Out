@@ -91,3 +91,38 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0b0f14; font-
 #online-btn { pointer-events:auto; cursor:pointer; background:rgba(255,255,255,.06); border:1px solid rgba(157,209,255,.5); color:#cfe8ff; padding:9px 18px; font-size:12px; font-weight:700; letter-spacing:2px; border-radius:4px; }
 #online-btn:hover { border-color:rgba(157,209,255,.95); }
 #online-status { font-size:12px; color:#9fd8a8; letter-spacing:1px; }
+
+/* ---------- V6 mobile (Directive V6-2) ---------- */
+/* Touch overlay: built by js/touchcontrols.js, shown only while a
+   run is live on coarse-pointer devices. Sits above the HUD (z 5),
+   below the menu (z 10). Every control clears the 44px tap floor. */
+#touch-layer { position:fixed; inset:0; z-index:6; display:none; touch-action:none; -webkit-touch-callout:none; user-select:none; -webkit-user-select:none; }
+#touch-layer.on { display:block; }
+.tc-stick-base { position:absolute; width:116px; height:116px; margin:-58px 0 0 -58px; border-radius:50%; border:2px solid rgba(182,255,176,.4); background:rgba(255,255,255,.05); pointer-events:none; }
+.tc-stick-knob { position:absolute; left:50%; top:50%; width:54px; height:54px; border-radius:50%; background:rgba(182,255,176,.28); border:2px solid rgba(182,255,176,.65); }
+.tc-btn { position:absolute; display:flex; align-items:center; justify-content:center; border-radius:50%; background:rgba(10,20,14,.55); border:2px solid rgba(182,255,176,.55); color:#d9e8db; font-family:inherit; font-size:11px; font-weight:700; letter-spacing:1px; touch-action:none; padding:0; }
+.tc-btn.on { background:rgba(57,255,106,.35); border-color:#39ff6a; color:#fff; }
+.tc-fire { width:88px; height:88px; right:calc(22px + env(safe-area-inset-right)); bottom:calc(92px + env(safe-area-inset-bottom)); font-size:15px; border-color:rgba(255,211,77,.75); color:#ffd34d; }
+.tc-jump { width:62px; height:62px; right:calc(126px + env(safe-area-inset-right)); bottom:calc(96px + env(safe-area-inset-bottom)); }
+.tc-ads { width:62px; height:62px; right:calc(34px + env(safe-area-inset-right)); bottom:calc(196px + env(safe-area-inset-bottom)); }
+.tc-reload { width:54px; height:54px; right:calc(122px + env(safe-area-inset-right)); bottom:calc(178px + env(safe-area-inset-bottom)); }
+.tc-lethal { width:54px; height:54px; right:calc(26px + env(safe-area-inset-right)); bottom:calc(282px + env(safe-area-inset-bottom)); }
+.tc-tactical { width:54px; height:54px; right:calc(94px + env(safe-area-inset-right)); bottom:calc(262px + env(safe-area-inset-bottom)); }
+.tc-pause { width:48px; height:48px; left:calc(14px + env(safe-area-inset-left)); top:calc(12px + env(safe-area-inset-top)); font-size:14px; }
+.tc-streak { width:54px; height:54px; left:calc(14px + env(safe-area-inset-left)); top:calc(74px + env(safe-area-inset-top)); font-size:9px; }
+.tc-slots { position:absolute; left:50%; transform:translateX(-50%); bottom:calc(66px + env(safe-area-inset-bottom)); display:flex; gap:8px; }
+.tc-slot { position:relative; width:54px; height:46px; border-radius:8px; background:rgba(10,20,14,.55); border:2px solid rgba(182,255,176,.4); color:#9fd8a8; font-family:inherit; font-size:11px; font-weight:700; letter-spacing:1px; touch-action:none; padding:0; }
+.tc-slot.active { border-color:#39ff6a; color:#fff; background:rgba(57,255,106,.22); }
+.tc-slot.on { background:rgba(57,255,106,.35); }
+
+/* Touch-mode shell: 44px+ targets everywhere in the menu, no
+   double-tap zoom, HUD readouts moved clear of the thumb cluster. */
+body.touch-mode { touch-action:manipulation; }
+body.touch-mode .wpn, body.touch-mode .cls-tab, body.touch-mode .att-select,
+body.touch-mode #mode-select, body.touch-mode #biome-select,
+body.touch-mode #online-panel input, body.touch-mode #online-btn { min-height:44px; }
+body.touch-mode #play-btn { min-height:56px; }
+body.touch-mode .controls { grid-template-columns:repeat(2, auto); font-size:12px; gap:8px 22px; }
+body.touch-mode #ammo-wrap { top:calc(104px + env(safe-area-inset-top)); bottom:auto; right:calc(20px + env(safe-area-inset-right)); }
+body.touch-mode #score-line { top:calc(216px + env(safe-area-inset-top)); }
+body.touch-mode #stats-top { top:calc(10px + env(safe-area-inset-top)); right:calc(16px + env(safe-area-inset-right)); }
