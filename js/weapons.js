@@ -63,7 +63,7 @@ export const WEAPONS = [
     mag: 36,
     reload: 1.15,
     spread: 0.009,
-    bloomRate: 1.6,
+    bloomRate: 1.3, // Havoc tune (V4 baseline §5): 1.6 pinned spread at max in sustained fire past 20 m; 1.3 softens the pin, identity (worst bloom in class) kept
     auto: true,
     pellets: 1,
     falloffStart: 12,
@@ -90,9 +90,9 @@ export const WEAPONS = [
     bloomRate: 0.5,
     auto: false,
     pellets: 8,
-    falloffStart: 4,
-    falloffEnd: 20,
-    falloffMin: 0.15,
+    falloffStart: 6, // Havoc tune (V4 baseline §5): was 4/20/0.15 — mid-band (8-18 m) pulls were ~32 dmg; now ~48 at 15 m. Point-blank unchanged.
+    falloffEnd: 24,
+    falloffMin: 0.25,
     recoil: 0.05,
     tint: 0xa03d2a,
     tracerColor: 0xff9a5c,
@@ -129,7 +129,7 @@ export const WEAPONS = [
   {
     id: 'pistol',
     name: 'PISTOL',
-    damage: 24,
+    damage: 25, // Havoc tune (V4 baseline §5): 24 left a 4-hit target at 4 HP (96 dmg tease); 25 makes 4 hits kill inside falloff range
     interval: 0.21,
     mag: 12,
     reload: 0.95,
