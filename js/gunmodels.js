@@ -40,6 +40,7 @@
 import * as THREE from 'three';
 import { mergeColoredParts, mergePartsByMaterial } from './geo.js';
 import { getWeapon } from './weapons.js';
+import { getCamo } from './camo.js';
 
 // Material palette (viewmodel). Bot builds bake the same colours
 // into vertex colours and share one standard material.
@@ -321,9 +322,13 @@ const ARM_ANCHORS = {
 };
 const ARM_COLORS = { sleeve: 0x4a5238, sleeveDark: 0x3a4130, glove: 0x23272c, skin: 0xc9a189 };
 
-export function buildViewmodelArms(weaponId) {
+export function buildViewmodelArms(weaponId, camoId = 'woodland') {
   const id = getWeapon(weaponId).id;
   const A = ARM_ANCHORS[id] || ARM_ANCHORS.ar;
+  // V5 camo: sleeve tones come from the camo family (woodland
+  // values == ARM_COLORS, so the default build is unchanged);
+  // gloves + skin are not camo fields and never change.
+  const sleeve = getCamo(camoId).sleeve;
   const parts = [];
   const C = (geo, color, x, y, z, rx = 0, ry = 0, rz = 0) => parts.push({ geo, color, x, y, z, rx, ry, rz });
   const [gx, gy, gz] = A.grip;
@@ -331,13 +336,13 @@ export function buildViewmodelArms(weaponId) {
   // Right hand + forearm (comes from lower right, behind the grip).
   C(box(0.062, 0.048, 0.085), ARM_COLORS.glove, gx, gy - 0.008, gz + 0.008, 0.35);            // right glove
   C(box(0.030, 0.016, 0.030), ARM_COLORS.skin, gx, gy + 0.016, gz + 0.038);                  // wrist skin
-  C(box(0.085, 0.075, 0.26), ARM_COLORS.sleeve, gx + 0.055, gy - 0.085, gz + 0.16, 0.55, 0, -0.35); // right forearm (camo)
-  C(box(0.088, 0.078, 0.10), ARM_COLORS.sleeveDark, gx + 0.028, gy - 0.038, gz + 0.075, 0.55, 0, -0.35); // cuff
+  C(box(0.085, 0.075, 0.26), sleeve.main, gx + 0.055, gy - 0.085, gz + 0.16, 0.55, 0, -0.35); // right forearm (camo)
+  C(box(0.088, 0.078, 0.10), sleeve.dark, gx + 0.028, gy - 0.038, gz + 0.075, 0.55, 0, -0.35); // cuff
   // Left hand + forearm (comes from lower left to the forend).
   C(box(0.060, 0.045, 0.095), ARM_COLORS.glove, fx, fy - 0.030, fz, 0.1);                    // left glove
   C(box(0.030, 0.016, 0.030), ARM_COLORS.skin, fx - 0.012, fy - 0.012, fz + 0.045);         // wrist skin
-  C(box(0.082, 0.072, 0.27), ARM_COLORS.sleeve, fx - 0.030, fy - 0.105, fz + 0.155, 0.62, 0, 0.22); // left forearm (camo)
-  C(box(0.085, 0.075, 0.10), ARM_COLORS.sleeveDark, fx - 0.018, fy - 0.052, fz + 0.068, 0.62, 0, 0.22); // cuff
+  C(box(0.082, 0.072, 0.27), sleeve.main, fx - 0.030, fy - 0.105, fz + 0.155, 0.62, 0, 0.22); // left forearm (camo)
+  C(box(0.085, 0.075, 0.10), sleeve.dark, fx - 0.018, fy - 0.052, fz + 0.068, 0.62, 0, 0.22); // cuff
   const mesh = new THREE.Mesh(
     mergeColoredParts(parts),
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0.0 })
@@ -350,15 +355,21 @@ export function buildViewmodelArms(weaponId) {
 // Viewmodel: one mesh per material, real PBR-ish materials so metal
 // reads as metal at arm's length. Returns { group, muzzle,
 // accentMaterial, partCount }. Caller owns disposal.
-export function buildViewmodelGun(weaponId, attachmentIds = []) {
+export function buildViewmodelGun(weaponId, attachmentIds = [], camoId = 'woodland') {
   const { parts, muzzle } = buildGunParts(weaponId, attachmentIds);
   const byMat = mergePartsByMaterial(parts);
   const group = new THREE.Group();
   group.name = 'gun-' + getWeapon(weaponId).id;
+  // V5 camo: a non-woodland variant retints the furniture/metal
+  // buckets from the camo family. Accent (the weapon-identity
+  // tint channel) and glass are NOT camo fields — untouched.
+  // Same buckets, same mesh count: zero extra draw calls.
+  const camoW = camoId && camoId !== 'woodland' ? getCamo(camoId).weapon : null;
   let accentMaterial = null;
   for (const [key, geo] of byMat) {
     const spec = GUN_MATERIALS[key] || GUN_MATERIALS.metal;
-    const mat = new THREE.MeshStandardMaterial({ color: spec.color, roughness: spec.roughness, metalness: spec.metalness });
+    const color = camoW && camoW[key] !== undefined ? camoW[key] : spec.color;
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: spec.roughness, metalness: spec.metalness });
     if (key === 'accent') accentMaterial = mat;
     const mesh = new THREE.Mesh(geo, mat);
     mesh.frustumCulled = false;
@@ -374,17 +385,28 @@ export function buildViewmodelGun(weaponId, attachmentIds = []) {
 // weapon tint rides the receiver + magazine so a bot's weapon class
 // still reads at range, on top of the silhouette.
 const _botGeoCache = new Map();
-export function buildBotGun(weaponId, attachmentIds = []) {
+export function buildBotGun(weaponId, attachmentIds = [], camoId = 'woodland') {
   const id = getWeapon(weaponId).id;
-  const cacheKey = id + '|' + [...(attachmentIds || [])].sort().join(',');
+  const cacheKey = id + '|' + [...(attachmentIds || [])].sort().join(',') + '|c:' + (camoId || 'woodland');
   if (!_botGeoCache.has(cacheKey)) {
     const base = (BUILDERS[id] || BUILDERS.ar)();
     const parts = base.parts.concat(attachmentParts(id, attachmentIds, true));
     const tint = getWeapon(id).tint;
-    const colored = parts.map(p => ({
+    // V5 camo: a non-woodland variant patterns the furniture by
+    // part (deterministic tone rotation — the pattern IS the
+    // part segmentation) and retints metal/steel/wood from the
+    // family. Accent parts keep the weapon tint (identity
+    // channel, never camo). Woodland runs the exact V4 mapping.
+    const camoW = camoId && camoId !== 'woodland' ? getCamo(camoId).weapon : null;
+    const colored = parts.map((p, i) => ({
       ...p,
       color: p.mat === 'accent' ? tint
-        : (id !== 'pistol' && (p.mat === 'metal') && Math.abs(p.z) < 0.16 && p.y > -0.05 ? tint : BOT_COLORS[p.mat] || 0x2b2f34),
+        : camoW && p.mat === 'polymer' ? camoW.polymerPattern[i % camoW.polymerPattern.length]
+        : camoW && p.mat === 'wood' ? camoW.wood
+        : camoW && p.mat === 'steel' ? camoW.steel
+        : (id !== 'pistol' && (p.mat === 'metal') && Math.abs(p.z) < 0.16 && p.y > -0.05 ? tint
+          : camoW && p.mat === 'metal' ? camoW.metal
+          : BOT_COLORS[p.mat] || 0x2b2f34),
     }));
     // Simpler + honest: tint applies to accent parts only; the
     // receiver-tint heuristic above is limited to the receiver box
