@@ -173,6 +173,79 @@ no separate app, no mobile-only pivot.
   quality tier) with the V6 baseline; a delta from this interim
   bar is ratified by Addendum 1.
 
+## Addendum 1 — Struck thresholds ratified + Update 1 scored (Oct 24, 2026)
+
+The *(strike)* placeholders in §2 are now numbers. The V6
+baseline was measured twice independently — the Chief Engineer's
+harness (`tools/v6-metrics.mjs`, published as
+`docs/sessions/v6-metrics.md`, clean-worktree at c7f13d0 with
+graphics modules byte-identical to live V5) and an independent
+verifier's clean-worktree run at a2f8eb9 — and the two agree:
+**the blocky, quantified** = flat-shaded share 0.66–0.92 of client
+tris, textured share ≤ 0.10, **5 unique canvas textures total**,
+anisotropy set nowhere; sustained baselines Compound 113 calls /
+31,347 tris, Forest 122 / 84,409, Snow 121 / 35,971, Mars 124 /
+35,659 — all under the vetoes with headroom. Lighting integrity
+hash `a40a3f79c85670a6` UNTOUCHED; the locked grade re-measured
+numerically identical.
+
+**Ratified strikes:**
+- **Vetoes HOLD** (no evidence to move them): sustained ≤ 165
+  calls/map, ≤ 300k tris/map. Per-map *planning* budgets (not
+  vetoes): Compound 120k, Forest 200k, Snow 120k, Mars 120k tris.
+  Shadow-pass advisory ≤ 340 calls; per-update publication stands.
+- **Vegetation:** canopy ≥ 1,000 tris/tree and ≥ 150 tris/mass
+  ratified as the floor (the shipped 10×8 canopy geometry);
+  250 tris/mass is held as the Update 10 (Vegetation III)
+  aspiration. Compound tree count ≥ 12 is adopted **from this
+  addendum forward** (U1 held 7, rebuilt) — Update 6 owns closing
+  it. Forest ≥ 110 rendered stands as written (U1: 116 ✓).
+- **Buildings:** the verifier's counts are adopted forward —
+  Compound ≥ 20 named windows and ≥ 4 named doors by Update 6.
+  U1 shipped 9 windows (3 emissive buckets) + framed door gaps on
+  both Compound buildings; recorded as partial against the
+  adopted counts, full against §2.2 as written. Bevels delivered
+  as 45° chamfer strips + corner boards are **accepted for U1**
+  (play-distance read); true beveled box geometry remains a
+  follow-up ruling only if Brett's eye demands it.
+- **Terrain:** ≥ 3 ground materials/map binds at Update 3's
+  close (baseline: 1).
+- **Soldiers/guns (Update 4):** ≤ 2,500 tris/bot strike ratified
+  (baseline 1,356 — buys the capsule/sphere blending); ≤ 7
+  calls/bot and camo Δ0 stand as written.
+- **Materials (§2.5 strike STRUCK):** largest untextured
+  player-scale mesh ≤ **25 m² by Update 5** (baseline ≈ 3,815 m²);
+  ≥ 10 unique canvas textures per client map by Update 5
+  (baseline 5); textured-tris share ≥ 50% by Update 5; ground
+  anisotropy = renderer max by Update 5 (baseline: unset).
+- **Forest tris disposition:** post-U1 Forest client sustained =
+  206,302 tris — **+6k over its 200k planning budget**, accepted
+  for U1 (canopy density was the update's purpose; 94k of veto
+  headroom; shadow-pass est. 187 calls, inside both advisories).
+  Any further Forest tris growth (U7/U10) must name its
+  offsetting discipline in its ledger entry.
+
+**Mobile bar (Addendum A interim bar, struck):** (1) DPR ≤ 2
+hard; mobile start tier = L1 as landed (DPR ≤ 1.5, shadow 4096);
+(2) shadow-map size is the ONLY mobile lighting knob — on an FPS
+miss the first move is L1 shadow 4096 → 2048; grade, profiles and
+floors untouched, integrity hash is the check; (3) content parity
+— sustained ≤ 165 calls / ≤ 300k tris on mobile too, and mobile
+shadow-pass estimate ≤ 200 calls/map (post-U1 Forest: 187, inside,
+watch); (4) FPS target on Brett's iPhone 17 Pro, solo Wave
+Defense at wave ≥ 6 over 5 minutes: **median ≥ 55 FPS, 1% low
+≥ 30, quality scaler must not settle below L1 for > 30 s** — a
+settled L2/L3 on that run is a bar miss, reported, not hidden;
+(5) touch targets ≥ 44 px, as built in M1.
+
+**Update 1 score (detail in `docs/sessions/v6-update-01-report.md`):**
+§2.1 vegetation MET (both baseline warnings cleared); §2.2
+buildings MET as written, partial against the counts adopted
+above; vetoes held (Compound 119 calls, Forest 128); flat share
+0.92 → 0.031 (Forest), textured share → 0.945. Chief's Patrol #1
+concurs: §2.1 predicates flipped, NO VETO, one budget warning
+(Forest tris) — dispositioned above.
+
 ## Sign-off
 
 Board 006 rules the V6 bars as above. Atlas builds Update 1
