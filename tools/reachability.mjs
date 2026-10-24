@@ -176,6 +176,48 @@ if (worlddataSrc) {
 }
 for (const r of ROUTES) if (r.pass === 'PIN_RUIN') r.pass = ruinPin;
 
+// --- V5 structures (Atlas): Ops Building + Comms Shed pins and
+// numeric route proofs on the pure data module (the same
+// step/jump model as the course above: step 0.6, jump 1.6).
+if (worldSrc) {
+  if (!worldSrc.includes('solid(-32, 40.15, 10, 3.2, 0.3')) fail('V5 pin — Ops Building north wall missing from js/world.js');
+  else ok('V5 pin Ops Building exists in js/world.js (solid(-32, 40.15, 10, 3.2, 0.3 ...))');
+  if (!worldSrc.includes('elevated(-32, 3.2, 44, 10.4, 0.25, 8.4')) fail('V5 pin — Ops Building roof missing from js/world.js');
+  else ok('V5 pin Ops Building roof exists in js/world.js (elevated(-32, 3.2, 44, ...))');
+  if (!worldSrc.includes('solid(24, 53.65, 6, 2.4, 0.3')) fail('V5 pin — Comms Shed missing from js/world.js');
+  else ok('V5 pin Comms Shed exists in js/world.js (solid(24, 53.65, 6, 2.4, 0.3 ...))');
+}
+{
+  const wd = await import('../js/worlddata.js');
+  const g = wd.groundHeightAt;
+  const all = wd.allColliders();
+  // Body-space occupancy: a point is passable when no collider
+  // occupies the 0..1.75 m body band there (the collide() rule).
+  const blockedAt = (x, z) => all.some(e => x > e.min[0] && x < e.max[0] && z > e.min[2] && z < e.max[2] && e.min[1] < 1.75 && e.max[1] > 0.05);
+  const solidTopAt = (x, z) => { let t = 0; for (const s of wd.SOLIDS) if (x >= s.min[0] && x <= s.max[0] && z >= s.min[2] && z <= s.max[2]) t = Math.max(t, s.max[1]); return t; };
+  const hasSolidTop = (x, z, top) => wd.SOLIDS.some(s => x >= s.min[0] && x <= s.max[0] && z >= s.min[2] && z <= s.max[2] && s.max[1] === top);
+  // South door: gap passable, wall beside it solid, interior
+  // floor is open ground.
+  if (!blockedAt(-30.2, 47.85) && blockedAt(-34, 47.85) && !blockedAt(-30.2, 44) && g(-30.2, 44, 0) === 0) {
+    ok('V5 route Ops Building south door: gap passable, wall blocks beside it, interior floor 0');
+  } else fail('V5 route Ops south door — body-space probes disagree with the door design');
+  // East door likewise.
+  if (!blockedAt(-27.15, 44) && blockedAt(-27.15, 41.65)) ok('V5 route Ops Building east door: gap passable');
+  else fail('V5 route Ops east door — body-space probes disagree');
+  // Roof chain: crate 1.15 -> crate 2.3 -> roof 3.45, probed
+  // the way a jumper experiences it (refY = feet mid-rise);
+  // every rise <= 1.6 (this gate's discrete jump line).
+  const c1 = g(-25.6, 44, 0.55), c2 = g(-25.6, 41.6, 1.7), roof = g(-28, 44, 2.85);
+  if (c1 === 1.15 && c2 === 2.3 && roof === 3.45 && (c2 - c1) <= 1.6 && (roof - c2) <= 1.6) {
+    ok('V5 route Ops roof chain: 0 -> 1.15 -> 2.3 -> 3.45 (every rise jumpable)');
+  } else fail(`V5 route Ops roof chain — ${c1} / ${c2} / ${roof}`);
+  // Comms Shed: open interior floor, roof overhead at 2.6,
+  // north wall standing at 2.4.
+  if (g(24, 56, 0) === 0 && solidTopAt(24, 56) === 2.6 && hasSolidTop(24, 53.65, 2.4) && !blockedAt(24, 56)) {
+    ok('V5 route Comms Shed: interior open, roof 2.6, north wall 2.4');
+  } else fail(`V5 route Comms Shed — floor ${g(24, 56, 0)}, top ${solidTopAt(24, 56)}, wall2.4 ${hasSolidTop(24, 53.65, 2.4)}`);
+}
+
 console.log('\nRoute table:');
 for (const r of ROUTES) {
   const verdict = r.pass ? 'PASS' : 'FAIL';
