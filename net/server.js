@@ -1,10 +1,13 @@
-// server.js — OVER N' OUT authoritative-server SKELETON (M0).
+// server.js — OVER N' OUT authoritative server (M0 + M1).
 //
 // Division Zero — Dmitri "Mainframe" Volkov, with Lena "Sync"
 // Fischer (state sync) and Sofia "Uplink" Petrova (netcode).
-// Implements step M0 of docs/MULTIPLAYER.md §8.4: rooms, a tick
-// loop, protocol-validated message routing, and a transport seam —
-// with NO simulation and NO sockets yet.
+// M0 (§8.4): rooms, a tick loop, protocol-validated message
+// routing, and a transport seam. M1 (Phase 2): the headless sim
+// (net/sim.js) is wired into the tick — matches start on first
+// hello, inputs step sim players, events and snapshots flow back
+// over the transport. Still NO sockets: §10.1 is Brett/Vault's
+// pending decision, and this file stays transport-agnostic.
 //
 // TRANSPORT-AGNOSTIC BY DESIGN: this file contains no socket code
 // and no networking imports (node: builtins only, and only
@@ -27,7 +30,27 @@ import {
   validateInput,
   LIMITS,
 } from './protocol.js';
+import { WEAPONS } from '../js/weapons.js';
+import {
+  createMatch,
+  startWaveSim,
+  stepMatch,
+  buildSnapshot,
+  addSimPlayer,
+  removeSimPlayer,
+} from './sim.js';
 import { pathToFileURL } from 'node:url';
+
+// Deterministic per-room sim seed (FNV-1a over the room code), so
+// a room's match is reproducible in soak tests.
+function seedFromCode(code) {
+  let h = 2166136261;
+  for (const ch of String(code)) {
+    h ^= ch.charCodeAt(0);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
 
 // ------------------------------------------------------------------
 // LoopbackTransport — in-memory transport for tests / future
@@ -138,6 +161,9 @@ export class GameServer {
       tick: 0,
       state: 'lobby',
       createdAt: Date.now(),
+      match: null,          // M1: headless sim state (net/sim.js), created on first hello
+      pendingEvents: [],     // sim events awaiting delivery on the next tick
+      _snapAcc: 0,           // snapshot-rate accumulator
     };
     this.rooms.set(code, room);
     return room;
@@ -252,10 +278,19 @@ export class GameServer {
           lastSeen: Date.now(),
         };
         room.players.set(playerId, player);
-        // Welcome-shaped reply (§5.1). The server's weapons table
-        // and the player's loadout join this object at M1/M3, once
-        // the headless sim owns them — M0 reports identity, tick
-        // position, and rates only, and says so honestly.
+        // M1: the first hello boots the room's headless match and
+        // every hello adds a sim player to it. The wave-1 event
+        // queued by startWaveSim rides the next tick's delivery.
+        if (!room.match) {
+          room.match = createMatch(seedFromCode(room.code));
+          room.state = 'playing';
+          startWaveSim(room.match, room.pendingEvents);
+        }
+        if (!room.match.players.has(playerId)) {
+          addSimPlayer(room.match, playerId, msg.name);
+        }
+        // Welcome (§5.1) — now carrying the server's weapons table
+        // so a client can catch version skew at the handshake.
         const welcome = {
           t: MSG.WELCOME,
           playerId,
@@ -264,6 +299,7 @@ export class GameServer {
           tickRate: this.tickRate,
           snapshotRate: this.snapshotRate,
           room: room.code,
+          weapons: WEAPONS,
         };
         return this._reply(playerId, welcome);
       }
@@ -290,11 +326,18 @@ export class GameServer {
           };
           room.players.set(playerId, player);
         }
-        // Stored, never trusted as an outcome (§7.1/§7.3): M1's sim
+        // Stored, never trusted as an outcome (§7.1/§7.3): the sim
         // steps the player FROM this sample; the sample itself
         // claims no position, hit, or damage.
         player.latestInput = msg;
         player.lastSeen = Date.now();
+        if (room.match) {
+          const simPlayer = room.match.players.get(playerId);
+          if (simPlayer) {
+            simPlayer.input = msg;
+            simPlayer.lastSeq = msg.seq;
+          }
+        }
         return null;
       }
 
@@ -317,29 +360,51 @@ export class GameServer {
     }
   }
 
-  // onTick(room) — per-tick simulation hook, called by start()'s
-  // loop after room.tick advances.
-  //
-  // === §8.2 SIM LANDS HERE (M1) — documented stub, intentionally
-  // === empty in M0. In order, this is where the headless sim goes:
-  // ===   1. Wave director as a pure step over match state
-  // ===      (startWave / spawn timer / alive cap / wave-clear
-  // ===      breather, side-effects converted to `event` messages).
-  // ===   2. Bot sim (the headless half of the Bot sim/puppet
-  // ===      split: position, HP, AI timers — no meshes, no Sfx;
-  // ===      bot shots become `bot_shot` events).
-  // ===   3. Player stepping from each player's latestInput
-  // ===      (Player.update()'s physics half: wish-direction,
-  // ===      accel/friction, gravity/jump, collide()).
-  // ===   4. Server raycast for every shot derived from a `fire`
-  // ===      input — against analytic hit volumes + world
-  // ===      colliders, applying the shared weapons-table damage
-  // ===      and falloff. The server raycasts EVERY shot (§7.2).
-  // Snapshot emission (20 Hz, §5.3) will hang off this same loop
-  // once there is state worth snapshotting.
-  onTick(_room) {
-    // M0: no simulation. The tick counter advancing is the whole
-    // observable behaviour, and the demo below asserts exactly that.
+  // Remove a player everywhere (rooms + sim rosters + transport).
+  // Closing the socket IS leaving (§5.6); a real transport calls
+  // this from its close handler at M3.
+  removePlayer(playerId) {
+    for (const room of this.rooms.values()) {
+      if (room.players.delete(playerId) && room.match) {
+        removeSimPlayer(room.match, playerId);
+      }
+    }
+    if (this.transport && typeof this.transport.disconnect === 'function') {
+      this.transport.disconnect(playerId);
+    }
+  }
+
+  // onTick(room) — M1: step the room's headless sim one tick
+  // (net/sim.js stepMatch: wave director, bot sim, player stepping,
+  // server raycast), deliver its events immediately (§5.4), and
+  // emit snapshots at snapshotRate (§5.3) via the accumulator.
+  onTick(room) {
+    if (!room.match) return;
+    const events = room.pendingEvents;
+    stepMatch(room.match, 1 / this.tickRate, events);
+    if (events.length) {
+      for (const ev of events) {
+        const msg = { t: MSG.EVENT, tick: room.match.tick, ...ev };
+        for (const pid of room.players.keys()) this._reply(pid, msg);
+      }
+      events.length = 0;
+    }
+    room._snapAcc += this.snapshotRate / this.tickRate;
+    if (room._snapAcc >= 1) {
+      room._snapAcc -= 1;
+      for (const pid of room.players.keys()) {
+        this._reply(pid, buildSnapshot(room.match, pid));
+      }
+    }
+  }
+
+  // Advance every room one tick. The interval loop calls this;
+  // tests/soak drive it directly for fast, deterministic runs.
+  step() {
+    for (const room of this.rooms.values()) {
+      room.tick += 1;
+      this.onTick(room);
+    }
   }
 
   // Start the tick loop. Drift-tolerant setInterval: each room's
@@ -358,10 +423,7 @@ export class GameServer {
         // Fell behind (GC pause, busy host): re-anchor, don't burst.
         this._nextTickAt = now + intervalMs;
       }
-      for (const room of this.rooms.values()) {
-        room.tick += 1;
-        this.onTick(room);
-      }
+      this.step();
     }, intervalMs);
     // Never let a forgotten server hold a host process open.
     if (typeof this._timer.unref === 'function') this._timer.unref();
