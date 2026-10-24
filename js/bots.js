@@ -58,7 +58,7 @@ const MOVEMENT = {
 
 // CHARACTER REALISM (V3 Phase 2, workstream 2 — Silhouette Ricci /
 // Polygon Dvorak modelling, Verity sign-off): the bot body is built
-// from ~35 shaped parts (legs + boots + knee pads; torso + plate
+// from shaped parts (legs + boots + knee pads; torso + plate
 // vest + pouches + arms + backpack + antenna; head + helmet + jaw
 // guard) with believable humanoid proportions (~1.85 m), then each
 // hit region is MERGED into a single vertex-coloured mesh via
@@ -68,70 +68,110 @@ const MOVEMENT = {
 // legs, torso and head keep the exact boxes the v0.2 raycast tuned
 // against; gear sits ON those volumes, never inside the silhouette
 // the player aims at. One shared body material for every bot.
+// V4 SOLDIER PASS (Atlas, Board 004 §8): ~45 parts — camouflage
+// uniform discipline + faction rig/visor colours (BOT_PALETTES)
+// and the full soldier kit: shin guards, thigh holster, belt
+// buckle, chest radio, pack straps, gloves, elbow pads, helmet
+// camo band + NVG mount. Same 3 merged meshes, same 7 draw
+// calls, same hit cores — a visual upgrade only.
 // READABILITY (Phase 2 playtest fix — Verity ruling: readability
 // wins ties): the shared body material carries a faint warm
 // emissive floor (0x180505) so a bot in full shadow never crushes
 // to pure black, and the suit reds are lifted a step. Zero draw
 // calls, zero per-frame cost — it is the same one material.
 const BOT_BODY_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.05, emissive: 0x180505 });
-const BOT_COLORS = {
-  suit: 0x8c3636,      // hostile red-brown uniform, lifted for dusk readability (was 0x7a2e2e)
-  suitDark: 0x6e2a2a,
-  dark: 0x23272c,      // trousers / sleeves
-  gear: 0x2e3238,      // vest, helmet, pack
-  gearLight: 0x3a4046, // pouches
-  skin: 0xc9a189,
-  boot: 0x14161a,
-  steel: 0x3a3f45,
+// SOLDIER UNIFORM DISCIPLINE (V4, Atlas — Board 004 §8): the V3
+// figure wore a flat red-brown suit. V4 puts it in CAMOUFLAGE
+// (three woodland tones split across the merged parts, so the
+// camo reads as pattern, not paint) with a FACTION COLOUR SYSTEM
+// that carries Brett's readability verdict: chest rig, shoulder
+// pads and visor wear the faction colour, so friend-vs-hostile
+// still reads at distance and in shadow — the emissive floor
+// above is untouched. Hostile = red rig (the V3 suit red,
+// promoted from uniform to faction marking); friendly = green
+// rig + slate-blue camo + green visor. Hit cores are NOT in
+// this table's gift: the torso/head core boxes in the builders
+// below are byte-identical to V3 — camo is a colour change on
+// the same volumes, gear still sits ON the silhouette.
+const BOT_PALETTES = {
+  hostile: {
+    camo: 0x4a5238, camoLight: 0x5a6242, camoDark: 0x3c4430,
+    dark: 0x23272c, gear: 0x2e3238, gearLight: 0x3a4046,
+    skin: 0xc9a189, boot: 0x14161a, steel: 0x3a3f45,
+    accent: 0x8c3636, accentDark: 0x6e2a2a,
+    visor: 0xff4444, visorEmissive: 0xaa1111,
+  },
+  friendly: {
+    camo: 0x44586a, camoLight: 0x54687c, camoDark: 0x36485a,
+    dark: 0x20262c, gear: 0x2c343c, gearLight: 0x39434c,
+    skin: 0xc9a189, boot: 0x14161a, steel: 0x3a3f45,
+    accent: 0x3f7a4e, accentDark: 0x2f5c3b,
+    visor: 0x44ff88, visorEmissive: 0x11aa44,
+  },
 };
+const BOT_COLORS = BOT_PALETTES.hostile; // legacy alias (V3 name)
 const _box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const _cylY = (r, len, seg = 8) => new THREE.CylinderGeometry(r, r, len, seg);
 function _part(list, geo, color, x, y, z, rx = 0, ry = 0, rz = 0) {
   list.push({ geo, color, x, y, z, rx, ry, rz });
 }
 
-function buildBotLegs() {
+function buildBotLegs(pal = BOT_PALETTES.hostile) {
   const L = [];
   for (const s of [-1, 1]) {
-    _part(L, _box(0.21, 0.78, 0.25), BOT_COLORS.dark, s * 0.145, 0.48, 0);          // leg
-    _part(L, _box(0.22, 0.15, 0.37), BOT_COLORS.boot, s * 0.145, 0.075, -0.045);   // boot
-    _part(L, _box(0.17, 0.19, 0.06), BOT_COLORS.gear, s * 0.145, 0.52, -0.145);    // knee pad
-    _part(L, _box(0.23, 0.10, 0.27), BOT_COLORS.suitDark, s * 0.145, 0.90, 0);      // thigh pocket block
+    _part(L, _box(0.21, 0.78, 0.25), pal.camoDark, s * 0.145, 0.48, 0);           // leg (camo trouser)
+    _part(L, _box(0.22, 0.15, 0.37), pal.boot, s * 0.145, 0.075, -0.045);         // boot
+    _part(L, _box(0.17, 0.19, 0.06), pal.gear, s * 0.145, 0.52, -0.145);           // knee pad
+    _part(L, _box(0.19, 0.30, 0.05), pal.gear, s * 0.145, 0.30, -0.135);           // shin guard (V4 kit)
+    _part(L, _box(0.23, 0.10, 0.27), pal.camo, s * 0.145, 0.90, 0);                 // thigh pocket block
   }
+  _part(L, _box(0.10, 0.22, 0.09), pal.dark, 0.265, 0.86, -0.02);                 // thigh holster, right (V4 kit)
   return new THREE.Mesh(mergeColoredParts(L), BOT_BODY_MAT);
 }
 
-function buildBotTorso() {
+function buildBotTorso(pal = BOT_PALETTES.hostile) {
   const L = [];
-  _part(L, _box(0.66, 0.72, 0.38), BOT_COLORS.suit, 0, 1.11, 0);                    // torso core (hitbox)
-  _part(L, _box(0.56, 0.24, 0.34), BOT_COLORS.suitDark, 0, 0.84, 0);                // pelvis / belt line
-  _part(L, _box(0.58, 0.54, 0.10), BOT_COLORS.gear, 0, 1.17, -0.225);               // plate vest (front)
-  _part(L, _box(0.58, 0.54, 0.07), BOT_COLORS.gear, 0, 1.17, 0.215);                // vest back panel
+  _part(L, _box(0.66, 0.72, 0.38), pal.camo, 0, 1.11, 0);                           // torso core (hitbox — V3 box, camo cloth)
+  _part(L, _box(0.56, 0.24, 0.34), pal.camoDark, 0, 0.84, 0);                       // pelvis / belt line
+  _part(L, _box(0.12, 0.07, 0.03), pal.steel, 0, 0.86, -0.185);                     // belt buckle (V4 kit)
+  _part(L, _box(0.58, 0.54, 0.10), pal.accentDark, 0, 1.17, -0.225);                // plate vest front — FACTION colour (readability carrier)
+  _part(L, _box(0.58, 0.54, 0.07), pal.gear, 0, 1.17, 0.215);                       // vest back panel
   for (const px of [-0.17, 0, 0.17]) {
-    _part(L, _box(0.13, 0.19, 0.055), BOT_COLORS.gearLight, px, 1.04, -0.285);      // magazine pouches
+    _part(L, _box(0.13, 0.19, 0.055), pal.gearLight, px, 1.04, -0.285);             // magazine pouches
   }
-  _part(L, _box(0.30, 0.11, 0.30), BOT_COLORS.gear, 0, 1.505, 0);                   // collar / neck guard
+  _part(L, _box(0.11, 0.16, 0.05), pal.gearLight, 0.245, 1.31, -0.27);              // chest radio (V4 kit — antenna already on the pack)
+  for (const sx of [-0.16, 0.16]) {
+    _part(L, _box(0.09, 0.40, 0.025), pal.dark, sx, 1.33, -0.278);                  // pack straps over the rig (V4 kit)
+  }
+  _part(L, _box(0.30, 0.11, 0.30), pal.gear, 0, 1.505, 0);                          // collar / neck guard
   for (const s of [-1, 1]) {
-    _part(L, _box(0.25, 0.21, 0.31), BOT_COLORS.suit, s * 0.445, 1.385, 0);          // shoulder / deltoid
-    _part(L, _box(0.16, 0.20, 0.20), BOT_COLORS.gear, s * 0.45, 1.44, 0);           // shoulder pad
+    _part(L, _box(0.25, 0.21, 0.31), s < 0 ? pal.camoLight : pal.camo, s * 0.445, 1.385, 0); // shoulder / deltoid (camo split)
+    _part(L, _box(0.16, 0.20, 0.20), pal.accent, s * 0.45, 1.44, 0);                // shoulder pad — FACTION colour
   }
-  _part(L, _box(0.15, 0.42, 0.17), BOT_COLORS.dark, -0.465, 1.12, 0);               // left upper arm
-  _part(L, _box(0.15, 0.40, 0.17), BOT_COLORS.dark, 0.44, 1.15, -0.09, 0.5);        // right upper arm (forward)
-  _part(L, _box(0.13, 0.13, 0.40), BOT_COLORS.dark, 0.35, 1.17, -0.30);             // right forearm (to gun)
-  _part(L, _box(0.13, 0.13, 0.36), BOT_COLORS.dark, -0.33, 1.10, -0.24, 0.25);      // left forearm (support hand)
-  _part(L, _box(0.47, 0.56, 0.19), BOT_COLORS.gear, 0, 1.18, 0.295);                // backpack
-  _part(L, _box(0.32, 0.24, 0.06), BOT_COLORS.gearLight, 0, 1.02, 0.415);           // pack pouch
-  _part(L, _cylY(0.008, 0.52), BOT_COLORS.steel, 0.16, 1.70, 0.31);                 // antenna
+  _part(L, _box(0.15, 0.42, 0.17), pal.dark, -0.465, 1.12, 0);                      // left upper arm
+  _part(L, _box(0.17, 0.09, 0.19), pal.accent, -0.465, 1.26, 0);                    // faction armband, left arm (V4)
+  _part(L, _box(0.15, 0.40, 0.17), pal.dark, 0.44, 1.15, -0.09, 0.5);               // right upper arm (forward)
+  _part(L, _box(0.13, 0.13, 0.40), pal.dark, 0.35, 1.17, -0.30);                    // right forearm (to gun)
+  _part(L, _box(0.13, 0.13, 0.36), pal.dark, -0.33, 1.10, -0.24, 0.25);             // left forearm (support hand)
+  _part(L, _box(0.11, 0.11, 0.11), pal.dark, 0.36, 1.16, -0.52);                    // right glove (V4 kit)
+  _part(L, _box(0.11, 0.11, 0.11), pal.dark, -0.37, 1.08, -0.44);                   // left glove (V4 kit)
+  _part(L, _box(0.17, 0.08, 0.19), pal.gear, 0.45, 1.30, -0.16);                     // right elbow pad (V4 kit)
+  _part(L, _box(0.17, 0.08, 0.19), pal.gear, -0.465, 1.02, 0.02);                   // left elbow pad (V4 kit)
+  _part(L, _box(0.47, 0.56, 0.19), pal.gear, 0, 1.18, 0.295);                       // backpack
+  _part(L, _box(0.32, 0.24, 0.06), pal.gearLight, 0, 1.02, 0.415);                  // pack pouch
+  _part(L, _cylY(0.008, 0.52), pal.steel, 0.16, 1.70, 0.31);                        // antenna
   return new THREE.Mesh(mergeColoredParts(L), BOT_BODY_MAT);
 }
 
-function buildBotHead() {
+function buildBotHead(pal = BOT_PALETTES.hostile) {
   const L = [];
-  _part(L, _box(0.34, 0.36, 0.34), BOT_COLORS.skin, 0, 1.66, 0);                    // head core (hitbox)
-  _part(L, _box(0.43, 0.21, 0.43), BOT_COLORS.gear, 0, 1.795, 0);                   // helmet dome
-  _part(L, _box(0.45, 0.05, 0.45), BOT_COLORS.gear, 0, 1.705, 0);                   // helmet brim
-  _part(L, _box(0.31, 0.13, 0.06), BOT_COLORS.gear, 0, 1.545, -0.185);              // jaw guard
-  _part(L, _box(0.36, 0.10, 0.38), BOT_COLORS.suitDark, 0, 1.565, 0.01);            // neck / balaclava
+  _part(L, _box(0.34, 0.36, 0.34), pal.skin, 0, 1.66, 0);                           // head core (hitbox — V3 box)
+  _part(L, _box(0.43, 0.21, 0.43), pal.gear, 0, 1.795, 0);                          // helmet dome
+  _part(L, _box(0.45, 0.05, 0.45), pal.gear, 0, 1.705, 0);                          // helmet brim
+  _part(L, _box(0.44, 0.05, 0.44), pal.camoDark, 0, 1.745, 0);                     // helmet camo band (V4 kit)
+  _part(L, _box(0.09, 0.07, 0.07), pal.steel, 0, 1.78, -0.225);                     // NVG mount (V4 kit)
+  _part(L, _box(0.31, 0.13, 0.06), pal.gear, 0, 1.545, -0.185);                     // jaw guard
+  _part(L, _box(0.36, 0.10, 0.38), pal.camoDark, 0, 1.565, 0.01);                   // neck / balaclava
   const head = new THREE.Mesh(mergeColoredParts(L), BOT_BODY_MAT);
   head.userData.part = 'head';
   return head;
@@ -158,7 +198,11 @@ function falloffFactor(weapon, dist) {
 }
 
 export class Bot {
-  constructor(scene, world, spawnPos, difficulty = 1, weaponId = 'ar') {
+  // team (V4, Atlas): 'hostile' (default — every existing caller)
+  // or 'friendly' (slate camo, green rig/visor) for co-op /
+  // friendly-fire modes. Visual only: AI, hit volumes and the
+  // sim are untouched by faction.
+  constructor(scene, world, spawnPos, difficulty = 1, weaponId = 'ar', team = 'hostile') {
     this.world = world;
     this.weapon = getWeapon(weaponId);
     this.weaponId = this.weapon.id;
@@ -192,17 +236,27 @@ export class Bot {
     this.frameCounter = 0;
     this.losPhase = Math.floor(Math.random() * 3);
     this.cachedLOS = false;
+    // --- un-wedge state (Havoc pack §6; sim port in net/sim.js
+    // mirrors this exactly) ---
+    this.stuckT = 0;
+    this.stuckAnchor = new THREE.Vector3();
+    this.slideMode = 0;        // 0 none · 1 wall-slide · 2 lane reset
+    this.slideSign = 1;
+    this.slideFails = 0;
+    this.resetTarget = null;
 
     const root = new THREE.Group();
     // Character realism build (see BOT_BODY_MAT note above): three
     // merged hit-region meshes + visor + the realistic merged gun
     // from js/gunmodels.js (scope included in the DMR geometry —
     // no separate scope mesh any more).
-    const legs = buildBotLegs();
-    const torso = buildBotTorso();
-    const head = buildBotHead();
+    const pal = BOT_PALETTES[team] || BOT_PALETTES.hostile;
+    this.team = team;
+    const legs = buildBotLegs(pal);
+    const torso = buildBotTorso(pal);
+    const head = buildBotHead(pal);
     const visor = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.09, 0.02),
-      new THREE.MeshStandardMaterial({ color: 0xff4444, emissive: 0xaa1111 }));
+      new THREE.MeshStandardMaterial({ color: pal.visor, emissive: pal.visorEmissive }));
     visor.position.set(0, 1.70, -0.185);
     const gun = buildBotGun(this.weaponId);
     const gunY = this.weaponId === 'pistol' ? 1.18 : 1.22;
@@ -220,6 +274,7 @@ export class Bot {
     root.add(bg, this.hpFg);
 
     root.position.copy(spawnPos);
+    this.stuckAnchor.copy(spawnPos);
     scene.add(root);
     this.scene = scene;
   }
@@ -319,6 +374,15 @@ export class Bot {
     else if (dist < moveCfg.backoff) _move.addScaledVector(_v, -0.7);
     _perp.set(-_v.z, 0, _v.x);
     if (dist <= moveCfg.strafeMax && dist >= moveCfg.strafeMin) _move.addScaledVector(_perp, this.strafeDir * 0.8);
+    // --- un-wedge override (Havoc pack §6): a stuck bot shoulders
+    // along the wall (perpendicular slide, slight close-in) or, after
+    // two failed slides, routes back to the nearest spawn lane.
+    if (this.slideMode === 1) {
+      _move.copy(_perp).multiplyScalar(this.slideSign).addScaledVector(_v, 0.2);
+    } else if (this.slideMode === 2 && this.resetTarget) {
+      _move.copy(this.resetTarget).sub(p); _move.y = 0;
+      if (_move.length() < 1.5) { this.slideMode = 0; this.resetTarget = null; }
+    }
     if (_move.lengthSq() > 0) {
       _move.normalize();
       p.addScaledVector(_move, this.speed * moveCfg.speedMult * dt);
@@ -349,6 +413,44 @@ export class Bot {
       if (this.losLostTime > losGrace) this.visibleTime = 0;
     }
     const aimed = this.visibleTime >= this.aimTimeNeeded;
+
+    // --- un-wedge detection (Havoc pack §6): move intent + no LOS
+    // + < 0.4 m net displacement over a rolling 2.5 s window = the
+    // bot is ramming a wall face (baseline §3 finding). Slide first
+    // (alternating sides), lane reset after two failed slides.
+    const wantMove = dist > moveCfg.close || dist < moveCfg.backoff ||
+      (dist <= moveCfg.strafeMax && dist >= moveCfg.strafeMin);
+    if (wantMove && !hasLOS) {
+      this.stuckT += dt;
+      if (this.stuckT >= 2.5) {
+        const disp = Math.hypot(p.x - this.stuckAnchor.x, p.z - this.stuckAnchor.z);
+        if (disp < 0.4) {
+          if (this.slideFails >= 2) {
+            let best = null, bd = Infinity;
+            for (const sp of this.world.spawnPoints || []) {
+              const d = Math.hypot(sp.x - p.x, sp.z - p.z);
+              if (d < bd) { bd = d; best = sp; }
+            }
+            if (best) { this.resetTarget = new THREE.Vector3(best.x, best.y, best.z); this.slideMode = 2; }
+            this.slideFails = 0;
+          } else {
+            this.slideMode = 1;
+            this.slideSign *= -1;
+            this.slideFails++;
+          }
+        } else {
+          this.slideFails = 0;
+          this.slideMode = 0;
+          this.resetTarget = null;
+        }
+        this.stuckAnchor.copy(p);
+        this.stuckT = 0;
+      }
+    } else {
+      this.stuckT = 0;
+      this.stuckAnchor.copy(p);
+      if (hasLOS) { this.slideMode = 0; this.slideFails = 0; this.resetTarget = null; }
+    }
 
     // DMR: a burst aborts if LOS is lost > 0.15s mid-burst (other weapons
     // keep Session 1 blind-burst behaviour).
