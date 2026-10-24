@@ -21,28 +21,37 @@
     <div>KILLS <b id="ui-kills">0</b></div>
     <div>HOSTILES <b id="ui-left">0</b></div>
   </div>
+  <div id="score-line"></div>
   <div id="objective"></div>
   <div id="health-wrap">
     <div id="health-label">INTEGRITY</div>
     <div id="health-bar"><div id="health-fill"></div></div>
     <div id="health-num">100</div>
   </div>
+  <div id="gear-hud">FRAG [G] ×1 · FLASH [T] ×1</div>
   <div id="ammo-wrap">
     <div id="weapon-name">ASSAULT RIFLE</div>
     <div id="ammo-num">30</div>
     <div id="ammo-label">/ ∞ &nbsp;·&nbsp; R — RELOAD</div>
   </div>
   <div id="vignette"></div>
+  <div id="dmg-dir"></div>
+  <div id="flash-overlay"></div>
 </div>
 
 <!-- MENU / PAUSE / DEATH overlay -->
 <div id="menu">
   <h1>OVER <span>N'</span> OUT</h1>
-  <p class="tag">TACTICAL BROWSER FPS · v0.3.0-dev</p>
+  <p class="tag">TACTICAL BROWSER FPS · v0.4.0-dev</p>
   <p id="menu-msg">Hostile waves inbound. Hold the compound.</p>
   <div id="story-panel"><div class="story-label">TRANSMISSION — OUTPOST MERIDIAN</div><p id="story-text"></p></div>
+  <div id="results" class="hidden"><div class="story-label">AFTER ACTION — XP</div><div id="results-body"></div></div>
+  <div id="profile-line">LEVEL 1 · 0 XP</div>
+  <div id="mode-pick"><label for="mode-select">MISSION</label><select id="mode-select"><option value="waves" selected>WAVE DEFENSE — hold the compound</option><option value="tdm">TEAM DEATHMATCH — first to 30</option><option value="domination">DOMINATION — hold the zones</option><option value="assault">RELAY ASSAULT — scramble the Carrier relay</option></select></div>
+  <div id="mode-goal"></div>
   <div id="loadout">
-    <div class="loadout-label">LOADOUT — CHOOSE YOUR WEAPON</div>
+    <div class="loadout-label">LOADOUT — CLASS <span id="class-level-note"></span></div>
+    <div class="loadout-row" id="class-tabs"></div>
     <div class="loadout-row">
       <button class="wpn selected" data-weapon="ar">ASSAULT RIFLE</button>
       <button class="wpn" data-weapon="smg">SMG</button>
@@ -50,17 +59,31 @@
       <button class="wpn" data-weapon="dmr">DMR</button>
       <button class="wpn" data-weapon="pistol">PISTOL</button>
     </div>
+    <div id="att-pickers"></div>
+    <div id="gear-line">LETHAL — FRAG GRENADE · TACTICAL — FLASHBANG</div>
   </div>
   <div id="settings"><label for="sens-slider">MOUSE SENSITIVITY</label><input type="range" id="sens-slider" min="0.4" max="2.5" step="0.05" value="1"><span id="sens-val">1.00</span></div>
-  <div id="biome-pick"><label for="biome-select">THEATER</label><select id="biome-select"><option value="compound" selected>THE COMPOUND — OUTPOST MERIDIAN</option><option value="forest">DENSE FOREST — MERIDIAN RELAY</option><option value="snow">SNOW STATION — SCAFFOLD</option><option value="mars" disabled>MARS UPLINK — COMING IN V3</option></select></div>
+  <div id="biome-pick"><label for="biome-select">THEATER</label><select id="biome-select"><option value="compound" selected>THE COMPOUND — OUTPOST MERIDIAN</option><option value="forest">DENSE FOREST — MERIDIAN RELAY</option><option value="snow">SNOW STATION — RELAY NORTH</option><option value="mars">MARS UPLINK — SURFACE (LOW-G)</option></select></div>
+  <div id="online-panel">
+    <div class="loadout-label">ONLINE — CO-OP SESSION</div>
+    <div class="online-row">
+      <input type="text" id="online-name" maxlength="24" placeholder="CALLSIGN">
+      <input type="text" id="online-room" maxlength="4" placeholder="ROOM">
+      <input type="text" id="online-url" placeholder="SERVER — paste the full tunnel URL (https://….trycloudflare.com) or leave blank">
+    </div>
+    <div class="online-row"><button id="online-btn">🌐 &nbsp;JOIN ONLINE</button><span id="online-status">Offline — solo deploy below.</span></div>
+  </div>
   <button id="play-btn">▶ &nbsp;DEPLOY</button>
   <div class="controls">
     <div><b>W A S D</b> Move</div>
     <div><b>MOUSE</b> Aim</div>
     <div><b>CLICK</b> Fire</div>
+    <div><b>RIGHT-CLICK</b> Aim down sights</div>
     <div><b>SHIFT</b> Sprint</div>
     <div><b>SPACE</b> Jump</div>
     <div><b>R</b> Reload</div>
+    <div><b>G</b> Frag grenade</div>
+    <div><b>T</b> Flashbang</div>
     <div><b>F</b> Inspect weapon</div>
     <div><b>1–5</b> Switch weapon</div>
     <div><b>F9</b> FPS meter</div>
