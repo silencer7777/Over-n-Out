@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeColoredParts } from './geo.js';
+import { makeBarkTexture, makeFoliageTexture, makePlankTexture, makeConcreteTexture, makeDirtTexture, makeMetalPanelTexture, makeBrickTexture, taperedTrunkGeometry, canopyGeometry } from './proctex.js';
 import * as FOREST from './worlddata-forest.js';
 import * as SNOW from './worlddata-snow.js';
 import * as MARS from './worlddata-mars.js';
@@ -52,6 +53,22 @@ function displacedSphere(r, seedOff, amp, wSeg = 7, hSeg = 6) {
 
 const MAT_STD = () => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0.02 });
 const MAT_METAL = () => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.48, metalness: 0.62 });
+// V6 (Atlas, Update 1): procedural-surface materials — one
+// shared texture per surface family (proctex.js, light-neutral
+// so the vertex colours below still tint). Textures are null
+// in headless contexts without a document; materials then run
+// untextured, geometry and buckets unchanged.
+const TEX = {
+  bark: makeBarkTexture(), foliage: makeFoliageTexture(), plank: makePlankTexture(),
+  concrete: makeConcreteTexture(), dirt: makeDirtTexture(), metal: makeMetalPanelTexture(),
+  brick: makeBrickTexture(),
+};
+const MAT_PLANK = () => new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.plank, roughness: 0.9 });
+const MAT_DIRT = () => new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.dirt, roughness: 1 });
+const MAT_METALPANEL = () => new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.metal, roughness: 0.5, metalness: 0.55 });
+const MAT_BARK = () => new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.bark, roughness: 0.95 });
+const MAT_BRICK = () => new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.brick, roughness: 0.95 });
+const MAT_FOLIAGE = () => new THREE.MeshStandardMaterial({ color: 0xffffff, map: TEX.foliage, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 0.95 });
 const PROXY_MAT = new THREE.MeshBasicMaterial({ visible: false });
 
 const _box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
@@ -73,12 +90,16 @@ function shade(hex, amt) {
   return new THREE.Color(hex).offsetHSL(0, 0, amt).getHex();
 }
 
-// Render a data module's SOLIDS as two merged meshes (standard
-// + metal styles), with a deterministic per-box shade jitter
-// so big flat walls don't read as one plastic slab.
+// Render a data module's SOLIDS as merged meshes, with a
+// deterministic per-box shade jitter so big flat walls don't
+// read as one plastic slab. Legacy behaviour (snow/mars, until
+// their parity update): two buckets — standard + metal styles.
+// V6: a map may pass styleMats { style: material } to bucket
+// per surface family instead (forest: dirt / plank / panel).
 const METAL_STYLES = new Set(['metal']);
-function solidsMeshes(data, styleColors, group, shootables) {
-  const std = [], met = [];
+function solidsMeshes(data, styleColors, group, shootables, styleMats = null) {
+  const buckets = new Map();
+  const push = (key, part) => { if (!buckets.has(key)) buckets.set(key, []); buckets.get(key).push(part); };
   data.SOLIDS.forEach((s, i) => {
     const style = data.STRUCTURE_STYLE[i];
     const jitter = ((i * 37) % 7 - 3) * 0.008;
@@ -87,10 +108,15 @@ function solidsMeshes(data, styleColors, group, shootables) {
       color: shade(styleColors[style] ?? 0x888888, jitter),
       x: (s.min[0] + s.max[0]) / 2, y: (s.min[1] + s.max[1]) / 2, z: (s.min[2] + s.max[2]) / 2,
     };
-    (METAL_STYLES.has(style) ? met : std).push(part);
+    if (styleMats) push(styleMats[style] ?? 'std', part);
+    else push(METAL_STYLES.has(style) ? 'met' : 'std', part);
   });
-  if (std.length) { const m = merged(std, MAT_STD()); group.add(m); shootables.push(m); }
-  if (met.length) { const m = merged(met, MAT_METAL()); group.add(m); shootables.push(m); }
+  for (const [key, parts] of buckets) {
+    if (!parts.length) continue;
+    const mat = key === 'std' ? MAT_STD() : key === 'met' ? MAT_METAL() : key;
+    const m = merged(parts, mat);
+    group.add(m); shootables.push(m);
+  }
 }
 
 // Explosive barrels from data (compound parity: individual
@@ -168,7 +194,12 @@ function buildForestLayout(scene) {
   stream.receiveShadow = true;
   group.add(stream);
 
-  solidsMeshes(D, { earth: 0x5d5240, timber: 0x6b4f30, crate: 0x8a6b42, metal: 0x707880 }, group, shootables);
+  // V6: forest solids wear real surfaces — dirt terraces, plank
+  // timber/crates, panelled metal. Geometry (the SOLIDS) is
+  // byte-identical; only the bucket materials changed.
+  const forestPlank = MAT_PLANK();
+  solidsMeshes(D, { earth: 0x5d5240, timber: 0x6b4f30, crate: 0x8a6b42, metal: 0x707880 }, group, shootables,
+    { earth: MAT_DIRT(), timber: forestPlank, crate: forestPlank, metal: MAT_METALPANEL() });
 
   // Standing-mast extras + console (merged, metal bucket).
   {
@@ -182,28 +213,37 @@ function buildForestLayout(scene) {
     group.add(m); shootables.push(m);
   }
   // Cabin collapsed roof (visual + shootable; no collider —
-  // it fell IN, nobody stands on a collapse) + chimney.
+  // it fell IN, nobody stands on a collapse) — V6: plank skin,
+  // and the chimney stands in brick on its own merged mesh.
   {
     const P = [];
     _p(P, _box(8.8, 0.12, 4.6), 0x54382a, 38, 2.62, 4.4, 0.10, 0, 0.17);
     _p(P, _box(8.8, 0.10, 3.4), 0x54382a, 38, 2.30, 7.6, -0.06, 0, 0.10);
-    _p(P, _box(0.5, 1.3, 0.5), 0x77716a, 35.5, 2.9, 4.2);
-    const m = merged(P, MAT_STD());
+    const m = merged(P, MAT_PLANK());
     group.add(m); shootables.push(m);
+    const C = [];
+    _p(C, _box(0.5, 1.3, 0.5), 0x9a8a7c, 35.5, 2.9, 4.2);
+    _p(C, _box(0.62, 0.14, 0.62), 0x8a7a6c, 35.5, 3.6, 4.2);
+    const cm = merged(C, MAT_BRICK());
+    group.add(cm); shootables.push(cm);
   }
-  // Fallen logs + boulders + fallen mast (merged sets).
+  // Fallen logs (V6: bark skin, tapered, more segments) +
+  // boulders + fallen mast (merged sets).
   {
     const P = [];
     const logs = [[-8, 26, 0.4], [20, -30, -0.3], [-30, -8, 0.9], [48, 30, 0.2], [-52, 24, -0.6], [14, 48, 1.2]];
     for (const [x, z, ry] of logs) {
-      _p(P, new THREE.CylinderGeometry(0.32, 0.32, 3.6, 8).rotateZ(Math.PI / 2), 0x4c3a26, x, 0.32, z, 0, ry);
-      _p(P, new THREE.CylinderGeometry(0.20, 0.24, 1.1, 7).rotateZ(Math.PI / 2), 0x5d4a30, x + 0.8, 0.75, z, 0, ry + 0.4);
+      _p(P, new THREE.CylinderGeometry(0.27, 0.34, 3.6, 10).rotateZ(Math.PI / 2), 0x4c3a26, x, 0.32, z, 0, ry);
+      _p(P, new THREE.CylinderGeometry(0.17, 0.22, 1.1, 8).rotateZ(Math.PI / 2), 0x5d4a30, x + 0.8, 0.75, z, 0, ry + 0.4);
     }
-    for (const [x, z] of [[-20, -44], [25, 15], [-44, 34], [56, -19]]) {
-      _p(P, new THREE.DodecahedronGeometry(0.95), 0x777d84, x, 0.55, z, rng() * 0.4, rng() * 3, 0);
-    }
-    const m = merged(P, MAT_STD());
+    const m = merged(P, MAT_BARK());
     group.add(m); shootables.push(m);
+    const B2 = [];
+    for (const [x, z] of [[-20, -44], [25, 15], [-44, 34], [56, -19]]) {
+      _p(B2, new THREE.DodecahedronGeometry(0.95), 0x777d84, x, 0.55, z, rng() * 0.4, rng() * 3, 0);
+    }
+    const bm = merged(B2, MAT_STD());
+    group.add(bm); shootables.push(bm);
   }
   {
     const P = [];
@@ -214,18 +254,65 @@ function buildForestLayout(scene) {
     group.add(m); shootables.push(m);
   }
 
-  // Trees from TREE_SPOTS — trunk + 6-blob layered canopy,
-  // instanced (the dressing recipe at the data's positions).
+  // V6 FACADE PASS (Atlas, Update 1) — architecture cues for
+  // the forest structures, same rule as the compound's: flat
+  // on a wall face, on a roofline, or trimming an edge. Trim
+  // merges into ONE plank mesh (shootable, like the compound
+  // trim); window glass is VISUAL ONLY and never shootable —
+  // the cabin's east band is a gameplay fire slot and bullets
+  // must keep passing it exactly as the data promises.
+  {
+    const P = [];
+    // Cabin south door frame (gap x 37..39 in the z 8.85..9.15 wall).
+    _p(P, _box(0.16, 2.3, 0.34), 0x54382a, 36.95, 1.15, 9.0);
+    _p(P, _box(0.16, 2.3, 0.34), 0x54382a, 39.05, 1.15, 9.0);
+    _p(P, _box(2.3, 0.2, 0.34), 0x54382a, 38, 2.25, 9.0);
+    // Cabin window band frame (band y 1.0..1.7, z 5..7, east wall x 41.85..42.15).
+    _p(P, _box(0.36, 0.12, 2.14), 0x54382a, 42.0, 1.76, 6);
+    _p(P, _box(0.36, 0.12, 2.14), 0x54382a, 42.0, 0.94, 6);
+    _p(P, _box(0.36, 0.7, 0.1), 0x54382a, 42.0, 1.35, 6);
+    // Watch-shelter fascia (roof slab x -43.9..-36.1, z -45.9..-39.9, top 4.65).
+    _p(P, _box(7.9, 0.18, 0.14), 0x54382a, -40, 4.56, -45.95);
+    _p(P, _box(7.9, 0.18, 0.14), 0x54382a, -40, 4.56, -39.85);
+    _p(P, _box(0.14, 0.18, 6.1), 0x54382a, -43.95, 4.56, -42.9);
+    _p(P, _box(0.14, 0.18, 6.1), 0x54382a, -36.05, 4.56, -42.9);
+    // Terrace retaining strips: timber edge on each knoll step front.
+    _p(P, _box(20, 0.22, 0.12), 0x5d4a30, -40, 0.46, -29.94);
+    _p(P, _box(20, 0.22, 0.12), 0x5d4a30, -40, 1.04, -33.94);
+    _p(P, _box(20, 0.22, 0.12), 0x5d4a30, -40, 1.61, -37.94);
+    _p(P, _box(20, 0.22, 0.12), 0x5d4a30, -40, 2.19, -41.94);
+    // Relay shed: roof overhang slab + fascia (roof solid top 2.55).
+    _p(P, _box(4.6, 0.1, 3.9), 0x4c3a26, 12.5, 2.6, -14);
+    _p(P, _box(4.6, 0.16, 0.12), 0x54382a, 12.5, 2.52, -15.98);
+    _p(P, _box(0.12, 0.16, 3.9), 0x54382a, 14.85, 2.52, -14);
+    // Shed window frame (north wall exterior face z -15.75).
+    _p(P, _box(1.0, 0.9, 0.1), 0x54382a, 12.5, 1.5, -15.78);
+    const m = merged(P, MAT_PLANK());
+    group.add(m); shootables.push(m);
+    // Glass (visual only — see the fire-slot rule above).
+    const glassDark = new THREE.Mesh(_box(0.06, 0.62, 1.9),
+      new THREE.MeshStandardMaterial({ color: 0x151a1f, roughness: 0.18, metalness: 0.55 }));
+    glassDark.position.set(42.0, 1.35, 6);
+    group.add(glassDark);
+    const glassWarm = new THREE.Mesh(_box(0.84, 0.74, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0x2a1f0e, emissive: 0xffb45e, emissiveIntensity: 1.0, roughness: 0.35 }));
+    glassWarm.position.set(12.5, 1.5, -15.8);
+    group.add(glassWarm);
+  }
+
+  // Trees from TREE_SPOTS — V6: tapered bark-textured trunks +
+  // SEVEN smooth foliage masses per tree in three irregular
+  // tiers, instanced (positions are the data's, unchanged —
+  // trunk colliders/proxies below are byte-identical).
   {
     const trees = D.TREE_SPOTS;
     const dummy = new THREE.Object3D();
     const trunkIM = new THREE.InstancedMesh(
-      new THREE.CylinderGeometry(0.30, 0.48, 3.2, 6),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true }), trees.length);
+      taperedTrunkGeometry(0.20, 0.44, 3.2, 10, 4, 5.3),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, map: TEX.bark }), trees.length);
     trunkIM.castShadow = true; trunkIM.receiveShadow = true; trunkIM.frustumCulled = false;
-    const BLOBS = 6;
-    const canopyIM = new THREE.InstancedMesh(displacedSphere(1, 3.1, 0.2),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true }), trees.length * BLOBS);
+    const BLOBS = 7;
+    const canopyIM = new THREE.InstancedMesh(canopyGeometry(1, 3.1, 0.30), MAT_FOLIAGE(), trees.length * BLOBS);
     canopyIM.castShadow = true; canopyIM.frustumCulled = false;
     const deepGreen = new THREE.Color(0x2f4d27), tipGreen = new THREE.Color(0x5f834a);
     const bark = new THREE.Color(0x5a4630), barkLight = new THREE.Color(0x6e5840);
@@ -237,12 +324,12 @@ function buildForestLayout(scene) {
       dummy.updateMatrix(); trunkIM.setMatrixAt(i, dummy.matrix);
       trunkIM.setColorAt(i, bark.clone().lerp(barkLight, rng() * 0.6));
       for (let k = 0; k < BLOBS; k++) {
-        const lower = k < 3, isTop = k === 3;
-        const a = t.rot + k * 2.1 + 0.4;
-        const rOff = isTop ? 0 : (lower ? 1.0 : 0.7) * t.s;
+        const isTop = k === 0, lower = k >= 4;
+        const a = t.rot + k * 2.1 + 0.4 + rng() * 0.5;
+        const rOff = isTop ? 0 : (lower ? 1.0 : 0.62) * t.s;
         dummy.rotation.set(rng() * 0.6, t.rot + k * 2.1, rng() * 0.6);
-        dummy.position.set(t.x + Math.cos(a) * rOff, trunkH + (lower ? -0.15 : isTop ? 0.75 : 0.35) * t.sy, t.z + Math.sin(a) * rOff);
-        const bs = t.s * (isTop ? 1.5 : lower ? 1.2 + rng() * 0.25 : 1.0 + rng() * 0.25);
+        dummy.position.set(t.x + Math.cos(a) * rOff, trunkH + (isTop ? 0.8 : lower ? -0.1 : 0.38) * t.sy, t.z + Math.sin(a) * rOff);
+        const bs = t.s * (isTop ? 1.5 : lower ? 1.2 + rng() * 0.3 : 1.05 + rng() * 0.25);
         dummy.scale.set(bs, bs * 0.72, bs * (0.85 + rng() * 0.3));
         dummy.updateMatrix(); canopyIM.setMatrixAt(i * BLOBS + k, dummy.matrix);
         canopyIM.setColorAt(i * BLOBS + k, deepGreen.clone().lerp(tipGreen, isTop ? 0.8 + rng() * 0.2 : lower ? rng() * 0.35 : 0.3 + rng() * 0.35));
@@ -261,41 +348,51 @@ function buildForestLayout(scene) {
   {
     const bushes = D.BUSH_SPOTS;
     const dummy = new THREE.Object3D();
-    const bushIM = new THREE.InstancedMesh(displacedSphere(1, 7.7, 0.24),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true }), bushes.length);
+    // V6: two smooth masses per bush in the same InstancedMesh.
+    const bushIM = new THREE.InstancedMesh(canopyGeometry(1, 7.7, 0.34), MAT_FOLIAGE(), bushes.length * 2);
     bushIM.castShadow = true; bushIM.receiveShadow = true; bushIM.frustumCulled = false;
     const deepGreen = new THREE.Color(0x2f4d27), tipGreen = new THREE.Color(0x5f834a);
     bushes.forEach((b, i) => {
       dummy.rotation.set(0, b.rot, 0);
       dummy.position.set(b.x, b.size * 0.34, b.z);
       dummy.scale.set(b.size, b.size * 0.72, b.size * 0.9);
-      dummy.updateMatrix(); bushIM.setMatrixAt(i, dummy.matrix);
-      bushIM.setColorAt(i, deepGreen.clone().lerp(tipGreen, rng() * 0.55));
+      dummy.updateMatrix(); bushIM.setMatrixAt(i * 2, dummy.matrix);
+      bushIM.setColorAt(i * 2, deepGreen.clone().lerp(tipGreen, rng() * 0.55));
+      const oa = rng() * Math.PI * 2, os = b.size * (0.5 + rng() * 0.2);
+      dummy.rotation.set(0, rng() * Math.PI * 2, 0);
+      dummy.position.set(b.x + Math.cos(oa) * b.size * 0.45, os * 0.36, b.z + Math.sin(oa) * b.size * 0.45);
+      dummy.scale.set(os, os * 0.7, os * (0.85 + rng() * 0.3));
+      dummy.updateMatrix(); bushIM.setMatrixAt(i * 2 + 1, dummy.matrix);
+      bushIM.setColorAt(i * 2 + 1, deepGreen.clone().lerp(tipGreen, 0.15 + rng() * 0.5));
     });
     if (bushIM.instanceColor) bushIM.instanceColor.needsUpdate = true;
     group.add(bushIM);
 
-    const stumpIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.30, 0.40, 0.5, 7),
-      new THREE.MeshStandardMaterial({ color: 0x6e5840, roughness: 1 }), 14);
+    const stumpIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.28, 0.42, 0.5, 9),
+      new THREE.MeshStandardMaterial({ color: 0xa08b6d, map: TEX.bark, roughness: 1 }), 14);
     for (let i = 0; i < 14; i++) {
       const t = D.TREE_SPOTS[(i * 7) % D.TREE_SPOTS.length];
       dummy.rotation.set(0, rng() * 3, 0);
       dummy.position.set(t.x + 1.6, 0.25, t.z + 1.1);
       dummy.scale.setScalar(0.8 + rng() * 0.5);
       dummy.updateMatrix(); stumpIM.setMatrixAt(i, dummy.matrix);
+      stumpIM.setColorAt(i, new THREE.Color(0xffffff).offsetHSL(0, 0, (rng() - 0.5) * 0.2));
     }
+    if (stumpIM.instanceColor) stumpIM.instanceColor.needsUpdate = true;
     stumpIM.castShadow = true;
     group.add(stumpIM);
 
-    const fernIM = new THREE.InstancedMesh(new THREE.ConeGeometry(0.55, 0.55, 6),
-      new THREE.MeshStandardMaterial({ color: 0x3d6034, roughness: 1, flatShading: true }), 40);
+    const fernIM = new THREE.InstancedMesh(new THREE.ConeGeometry(0.55, 0.55, 7),
+      new THREE.MeshStandardMaterial({ color: 0x9db98a, map: TEX.foliage, alphaTest: 0.45, roughness: 1 }), 40);
     for (let i = 0; i < 40; i++) {
       const b = bushes[(i * 2) % bushes.length];
       dummy.rotation.set(0, rng() * 3, 0);
       dummy.position.set(b.x + (rng() - 0.5) * 2.4, 0.22, b.z + (rng() - 0.5) * 2.4);
       dummy.scale.setScalar(0.7 + rng() * 0.7);
       dummy.updateMatrix(); fernIM.setMatrixAt(i, dummy.matrix);
+      fernIM.setColorAt(i, new THREE.Color(0xffffff).offsetHSL(0, 0, (rng() - 0.5) * 0.2));
     }
+    if (fernIM.instanceColor) fernIM.instanceColor.needsUpdate = true;
     group.add(fernIM);
   }
 
