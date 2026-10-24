@@ -172,7 +172,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.5.0-dev') fail(`M6 package.json version → ${pkg.version} (expected '0.5.0-dev')`); else ok("M6 package.json version === '0.5.0-dev'");
+  if (pkg.version !== '0.6.0-dev') fail(`M6 package.json version → ${pkg.version} (expected '0.6.0-dev')`); else ok("M6 package.json version === '0.6.0-dev'");
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -683,7 +683,7 @@ try {
   }
 
   // M8: served HTML includes version tag
-  if (!home.includes('v0.5')) fail("M8 served HTML missing 'v0.5'"); else ok("M8 served HTML includes 'v0.5'");
+  if (!home.includes('v0.6')) fail("M8 served HTML missing 'v0.6'"); else ok("M8 served HTML includes 'v0.6'");
 
   // M9: served HTML contains V3 UI ids (story / objective / briefing / settings / biome)
   for (const idAttr of ['id="story-text"', 'id="objective"', 'id="briefing"', 'id="context-line"', 'id="sens-slider"', 'id="biome-select"']) {
