@@ -1,0 +1,140 @@
+// Reachability gate (Hawkeye): re-derive the v0.2 multi-floor course
+// reachability from the SHIPPED constants, without importing the game.
+//
+// js/player.js and js/world.js import the bare 'three' specifier, so
+// they cannot be imported by a plain Node script — their source text
+// is parsed instead. Exit 1 on any failure, 0 with
+// 'REACHABILITY PASSED' otherwise.
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const ROOT = new URL('..', import.meta.url).pathname;
+let failures = 0;
+const fail = m => { failures++; console.error('✗ ' + m); };
+const ok = m => console.log('✓ ' + m);
+
+let playerSrc = '';
+let worldSrc = '';
+try {
+  playerSrc = readFileSync(join(ROOT, 'js/player.js'), 'utf8');
+} catch (e) {
+  fail('read js/player.js: ' + e.message);
+}
+try {
+  worldSrc = readFileSync(join(ROOT, 'js/world.js'), 'utf8');
+} catch (e) {
+  fail('read js/world.js: ' + e.message);
+}
+
+// --- Extract shipped physics constants from js/player.js ---------------
+// Regex on the exported const declarations, e.g.
+//   export const JUMP_VELOCITY = 9.5;
+function extractConst(src, name) {
+  const m = src.match(new RegExp(`export\\s+const\\s+${name}\\s*=\\s*([0-9]*\\.?[0-9]+)\\s*;`));
+  return m ? Number(m[1]) : null;
+}
+
+const CONST_NAMES = ['JUMP_VELOCITY', 'GRAVITY', 'COYOTE_TIME', 'JUMP_BUFFER_TIME', 'JUMP_CUT_FACTOR'];
+const C = {};
+for (const name of CONST_NAMES) {
+  C[name] = playerSrc ? extractConst(playerSrc, name) : null;
+  if (C[name] === null) fail(`extract ${name} from js/player.js — missing`);
+  else ok(`extract ${name} === ${C[name]}`);
+}
+
+// --- Contract pins -------------------------------------------------------
+if (C.COYOTE_TIME !== null) {
+  if (C.COYOTE_TIME !== 0.10) fail(`pin COYOTE_TIME → ${C.COYOTE_TIME} (expected 0.10)`); else ok('pin COYOTE_TIME === 0.10');
+}
+if (C.JUMP_BUFFER_TIME !== null) {
+  if (C.JUMP_BUFFER_TIME !== 0.12) fail(`pin JUMP_BUFFER_TIME → ${C.JUMP_BUFFER_TIME} (expected 0.12)`); else ok('pin JUMP_BUFFER_TIME === 0.12');
+}
+if (C.JUMP_CUT_FACTOR !== null) {
+  if (C.JUMP_CUT_FACTOR !== 0.5) fail(`pin JUMP_CUT_FACTOR → ${C.JUMP_CUT_FACTOR} (expected 0.5)`); else ok('pin JUMP_CUT_FACTOR === 0.5');
+}
+
+// --- Jump apex: analytic + discrete (the game's own integration) -------
+let analyticApex = null;
+let discreteApex = null;
+let tapApex = null;
+const DT = 1 / 60;
+
+// Simulate the game's integration at dt = 1/60: each step applies
+// gravity first (vel.y -= GRAVITY * dt), then moves (pos.y += vel.y * dt),
+// starting from vel.y = JUMP_VELOCITY at pos.y = 0, until pos.y <= 0.
+// When `tap` is set, the variable-jump cut is applied once, on the
+// second step, if vel.y > 2 at that point: vel.y *= JUMP_CUT_FACTOR.
+function simulateApex(tap) {
+  let vel = C.JUMP_VELOCITY;
+  let pos = 0;
+  let max = 0;
+  let cutDone = false;
+  for (let step = 1; step <= 10000; step++) {
+    vel -= C.GRAVITY * DT;
+    if (tap && step === 2 && !cutDone && vel > 2) {
+      vel *= C.JUMP_CUT_FACTOR;
+      cutDone = true;
+    }
+    pos += vel * DT;
+    if (pos > max) max = pos;
+    if (pos <= 0) break;
+  }
+  return max;
+}
+
+if (C.JUMP_VELOCITY !== null && C.GRAVITY !== null) {
+  analyticApex = (C.JUMP_VELOCITY ** 2) / (2 * C.GRAVITY);
+  console.log(`  analytic apex = ${C.JUMP_VELOCITY}² / (2·${C.GRAVITY}) = ${analyticApex.toFixed(4)}m`);
+  if (!(analyticApex >= 1.70)) fail(`analytic apex → ${analyticApex.toFixed(4)}m (expected >= 1.70, ≈1.88)`); else ok(`analytic apex ${analyticApex.toFixed(4)}m >= 1.70`);
+
+  discreteApex = simulateApex(false);
+  console.log(`  discrete apex (dt=1/60, held jump) = ${discreteApex.toFixed(4)}m`);
+  if (!(discreteApex >= 1.60)) fail(`discrete apex → ${discreteApex.toFixed(4)}m (expected >= 1.60 = 1.15m crate hop + >= 0.45 margin)`); else ok(`discrete apex ${discreteApex.toFixed(4)}m >= 1.60 (1.15m crate hop + >= 0.45 margin)`);
+
+  if (C.JUMP_CUT_FACTOR !== null) {
+    tapApex = simulateApex(true);
+    console.log(`  tap apex (variable jump, cut on step 2) = ${tapApex.toFixed(4)}m`);
+    if (!(tapApex < analyticApex)) fail(`tap apex → ${tapApex.toFixed(4)}m (expected < analytic apex ${analyticApex.toFixed(4)}m)`); else ok(`tap apex ${tapApex.toFixed(4)}m < analytic apex ${analyticApex.toFixed(4)}m`);
+  }
+}
+
+// --- Step tolerance from js/world.js groundHeightAt ----------------------
+// groundHeightAt accepts a walkable top when `w.top <= refY + 0.6`:
+// the 0.6 is the step tolerance that makes the 0.575 stair rise walkable.
+let stepTolerance = null;
+if (worldSrc) {
+  const m = worldSrc.match(/refY\s*\+\s*([0-9]*\.?[0-9]+)/);
+  if (!m) fail("extract step tolerance from js/world.js — 'refY + 0.6' not found in groundHeightAt");
+  else {
+    stepTolerance = Number(m[1]);
+    ok(`extract step tolerance (refY + ${m[1]}) === ${stepTolerance}`);
+    if (!(stepTolerance > 0.575)) fail(`step tolerance → ${stepTolerance} (expected > 0.575, the stair rise used by groundStairs/deckStairs)`); else ok(`step tolerance ${stepTolerance} > 0.575 (stair rise)`);
+  }
+}
+
+// --- Route table -----------------------------------------------------------
+// Stair routes need only the step tolerance: each step rises 0.575,
+// which groundHeightAt must accept from the step below.
+// Crate-hop routes need the jump apex: each hop is a 1.15 rise.
+const STAIR_RISE = 0.575;
+const CRATE_HOP = 1.15;
+const stairPass = stepTolerance !== null && stepTolerance > STAIR_RISE;
+const cratePass = discreteApex !== null && discreteApex >= CRATE_HOP;
+
+const ROUTES = [
+  { route: 'Ground → Mid via Stair A', detail: `rise ${STAIR_RISE} ×4, walkable, needs tolerance`, pass: stairPass },
+  { route: 'Ground → Mid via Stair B', detail: `rise ${STAIR_RISE} ×4, walkable, needs tolerance`, pass: stairPass },
+  { route: 'Ground → Mid via crate hop', detail: `two ${CRATE_HOP} jumps, needs apex`, pass: cratePass },
+  { route: 'Mid → Top via deck stairs', detail: `rise ${STAIR_RISE} ×4, walkable, needs tolerance`, pass: stairPass },
+  { route: 'Mid → Top via deck crate hop', detail: `two ${CRATE_HOP} jumps, needs apex`, pass: cratePass },
+];
+
+console.log('\nRoute table:');
+for (const r of ROUTES) {
+  const verdict = r.pass ? 'PASS' : 'FAIL';
+  console.log(`  ${verdict}  ${r.route} (${r.detail})`);
+  if (!r.pass) fail(`route ${r.route} — ${r.detail}`);
+}
+
+console.log(failures ? `\nREACHABILITY FAILED (${failures})` : '\nREACHABILITY PASSED');
+process.exit(failures ? 1 : 0);
