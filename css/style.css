@@ -15,6 +15,9 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0b0f14; font-
 #stats-top { position:absolute; top:16px; right:20px; text-align:right; font-size:15px; letter-spacing:2px; line-height:1.7; color:#9fd8a8; }
 #stats-top b { color:#fff; }
 #wave-banner { position:absolute; top:18%; left:50%; transform:translateX(-50%); font-size:42px; font-weight:800; letter-spacing:6px; color:#fff; text-shadow:0 0 18px #39ff6a; opacity:0; transition:opacity .3s; }
+#objective { position:absolute; top:18px; left:50%; transform:translateX(-50%); max-width:46vw; text-align:center; font-size:12px; letter-spacing:2px; line-height:1.5; color:#9fd8a8; text-shadow:0 1px 4px rgba(0,0,0,.85); }
+#briefing { position:absolute; top:26%; left:50%; transform:translateX(-50%); width:90vw; text-align:center; font-size:17px; font-weight:600; letter-spacing:2px; line-height:1.5; color:#d9e8db; text-shadow:0 1px 6px rgba(0,0,0,.85); opacity:0; transition:opacity .3s; }
+#context-line { position:absolute; top:32%; left:50%; transform:translateX(-50%); width:90vw; text-align:center; font-size:14px; letter-spacing:2px; line-height:1.5; color:#ffd34d; text-shadow:0 1px 6px rgba(0,0,0,.85); opacity:0; transition:opacity .3s; }
 #health-wrap { position:absolute; left:22px; bottom:22px; width:280px; }
 #health-label { font-size:11px; letter-spacing:3px; color:#9fd8a8; margin-bottom:5px; }
 #health-bar { height:14px; background:rgba(255,255,255,.12); border:1px solid rgba(182,255,176,.5); }
@@ -32,6 +35,15 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0b0f14; font-
 #menu h1 span { color:#39ff6a; }
 #menu .tag { letter-spacing:4px; color:#9fd8a8; margin-top:6px; font-size:13px; }
 #menu-msg { margin-top:26px; font-size:18px; color:#d9e8db; max-width:520px; }
+#story-panel { margin-top:16px; max-width:520px; border:1px solid rgba(182,255,176,.28); background:rgba(255,255,255,.04); padding:10px 16px; border-radius:4px; }
+.story-label { font-size:11px; letter-spacing:3px; color:#9fd8a8; }
+#story-text { margin-top:6px; font-size:14px; line-height:1.55; color:#d9e8db; }
+#settings { margin-top:16px; display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; font-size:11px; letter-spacing:3px; color:#9fd8a8; }
+#sens-slider { width:150px; accent-color:#39ff6a; pointer-events:auto; cursor:pointer; }
+#sens-val { font-size:13px; font-weight:700; letter-spacing:1px; color:#fff; min-width:38px; text-align:left; }
+#biome-pick { margin-top:10px; display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; font-size:11px; letter-spacing:3px; color:#9fd8a8; }
+#biome-select { pointer-events:auto; cursor:pointer; background:rgba(255,255,255,.06); border:1px solid rgba(182,255,176,.35); color:#d9e8db; padding:7px 10px; font-size:12px; letter-spacing:1px; border-radius:4px; max-width:92vw; }
+#biome-select option { background:#0b0f14; color:#d9e8db; }
 #loadout { margin-top:22px; display:flex; flex-direction:column; align-items:center; }
 .loadout-label { font-size:11px; letter-spacing:3px; color:#9fd8a8; margin-bottom:10px; }
 .loadout-row { display:flex; flex-direction:row; gap:8px; flex-wrap:wrap; justify-content:center; }
