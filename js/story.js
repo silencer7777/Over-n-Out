@@ -76,3 +76,18 @@ const CLEAR_LINES = [
 export function clearLine(wave) {
   return CLEAR_LINES[(waveNumber(wave) - 1) % CLEAR_LINES.length];
 }
+
+const STREAK_LINES = {
+  2: 'RELAY — two down back-to-back. Keep that rhythm.',
+  3: 'RELAY — three in a row. The Carrier felt that one.',
+  4: 'RELAY — four straight. Meridian is watching, operator.',
+  5: 'RELAY — five. You are the signal now. Hold it.',
+};
+
+// Kill-streak callouts in Relay's voice (V3 Phase 2 fun feature).
+// streak < 2 earns no callout (null); 5+ reuses the peak line.
+export function streakLine(streak) {
+  const n = Math.floor(Number(streak));
+  if (!Number.isFinite(n) || n < 2) return null;
+  return STREAK_LINES[Math.min(n, 5)];
+}
