@@ -305,6 +305,10 @@ function spawnBotSim(match) {
     flinchT: 0, flinchDuration: 0.25,
     frameCounter: 0, losPhase: Math.floor(match.rng() * 3), cachedLOS: false,
     targetId: null, prevTargetPos: null, playerSpeed: 0,
+    // Un-wedge state (Havoc pack §6 — parity with js/bots.js).
+    stuckT: 0, stuckAnchorX: sp[0], stuckAnchorZ: sp[2],
+    slideMode: 0, slideSign: 1, slideFails: 0,
+    resetX: 0, resetZ: 0, hasReset: false,
   };
   if (weaponId === 'dmr') bot.burstCooldown = Math.max(bot.burstCooldown, 1.2);
   match.bots.push(bot);
@@ -602,6 +606,17 @@ function stepBot(match, bot, dt, events) {
     mx += -vz * bot.strafeDir * 0.8;
     mz += vx * bot.strafeDir * 0.8;
   }
+  // Un-wedge override (Havoc pack §6): wall-slide or lane reset
+  // replaces the hunt vector while active (parity with js/bots.js).
+  if (bot.slideMode === 1) {
+    mx = -vz * bot.slideSign + vx * 0.2;
+    mz = vx * bot.slideSign + vz * 0.2;
+  } else if (bot.slideMode === 2 && bot.hasReset) {
+    const rx = bot.resetX - bot.pos.x, rz = bot.resetZ - bot.pos.z;
+    const rl = Math.hypot(rx, rz);
+    if (rl < 1.5) { bot.slideMode = 0; bot.hasReset = false; }
+    else { mx = rx / rl; mz = rz / rl; }
+  }
   const ml = Math.hypot(mx, mz);
   if (ml > 0) {
     bot.pos.x += (mx / ml) * bot.speed * moveCfg.speedMult * dt;
@@ -623,6 +638,46 @@ function stepBot(match, bot, dt, events) {
     if (bot.losLostTime > losGrace) bot.visibleTime = 0;
   }
   const aimed = bot.visibleTime >= bot.aimTimeNeeded;
+
+  // Un-wedge detection (Havoc pack §6 — parity with js/bots.js):
+  // move intent + no LOS + < 0.4 m displacement over 2.5 s = stuck.
+  const wantMove = dist > moveCfg.close || dist < moveCfg.backoff ||
+    (dist <= moveCfg.strafeMax && dist >= moveCfg.strafeMin);
+  if (wantMove && !hasLOS) {
+    bot.stuckT += dt;
+    if (bot.stuckT >= 2.5) {
+      const disp = Math.hypot(bot.pos.x - bot.stuckAnchorX, bot.pos.z - bot.stuckAnchorZ);
+      if (disp < 0.4) {
+        if (bot.slideFails >= 2) {
+          let bd = Infinity;
+          for (const sp of SPAWN_POINTS) {
+            const d = Math.hypot(sp[0] - bot.pos.x, sp[2] - bot.pos.z);
+            if (d < bd) { bd = d; bot.resetX = sp[0]; bot.resetZ = sp[2]; }
+          }
+          bot.hasReset = true;
+          bot.slideMode = 2;
+          bot.slideFails = 0;
+        } else {
+          bot.slideMode = 1;
+          bot.slideSign *= -1;
+          bot.slideFails++;
+        }
+      } else {
+        bot.slideFails = 0;
+        bot.slideMode = 0;
+        bot.hasReset = false;
+      }
+      bot.stuckAnchorX = bot.pos.x;
+      bot.stuckAnchorZ = bot.pos.z;
+      bot.stuckT = 0;
+    }
+  } else {
+    bot.stuckT = 0;
+    bot.stuckAnchorX = bot.pos.x;
+    bot.stuckAnchorZ = bot.pos.z;
+    if (hasLOS) { bot.slideMode = 0; bot.slideFails = 0; bot.hasReset = false; }
+  }
+
   if (bot.weaponId === 'dmr' && bot.burstLeft > 0 && bot.losLostTime > 0.15) bot.burstLeft = 0;
 
   // Shooting.
