@@ -7,7 +7,14 @@ game with accounts, cloud-saved progress, and a cosmetic store.
 **Not affiliated with Call of Duty or Activision.** Original name, original
 code, original assets. Gameplay *inspired by* the genre's best.
 
-## ▶ Play it (v0.1)
+## ▶ Play it (v0.2)
+
+**What's new in v0.2 “ARSENAL”:** a 5-weapon system (Assault Rifle, SMG,
+Shotgun, DMR, Pistol) driven by one data table in `js/weapons.js` — pick
+your starting weapon in the menu loadout, switch in-game with keys 1–5,
+and face bots armed from the same table. Plus the Session 1 realism pass:
+dusk sky and shadows, smarter bots, distance-aware audio. Multiplayer
+groundwork is designed in `docs/MULTIPLAYER.md` (v3).
 
 You need Node 18+ (nothing to install — zero dependencies):
 
@@ -16,7 +23,7 @@ node server/server.js
 # then open http://localhost:8080
 ```
 
-**Controls:** WASD move · mouse aim · click fire · Shift sprint · Space jump · R reload.
+**Controls:** WASD move · mouse aim · click fire · Shift sprint · Space jump · R reload · **1–5 switch weapon**.
 Survive escalating waves of hostiles in the compound. Headshots do double damage.
 
 ## 📁 Layout
@@ -26,6 +33,7 @@ Survive escalating waves of hostiles in the compound. Headshots do double damage
 | `index.html`, `css/` | Menu, HUD, styling |
 | `js/main.js` | Game loop, waves, shooting, state |
 | `js/player.js` | FPS controls, movement physics, view-model gun |
+| `js/weapons.js` | The arsenal — one data table for all player + bot weapons |
 | `js/bots.js` | Enemy AI (advance / strafe / burst fire, line-of-sight) |
 | `js/world.js` | Arena, lighting, collision |
 | `js/audio.js` | Synthesized WebAudio SFX (no audio files) |
