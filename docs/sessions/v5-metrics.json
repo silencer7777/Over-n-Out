@@ -1,0 +1,976 @@
+{
+  "tool": "v5-metrics",
+  "generatedAt": "2026-10-24T19:46:15.181Z",
+  "sections": {
+    "gates": {
+      "smoke": {
+        "passed": false,
+        "checks": 225,
+        "error": "✗ T-suite tools/soak.mjs FAILED:\n✓ S1 welcome carries the server weapons table (5 weapons)\n✓ S2 match booted on first hello, state=playing\n✓ S4 camper shots resolved server-side: 862 shots, 21 pulls hit\n✓ S5 kills recorded: 5 (bots died to server raycast/barrels)\n✓ S6 snapshots flowing: 2999 receive"
+      },
+      "reachability": {
+        "passed": true,
+        "checks": 31,
+        "tail": " | REACHABILITY PASSED"
+      },
+      "biomeCheck": {
+        "passed": true,
+        "checks": 23,
+        "tail": " | BIOME CHECK PASSED"
+      },
+      "wsSoak": {
+        "passed": true,
+        "checks": 27,
+        "tail": " | WS SOAK PASSED"
+      },
+      "soak": {
+        "passed": false,
+        "losUsPerRay": 3.88,
+        "simMsPerTick": 0.054
+      },
+      "perMapReachability": {}
+    },
+    "maps": {
+      "compound": {
+        "status": "live",
+        "static": {
+          "calls": 82,
+          "tris": 14003,
+          "shadowCasters": 70,
+          "instancedMeshes": 8,
+          "instances": 356,
+          "renderables": 82
+        },
+        "sustained": {
+          "calls": 156,
+          "tris": 29907
+        },
+        "inclTransients": {
+          "calls": 157,
+          "tris": 29907
+        },
+        "shadowPassEstimate": 251,
+        "equipmentReserveCalls": 32,
+        "streakReserveCalls": 17,
+        "remoteFigureCalls": 21,
+        "grandWorstCase": 226,
+        "profileApplied": {
+          "applied": true,
+          "exposure": 1.1
+        },
+        "tableProxy": 0.688,
+        "readability": {
+          "sunElevationDeg": 37.98,
+          "sunIntensity": 2.6,
+          "hemiIntensity": 1.05,
+          "exposure": 1.1,
+          "boardProxy": {
+            "shadowProxy": 0.688,
+            "effectiveProxy": 0.688
+          },
+          "fog": {
+            "near": 42,
+            "far": 220,
+            "lum": 0.708
+          },
+          "backgroundLum": 0.708,
+          "domeSwapped": false,
+          "fogBackgroundAgreement": 1,
+          "sflVertical": 0.0395,
+          "sflHorizontal": 0.2252,
+          "ece20": 5.7,
+          "ece40": 5.7,
+          "eceWall20": 3.74,
+          "eceWall40": 3.74,
+          "enemySunlitLum": 0.1828,
+          "groundSunlitLum": 0.6841,
+          "sunGroundShare": 2.04
+        }
+      },
+      "forest": {
+        "status": "live",
+        "static": {
+          "calls": 91,
+          "tris": 67065,
+          "shadowCasters": 77,
+          "instancedMeshes": 13,
+          "instances": 1540,
+          "renderables": 91
+        },
+        "sustained": {
+          "calls": 165,
+          "tris": 82969
+        },
+        "inclTransients": {
+          "calls": 166,
+          "tris": 82969
+        },
+        "shadowPassEstimate": 267,
+        "equipmentReserveCalls": 32,
+        "streakReserveCalls": 17,
+        "remoteFigureCalls": 21,
+        "grandWorstCase": 235,
+        "profileApplied": {
+          "applied": true,
+          "exposure": 1.08
+        },
+        "tableProxy": 0.5971,
+        "readability": {
+          "sunElevationDeg": 35.98,
+          "sunIntensity": 2.5,
+          "hemiIntensity": 1,
+          "exposure": 1.08,
+          "boardProxy": {
+            "shadowProxy": 0.6082,
+            "effectiveProxy": 0.5971
+          },
+          "fog": {
+            "near": 42,
+            "far": 200,
+            "lum": 0.63
+          },
+          "backgroundLum": 0.63,
+          "domeSwapped": true,
+          "fogBackgroundAgreement": null,
+          "sflVertical": 0.0342,
+          "sflHorizontal": 0.2073,
+          "ece20": 6.07,
+          "ece40": 6.07,
+          "eceWall20": 3.66,
+          "eceWall40": 3.66,
+          "enemySunlitLum": 0.1755,
+          "groundSunlitLum": 0.6281,
+          "sunGroundShare": 2.03
+        }
+      },
+      "snow": {
+        "status": "live",
+        "static": {
+          "calls": 94,
+          "tris": 18627,
+          "shadowCasters": 76,
+          "instancedMeshes": 10,
+          "instances": 418,
+          "renderables": 94
+        },
+        "sustained": {
+          "calls": 168,
+          "tris": 34531
+        },
+        "inclTransients": {
+          "calls": 169,
+          "tris": 34531
+        },
+        "shadowPassEstimate": 269,
+        "equipmentReserveCalls": 32,
+        "streakReserveCalls": 17,
+        "remoteFigureCalls": 21,
+        "grandWorstCase": 238,
+        "profileApplied": {
+          "applied": true,
+          "exposure": 1.08
+        },
+        "tableProxy": 1.1251,
+        "readability": {
+          "sunElevationDeg": 44.98,
+          "sunIntensity": 1.35,
+          "hemiIntensity": 1.25,
+          "exposure": 1.08,
+          "boardProxy": {
+            "shadowProxy": 1.1459,
+            "effectiveProxy": 1.1251
+          },
+          "fog": {
+            "near": 42,
+            "far": 210,
+            "lum": 0.838
+          },
+          "backgroundLum": 0.838,
+          "domeSwapped": true,
+          "fogBackgroundAgreement": null,
+          "sflVertical": 0.0846,
+          "sflHorizontal": 0.3431,
+          "ece20": 4.06,
+          "ece40": 4.06,
+          "eceWall20": 3.93,
+          "eceWall40": 3.93,
+          "enemySunlitLum": 0.1545,
+          "groundSunlitLum": 0.6296,
+          "sunGroundShare": 0.83
+        }
+      },
+      "mars": {
+        "status": "live",
+        "static": {
+          "calls": 93,
+          "tris": 17553,
+          "shadowCasters": 81,
+          "instancedMeshes": 10,
+          "instances": 405,
+          "renderables": 93
+        },
+        "sustained": {
+          "calls": 167,
+          "tris": 33457
+        },
+        "inclTransients": {
+          "calls": 168,
+          "tris": 33457
+        },
+        "shadowPassEstimate": 273,
+        "equipmentReserveCalls": 32,
+        "streakReserveCalls": 17,
+        "remoteFigureCalls": 21,
+        "grandWorstCase": 237,
+        "profileApplied": {
+          "applied": true,
+          "exposure": 1.06
+        },
+        "tableProxy": 0.4733,
+        "readability": {
+          "sunElevationDeg": 41.98,
+          "sunIntensity": 2.4,
+          "hemiIntensity": 1,
+          "exposure": 1.06,
+          "boardProxy": {
+            "shadowProxy": 0.4911,
+            "effectiveProxy": 0.4733
+          },
+          "fog": {
+            "near": 42,
+            "far": 200,
+            "lum": 0.1532
+          },
+          "backgroundLum": 0.1532,
+          "domeSwapped": true,
+          "fogBackgroundAgreement": null,
+          "sflVertical": 0.0225,
+          "sflHorizontal": 0.1302,
+          "ece20": 5.78,
+          "ece40": 5.78,
+          "eceWall20": 3.54,
+          "eceWall40": 3.54,
+          "enemySunlitLum": 0.138,
+          "groundSunlitLum": 0.5566,
+          "sunGroundShare": 3.27
+        }
+      }
+    },
+    "sharedCosts": {
+      "botCalls": 7,
+      "botCasters": 4,
+      "worstBotTris": 1608,
+      "worstViewmodelTris": 832,
+      "botByWeapon": {
+        "ar": {
+          "calls": 7,
+          "tris": 1356,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        },
+        "smg": {
+          "calls": 7,
+          "tris": 1168,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        },
+        "shotgun": {
+          "calls": 7,
+          "tris": 1208,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        },
+        "dmr": {
+          "calls": 7,
+          "tris": 1608,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        },
+        "pistol": {
+          "calls": 7,
+          "tris": 1040,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        }
+      },
+      "viewmodelByWeapon": {
+        "ar": {
+          "calls": 5,
+          "tris": 580,
+          "shadowCasters": 0,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 5
+        },
+        "smg": {
+          "calls": 3,
+          "tris": 392,
+          "shadowCasters": 0,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 3
+        },
+        "shotgun": {
+          "calls": 4,
+          "tris": 432,
+          "shadowCasters": 0,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 4
+        },
+        "dmr": {
+          "calls": 5,
+          "tris": 832,
+          "shadowCasters": 0,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 5
+        },
+        "pistol": {
+          "calls": 4,
+          "tris": 264,
+          "shadowCasters": 0,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 4
+        }
+      },
+      "botProbe": {
+        "albedo": {
+          "r": 0.06609490182417542,
+          "g": 0.0764536906311761,
+          "b": 0.06117677471197363
+        },
+        "vertices": 4020,
+        "emissive": {
+          "r": 0.009134058699157796,
+          "g": 0.0015176349176470587,
+          "b": 0.0015176349176470587
+        }
+      },
+      "exposure": 1.1
+    },
+    "mapData": {
+      "compound": {
+        "source": "js/worlddata.js (V4 legacy — sim-shared)",
+        "exports": {
+          "ASSAULT_TARGET": {
+            "type": "object",
+            "keys": 4
+          },
+          "BARRELS": {
+            "type": "array",
+            "length": 5
+          },
+          "BOUNDS": {
+            "type": "number",
+            "value": 62
+          },
+          "EXTRA_COLLIDERS": {
+            "type": "array",
+            "length": 19
+          },
+          "MODE_ZONES": {
+            "type": "object",
+            "keys": 3
+          },
+          "PICKUP_CACHES": {
+            "type": "array",
+            "length": 2
+          },
+          "SOLIDS": {
+            "type": "array",
+            "length": 92
+          },
+          "SPAWN_POINTS": {
+            "type": "array",
+            "length": 12
+          },
+          "TRANSMISSIONS": {
+            "type": "array",
+            "length": 3
+          },
+          "allColliders": {
+            "type": "function"
+          },
+          "groundHeightAt": {
+            "type": "function"
+          }
+        }
+      },
+      "forest": {
+        "source": "js/worlddata-forest.js",
+        "exports": {
+          "ASSAULT_TARGET": {
+            "type": "object",
+            "keys": 4
+          },
+          "BARRELS": {
+            "type": "array",
+            "length": 2
+          },
+          "BOUNDS": {
+            "type": "number",
+            "value": 62
+          },
+          "BUSH_COLLIDERS": {
+            "type": "array",
+            "length": 51
+          },
+          "BUSH_SPOTS": {
+            "type": "array",
+            "length": 90
+          },
+          "EXTRA_COLLIDERS": {
+            "type": "array",
+            "length": 14
+          },
+          "MODE_ZONES": {
+            "type": "object",
+            "keys": 3
+          },
+          "PICKUP_CACHES": {
+            "type": "array",
+            "length": 2
+          },
+          "SOLIDS": {
+            "type": "array",
+            "length": 26
+          },
+          "SPAWN_POINTS": {
+            "type": "array",
+            "length": 8
+          },
+          "STRUCTURE_STYLE": {
+            "type": "array",
+            "length": 26
+          },
+          "TRANSMISSIONS": {
+            "type": "array",
+            "length": 3
+          },
+          "TREE_COLLIDERS": {
+            "type": "array",
+            "length": 110
+          },
+          "TREE_SPOTS": {
+            "type": "array",
+            "length": 110
+          },
+          "allColliders": {
+            "type": "function"
+          },
+          "groundHeightAt": {
+            "type": "function"
+          }
+        }
+      },
+      "snow": {
+        "source": "js/worlddata-snow.js",
+        "exports": {
+          "ASSAULT_TARGET": {
+            "type": "object",
+            "keys": 4
+          },
+          "BARRELS": {
+            "type": "array",
+            "length": 3
+          },
+          "BOUNDS": {
+            "type": "number",
+            "value": 62
+          },
+          "DRIFT_COLLIDERS": {
+            "type": "array",
+            "length": 31
+          },
+          "DRIFT_SPOTS": {
+            "type": "array",
+            "length": 46
+          },
+          "EXTRA_COLLIDERS": {
+            "type": "array",
+            "length": 15
+          },
+          "MODE_ZONES": {
+            "type": "object",
+            "keys": 3
+          },
+          "PICKUP_CACHES": {
+            "type": "array",
+            "length": 2
+          },
+          "SOLIDS": {
+            "type": "array",
+            "length": 42
+          },
+          "SPAWN_POINTS": {
+            "type": "array",
+            "length": 8
+          },
+          "STRUCTURE_STYLE": {
+            "type": "array",
+            "length": 42
+          },
+          "TRANSMISSIONS": {
+            "type": "array",
+            "length": 3
+          },
+          "allColliders": {
+            "type": "function"
+          },
+          "groundHeightAt": {
+            "type": "function"
+          }
+        }
+      },
+      "mars": {
+        "source": "js/worlddata-mars.js",
+        "exports": {
+          "ASSAULT_TARGET": {
+            "type": "object",
+            "keys": 4
+          },
+          "BARRELS": {
+            "type": "array",
+            "length": 2
+          },
+          "BOUNDS": {
+            "type": "number",
+            "value": 62
+          },
+          "EXTRA_COLLIDERS": {
+            "type": "array",
+            "length": 14
+          },
+          "MODE_ZONES": {
+            "type": "object",
+            "keys": 3
+          },
+          "PICKUP_CACHES": {
+            "type": "array",
+            "length": 2
+          },
+          "ROCK_COLLIDERS": {
+            "type": "array",
+            "length": 14
+          },
+          "ROCK_SPOTS": {
+            "type": "array",
+            "length": 40
+          },
+          "SOLIDS": {
+            "type": "array",
+            "length": 9
+          },
+          "SPAWN_POINTS": {
+            "type": "array",
+            "length": 8
+          },
+          "STRUCTURE_STYLE": {
+            "type": "array",
+            "length": 9
+          },
+          "TRANSMISSIONS": {
+            "type": "array",
+            "length": 3
+          },
+          "allColliders": {
+            "type": "function"
+          },
+          "groundHeightAt": {
+            "type": "function"
+          }
+        }
+      }
+    },
+    "simBench": {
+      "standard": {
+        "label": "soak-parity (2 scripted clients)",
+        "clients": 2,
+        "ticks": 1113,
+        "sanity": {
+          "welcomesReceived": 2,
+          "matchBooted": true,
+          "snapshotsReceived": 1482
+        },
+        "msPerTickAvg": 0.128,
+        "windowMsPerTick": null,
+        "maxWave": 2,
+        "maxAliveBots": 6,
+        "maxSnapshotBytes": 1161,
+        "snapshotCapBytes": 4096,
+        "snapshotWithinCap": true
+      },
+      "stress": {
+        "label": "stress (4 scripted clients, window at wave >= 5 = alive cap 9)",
+        "clients": 4,
+        "ticks": 2477,
+        "sanity": {
+          "welcomesReceived": 4,
+          "matchBooted": true,
+          "snapshotsReceived": 6604
+        },
+        "msPerTickAvg": 0.078,
+        "windowMsPerTick": null,
+        "maxWave": 1,
+        "maxAliveBots": 4,
+        "maxSnapshotBytes": 1086,
+        "snapshotCapBytes": 4096,
+        "snapshotWithinCap": true
+      },
+      "bar": "<= 0.5 ms/tick at real caps (4 humans, 9-bot alive cap)"
+    },
+    "streakActors": {
+      "status": "NOT LANDED — no streak surface in net/protocol.js",
+      "protocolSurfaceHits": [],
+      "perActorBudgetMs": 0.02,
+      "stressReproof": "PENDING — stress bench must run with sentry + UAV + package active before V5 close-out",
+      "actors": [
+        "sentry (persistent, scanning)",
+        "uav (airborne, moving)",
+        "care package (falling, then static)"
+      ]
+    },
+    "paletteDelta": {
+      "perTeam": {
+        "hostile": {
+          "calls": 7,
+          "tris": 1356,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        },
+        "friendly": {
+          "calls": 7,
+          "tris": 1356,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        }
+      },
+      "delta": {
+        "calls": 0,
+        "tris": 0
+      },
+      "pass": true,
+      "variants": {
+        "hostile:woodland": {
+          "calls": 7,
+          "tris": 1356,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        },
+        "hostile:arctic": {
+          "calls": 7,
+          "tris": 1356,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        },
+        "hostile:desert": {
+          "calls": 7,
+          "tris": 1356,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        },
+        "hostile:urban": {
+          "calls": 7,
+          "tris": 1356,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        },
+        "hostile:night": {
+          "calls": 7,
+          "tris": 1356,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        },
+        "friendly:woodland": {
+          "calls": 7,
+          "tris": 1356,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        },
+        "friendly:arctic": {
+          "calls": 7,
+          "tris": 1356,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        },
+        "friendly:desert": {
+          "calls": 7,
+          "tris": 1356,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        },
+        "friendly:urban": {
+          "calls": 7,
+          "tris": 1356,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        },
+        "friendly:night": {
+          "calls": 7,
+          "tris": 1356,
+          "shadowCasters": 4,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "renderables": 7
+        },
+        "pass": true
+      }
+    },
+    "equipmentAudit": {
+      "status": "measured",
+      "claymore": {
+        "calls": 1,
+        "tris": 192,
+        "shadowCasters": 1,
+        "instancedMeshes": 0,
+        "instances": 0,
+        "renderables": 1
+      },
+      "tripmine": {
+        "calls": 1,
+        "tris": 156,
+        "shadowCasters": 1,
+        "instancedMeshes": 0,
+        "instances": 0,
+        "renderables": 1
+      },
+      "uav": {
+        "calls": 6,
+        "tris": 764,
+        "shadowCasters": 1,
+        "instancedMeshes": 0,
+        "instances": 0,
+        "renderables": 6
+      },
+      "smoke": {
+        "calls": 13,
+        "tris": 48,
+        "shadowCasters": 0,
+        "instancedMeshes": 0,
+        "instances": 0,
+        "renderables": 13
+      },
+      "declared": {
+        "claymore": 1,
+        "tripmine": 1,
+        "uav": 6,
+        "smoke": 13
+      }
+    },
+    "shadowConfig": {
+      "mainMapSize": 4096,
+      "qualityTierSizes": [
+        0,
+        4096,
+        2048
+      ],
+      "boardTarget": "Board 005 §2.4: 4096 at L0/L1, 2048 at L2, off at L3 (smoke L6 pins it; Odin reports)",
+      "note": "source-read literals — the live map size also depends on the quality scaler level at runtime"
+    },
+    "capabilities": {
+      "modes": {
+        "count": 4,
+        "ids": [
+          "waves",
+          "tdm",
+          "domination",
+          "assault"
+        ]
+      },
+      "loadouts": {
+        "combinations": 1944,
+        "attachments": 14,
+        "slots": 5,
+        "maxClasses": 5,
+        "lethals": [
+          "frag",
+          "claymore",
+          "tripmine"
+        ],
+        "tacticals": [
+          "flash",
+          "smoke"
+        ],
+        "camos": 5
+      },
+      "perks": {
+        "count": 8,
+        "source": "../js/loadouts.js:PERKS",
+        "ids": [
+          "lightweight",
+          "stalker",
+          "flak",
+          "shade",
+          "ghost",
+          "coldblooded",
+          "engineer",
+          "scavenger"
+        ],
+        "verifiability": "UNMEASURED — every perk owes a named sim quantity + probe before ship (Odin ledger, docs/sessions/v5-metrics.md §6)"
+      },
+      "lightingProfiles": {
+        "source": "js/lighting.js",
+        "maps": [
+          "compound",
+          "forest",
+          "snow",
+          "mars"
+        ]
+      },
+      "progression": {
+        "maxLevel": 30,
+        "unlockEntries": 26,
+        "topUnlockLevel": 18,
+        "prestigeEntries": 11
+      },
+      "maps": {
+        "biomes": [
+          {
+            "id": "compound",
+            "status": "live"
+          },
+          {
+            "id": "forest",
+            "status": "live"
+          },
+          {
+            "id": "snow",
+            "status": "live"
+          },
+          {
+            "id": "mars",
+            "status": "live"
+          }
+        ],
+        "liveCount": 4
+      },
+      "version": "0.5.0-dev"
+    }
+  },
+  "warnings": [
+    "PERF (map snow): sustained draw calls 168 exceed the per-map line (165) — reclaim required, new content included",
+    "PERF (map mars): sustained draw calls 167 exceed the per-map line (165) — reclaim required, new content included",
+    "STREAKS: sim has no streak actors yet — per-actor sim pricing and the streaks-active stress re-proof are owed at landing (owner clarification, Oct 24)",
+    "SMOKE: 13 calls/volume exceeds the 6-call target — at 4 active that is 52 calls of transient (reserve holds 24). Redesign target filed in docs/sessions/v5-metrics.md §4.2 — this is the one priced item that can break the frame budget on its own",
+    "PERKS: 8 perks present (../js/loadouts.js:PERKS) — verifiability ledger is UNMEASURED until each perk has a sim probe (Directive 11 veto stands)"
+  ],
+  "bars": {
+    "drawCallsPerMap": 165,
+    "trisPerMap": 300000,
+    "simMsPerTick": 0.5,
+    "snapshotCapBytes": 4096,
+    "readabilityFloors": {
+      "sflVertical": 0.0119,
+      "sflHorizontal": 0.0948,
+      "ece40": 3,
+      "ece20": 3,
+      "eceWall40": 3,
+      "referenceV4": {
+        "ece": 7.99,
+        "eceWall": 4.34,
+        "note": "V4-rig calibration, printed for drift visibility — not a floor"
+      },
+      "boardProxy": 0.3597
+    },
+    "sunCoherence": {
+      "elevationBands": {
+        "compound": [
+          34,
+          44
+        ],
+        "forest": [
+          32,
+          42
+        ],
+        "snow": [
+          40,
+          50
+        ],
+        "mars": [
+          36,
+          48
+        ]
+      },
+      "fogBackgroundAgreement": 0.6
+    },
+    "equipmentReserve": {
+      "smoke": {
+        "maxActiveVolumes": 4,
+        "callsPerVolume": 6,
+        "calls": 24,
+        "casters": 0,
+        "note": "TARGET <= 6 calls/volume — MEASURED 13 (Atlas smokevisual: 12 sprites + blob) = 52 at 4 active; redesign target filed by Odin (Points core + fewer sprites, or quality-shed sprites). Smoke casters 0: VERIFIED"
+      },
+      "placedLethals": {
+        "maxPlaced": 8,
+        "callsPerDevice": 2,
+        "calls": 8,
+        "castersPerDevice": 1,
+        "note": "MEASURED (Atlas equipment.js): 1 call per device (beats the <= 2 cap), 1 caster each — casters accepted and priced (+8 shadow renders at the placed cap), disclosed not flagged"
+      },
+      "totalCalls": 32,
+      "remoteFigures": {
+        "count": 3,
+        "callsEach": 7,
+        "calls": 21,
+        "note": "online worst case: 3 remote humans rendered as figures, IF outside the 9-bot alive cap — open question to Vega/Coordinator (Board 005 §3.3)"
+      }
+    },
+    "streakReserve": {
+      "sentry": {
+        "calls": 7,
+        "note": "UNBUILT — SIMULATED ACTOR (owner clarification): persistent, scanning; priced at the measured bot-figure cost (7 calls) + per-actor sim cost below"
+      },
+      "uav": {
+        "calls": 6,
+        "note": "VISUAL BUILT (Atlas equipment.js createUAVActor): MEASURED 6 calls / 1 caster / 764 tris — repriced from the 3-call guess to the measured 6. Sim flight actor still UNBUILT; markers HUD = 0 scene calls"
+      },
+      "carePackage": {
+        "calls": 2,
+        "note": "UNBUILT — SIMULATED ACTOR while falling (transient), then a static crate"
+      },
+      "strike": {
+        "calls": 2,
+        "note": "UNBUILT — transient particle burst, pooled-visual assumption"
+      },
+      "totalCalls": 17
+    },
+    "simPerActorMs": 0.02
+  },
+  "head": "744f8ca",
+  "treeClean": false
+}
