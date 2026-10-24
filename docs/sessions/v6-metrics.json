@@ -1,0 +1,3775 @@
+{
+  "tool": "v6-metrics",
+  "generatedAt": "2026-10-24T21:42:51.969Z",
+  "sections": {
+    "gates": {
+      "smoke": {
+        "passed": true,
+        "checks": 253,
+        "tail": " | SMOKE PASSED"
+      },
+      "reachability": {
+        "passed": true,
+        "checks": 38,
+        "tail": " | REACHABILITY PASSED"
+      },
+      "biomeCheck": {
+        "passed": true,
+        "checks": 50,
+        "tail": " | BIOME CHECK PASSED"
+      },
+      "wsSoak": {
+        "passed": true,
+        "checks": 27,
+        "tail": " | WS SOAK PASSED"
+      },
+      "soak": {
+        "passed": true,
+        "losUsPerRay": 3.8,
+        "simMsPerTick": 0.07
+      },
+      "perMapReachability": {
+        "maps": {
+          "passed": true,
+          "checks": 3,
+          "tail": " | MAP REACHABILITY PASSED"
+        }
+      }
+    },
+    "lightingIntegrity": {
+      "baseline": {
+        "lightingJsSha256_16": "a40a3f79c85670a6",
+        "exposureLiteral": 1.1,
+        "shadowMapSize": 4096
+      },
+      "lightingJsSha256_16": "a40a3f79c85670a6",
+      "exposureLiteral": 1.1,
+      "shadowMapSize": 4096,
+      "profileMaps": [
+        "compound",
+        "forest",
+        "snow",
+        "mars"
+      ],
+      "untouched": true
+    },
+    "maps": {
+      "compound": {
+        "status": "live",
+        "client": {
+          "kind": "client",
+          "static": {
+            "calls": 45,
+            "tris": 24572,
+            "verts": 39371,
+            "shadowCasters": 27,
+            "casterTris": 15242,
+            "instancedMeshes": 9,
+            "instances": 410,
+            "instancedTris": 17742,
+            "instancedShare": 0.722,
+            "flatTris": 5940,
+            "flatShare": 0.242,
+            "texturedTris": 14266,
+            "texturedShare": 0.581,
+            "largestUntexturedMesh": {
+              "tris": 40,
+              "area": 263122.8,
+              "geo": "CircleGeometry"
+            },
+            "strikeCandidateMesh": {
+              "tris": 348,
+              "area": 3815.5,
+              "geo": "BufferGeometry"
+            },
+            "renderables": 45
+          },
+          "topInstanced": [
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              },
+              "count": 42,
+              "trisEach": 140,
+              "tris": 5880,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              },
+              "count": 28,
+              "trisEach": 140,
+              "tris": 3920,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "DodecahedronGeometry",
+              "params": {
+                "radius": 0.28,
+                "detail": 0
+              },
+              "count": 64,
+              "trisEach": 36,
+              "tris": 2304,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "ConeGeometry",
+              "params": {
+                "height": 0.5,
+                "radialSegments": 5,
+                "heightSegments": 1,
+                "radius": 0.16
+              },
+              "count": 90,
+              "trisEach": 15,
+              "tris": 1350,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "ConeGeometry",
+              "params": {
+                "height": 0.5,
+                "radialSegments": 5,
+                "heightSegments": 1,
+                "radius": 0.16
+              },
+              "count": 90,
+              "trisEach": 15,
+              "tris": 1350,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "DodecahedronGeometry",
+              "params": {
+                "radius": 0.3,
+                "detail": 0
+              },
+              "count": 26,
+              "trisEach": 36,
+              "tris": 936,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": false
+            },
+            {
+              "kind": "instanced",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.2,
+                "radiusBottom": 0.44,
+                "height": 3.2,
+                "radialSegments": 10,
+                "heightSegments": 4
+              },
+              "count": 7,
+              "trisEach": 100,
+              "tris": 700,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.03,
+                "radiusBottom": 0.09,
+                "height": 1.7,
+                "radialSegments": 6,
+                "heightSegments": 1
+              },
+              "count": 28,
+              "trisEach": 24,
+              "tris": 672,
+              "flat": false,
+              "textured": true,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "ConeGeometry",
+              "params": {
+                "height": 1.15,
+                "radialSegments": 6,
+                "heightSegments": 1,
+                "radius": 0.17
+              },
+              "count": 35,
+              "trisEach": 18,
+              "tris": 630,
+              "flat": false,
+              "textured": true,
+              "castShadow": false,
+              "instanceColor": true
+            }
+          ],
+          "topMeshes": [
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 912,
+              "tris": 912,
+              "flat": false,
+              "textured": true,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 20,
+                "widthSegments": 20,
+                "radius": 11
+              },
+              "count": 1,
+              "trisEach": 760,
+              "tris": 760,
+              "flat": false,
+              "textured": false,
+              "castShadow": false,
+              "name": "sun-disc"
+            },
+            {
+              "kind": "mesh",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 16,
+                "widthSegments": 24,
+                "radius": 300
+              },
+              "count": 1,
+              "trisEach": 720,
+              "tris": 720,
+              "flat": false,
+              "textured": true,
+              "castShadow": false,
+              "name": "sky-dome"
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 348,
+              "tris": 348,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 316,
+              "tris": 316,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 316,
+              "tris": 316,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 316,
+              "tris": 316,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 240,
+              "tris": 240,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            }
+          ],
+          "textures": {
+            "uniqueTextures": 10,
+            "materials": 32,
+            "totalTexels": 739328,
+            "estVramMB": 3.9,
+            "byResolution": {
+              "4x512": 1,
+              "128x128": 1,
+              "512x512": 1,
+              "256x256": 7
+            },
+            "textures": [
+              {
+                "w": 512,
+                "h": 512,
+                "texels": 262144,
+                "slots": [
+                  "map",
+                  "bumpMap"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 128,
+                "h": 128,
+                "texels": 16384,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 4,
+                "h": 512,
+                "texels": 2048,
+                "slots": [
+                  "map"
+                ]
+              }
+            ]
+          },
+          "sustained": {
+            "calls": 119,
+            "tris": 40476
+          },
+          "inclTransients": {
+            "calls": 120,
+            "tris": 40476
+          },
+          "shadowPassEstimate": 171,
+          "shadowTrisEstimate": 27302,
+          "equipmentReserveCalls": 32,
+          "streakReserveCalls": 17,
+          "remoteFigureCalls": 21,
+          "grandWorstCase": 189,
+          "vegetation": null
+        }
+      },
+      "forest": {
+        "status": "live",
+        "client": {
+          "kind": "client",
+          "static": {
+            "calls": 54,
+            "tris": 190398,
+            "verts": 172741,
+            "shadowCasters": 34,
+            "casterTris": 166452,
+            "instancedMeshes": 14,
+            "instances": 2218,
+            "instancedTris": 183398,
+            "instancedShare": 0.963,
+            "flatTris": 5940,
+            "flatShare": 0.031,
+            "texturedTris": 179922,
+            "texturedShare": 0.945,
+            "largestUntexturedMesh": {
+              "tris": 40,
+              "area": 263122.8,
+              "geo": "CircleGeometry"
+            },
+            "strikeCandidateMesh": {
+              "tris": 348,
+              "area": 3815.5,
+              "geo": "BufferGeometry"
+            },
+            "renderables": 54
+          },
+          "topInstanced": [
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              },
+              "count": 812,
+              "trisEach": 140,
+              "tris": 113680,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              },
+              "count": 184,
+              "trisEach": 140,
+              "tris": 25760,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.2,
+                "radiusBottom": 0.44,
+                "height": 3.2,
+                "radialSegments": 10,
+                "heightSegments": 4
+              },
+              "count": 116,
+              "trisEach": 100,
+              "tris": 11600,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.03,
+                "radiusBottom": 0.09,
+                "height": 1.7,
+                "radialSegments": 6,
+                "heightSegments": 1
+              },
+              "count": 348,
+              "trisEach": 24,
+              "tris": 8352,
+              "flat": false,
+              "textured": true,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "ConeGeometry",
+              "params": {
+                "height": 1.15,
+                "radialSegments": 6,
+                "heightSegments": 1,
+                "radius": 0.17
+              },
+              "count": 348,
+              "trisEach": 18,
+              "tris": 6264,
+              "flat": false,
+              "textured": true,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              },
+              "count": 42,
+              "trisEach": 140,
+              "tris": 5880,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              },
+              "count": 28,
+              "trisEach": 140,
+              "tris": 3920,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "DodecahedronGeometry",
+              "params": {
+                "radius": 0.28,
+                "detail": 0
+              },
+              "count": 64,
+              "trisEach": 36,
+              "tris": 2304,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "ConeGeometry",
+              "params": {
+                "height": 0.5,
+                "radialSegments": 5,
+                "heightSegments": 1,
+                "radius": 0.16
+              },
+              "count": 90,
+              "trisEach": 15,
+              "tris": 1350,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "ConeGeometry",
+              "params": {
+                "height": 0.5,
+                "radialSegments": 5,
+                "heightSegments": 1,
+                "radius": 0.16
+              },
+              "count": 90,
+              "trisEach": 15,
+              "tris": 1350,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "DodecahedronGeometry",
+              "params": {
+                "radius": 0.3,
+                "detail": 0
+              },
+              "count": 26,
+              "trisEach": 36,
+              "tris": 936,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": false
+            },
+            {
+              "kind": "instanced",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.2,
+                "radiusBottom": 0.44,
+                "height": 3.2,
+                "radialSegments": 10,
+                "heightSegments": 4
+              },
+              "count": 7,
+              "trisEach": 100,
+              "tris": 700,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            }
+          ],
+          "topMeshes": [
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 912,
+              "tris": 912,
+              "flat": false,
+              "textured": true,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 20,
+                "widthSegments": 20,
+                "radius": 11
+              },
+              "count": 1,
+              "trisEach": 760,
+              "tris": 760,
+              "flat": false,
+              "textured": false,
+              "castShadow": false,
+              "name": "sun-disc"
+            },
+            {
+              "kind": "mesh",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 16,
+                "widthSegments": 24,
+                "radius": 300
+              },
+              "count": 1,
+              "trisEach": 720,
+              "tris": 720,
+              "flat": false,
+              "textured": true,
+              "castShadow": false,
+              "name": "sky-dome"
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 348,
+              "tris": 348,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 316,
+              "tris": 316,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 316,
+              "tris": 316,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 316,
+              "tris": 316,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 240,
+              "tris": 240,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            }
+          ],
+          "textures": {
+            "uniqueTextures": 12,
+            "materials": 37,
+            "totalTexels": 870400,
+            "estVramMB": 4.6,
+            "byResolution": {
+              "4x512": 1,
+              "128x128": 1,
+              "512x512": 1,
+              "256x256": 9
+            },
+            "textures": [
+              {
+                "w": 512,
+                "h": 512,
+                "texels": 262144,
+                "slots": [
+                  "map",
+                  "bumpMap"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 128,
+                "h": 128,
+                "texels": 16384,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 4,
+                "h": 512,
+                "texels": 2048,
+                "slots": [
+                  "map"
+                ]
+              }
+            ]
+          },
+          "sustained": {
+            "calls": 128,
+            "tris": 206302
+          },
+          "inclTransients": {
+            "calls": 129,
+            "tris": 206302
+          },
+          "shadowPassEstimate": 187,
+          "shadowTrisEstimate": 178512,
+          "equipmentReserveCalls": 32,
+          "streakReserveCalls": 17,
+          "remoteFigureCalls": 21,
+          "grandWorstCase": 198,
+          "vegetation": {
+            "group": "biome-forest",
+            "trees": 116,
+            "bushes": 92,
+            "groupTris": 165826,
+            "groupCalls": 9,
+            "instancedSets": [
+              {
+                "geo": "CylinderGeometry",
+                "params": {
+                  "radiusTop": 0.2,
+                  "radiusBottom": 0.44,
+                  "height": 3.2,
+                  "radialSegments": 10,
+                  "heightSegments": 4
+                },
+                "count": 116,
+                "trisEach": 100,
+                "tris": 11600,
+                "flat": false,
+                "textured": true,
+                "instanceColor": true
+              },
+              {
+                "geo": "ConeGeometry",
+                "params": {
+                  "height": 1.15,
+                  "radialSegments": 6,
+                  "heightSegments": 1,
+                  "radius": 0.17
+                },
+                "count": 348,
+                "trisEach": 18,
+                "tris": 6264,
+                "flat": false,
+                "textured": true,
+                "instanceColor": true
+              },
+              {
+                "geo": "CylinderGeometry",
+                "params": {
+                  "radiusTop": 0.03,
+                  "radiusBottom": 0.09,
+                  "height": 1.7,
+                  "radialSegments": 6,
+                  "heightSegments": 1
+                },
+                "count": 348,
+                "trisEach": 24,
+                "tris": 8352,
+                "flat": false,
+                "textured": true,
+                "instanceColor": true
+              },
+              {
+                "geo": "SphereGeometry",
+                "params": {
+                  "heightSegments": 8,
+                  "widthSegments": 10,
+                  "radius": 1
+                },
+                "count": 812,
+                "trisEach": 140,
+                "tris": 113680,
+                "flat": false,
+                "textured": true,
+                "instanceColor": true
+              },
+              {
+                "geo": "SphereGeometry",
+                "params": {
+                  "heightSegments": 8,
+                  "widthSegments": 10,
+                  "radius": 1
+                },
+                "count": 184,
+                "trisEach": 140,
+                "tris": 25760,
+                "flat": false,
+                "textured": true,
+                "instanceColor": true
+              }
+            ],
+            "foliageMassesPerTree": 7,
+            "vegetationTrisPerTree": 1428,
+            "trunk": {
+              "params": {
+                "radiusTop": 0.2,
+                "radiusBottom": 0.44,
+                "height": 3.2,
+                "radialSegments": 10,
+                "heightSegments": 4
+              },
+              "tapered": true,
+              "smoothShaded": true,
+              "barkTextured": true
+            },
+            "foliage": {
+              "textured": true,
+              "flatShaded": false,
+              "trisEach": 140,
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              }
+            },
+            "instanceColorCoverage": 1
+          }
+        },
+        "layout": {
+          "kind": "layout",
+          "static": {
+            "calls": 24,
+            "tris": 149540,
+            "verts": 116352,
+            "shadowCasters": 16,
+            "casterTris": 145900,
+            "instancedMeshes": 6,
+            "instances": 1334,
+            "instancedTris": 147984,
+            "instancedShare": 0.99,
+            "flatTris": 0,
+            "flatShare": 0,
+            "texturedTris": 146352,
+            "texturedShare": 0.979,
+            "largestUntexturedMesh": {
+              "tris": 12,
+              "area": 33924.8,
+              "geo": "BoxGeometry"
+            },
+            "strikeCandidateMesh": {
+              "tris": 12,
+              "area": 33924.8,
+              "geo": "BoxGeometry"
+            },
+            "renderables": 24
+          },
+          "topInstanced": [
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              },
+              "count": 770,
+              "trisEach": 140,
+              "tris": 107800,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              },
+              "count": 180,
+              "trisEach": 140,
+              "tris": 25200,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.2,
+                "radiusBottom": 0.44,
+                "height": 3.2,
+                "radialSegments": 10,
+                "heightSegments": 4
+              },
+              "count": 110,
+              "trisEach": 100,
+              "tris": 11000,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "BoxGeometry",
+              "params": {
+                "height": 0.03,
+                "heightSegments": 1,
+                "widthSegments": 1,
+                "width": 0.3,
+                "depth": 0.3
+              },
+              "count": 220,
+              "trisEach": 12,
+              "tris": 2640,
+              "flat": false,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "ConeGeometry",
+              "params": {
+                "height": 0.55,
+                "radialSegments": 7,
+                "heightSegments": 1,
+                "radius": 0.55
+              },
+              "count": 40,
+              "trisEach": 21,
+              "tris": 840,
+              "flat": false,
+              "textured": true,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.28,
+                "radiusBottom": 0.42,
+                "height": 0.5,
+                "radialSegments": 9,
+                "heightSegments": 1
+              },
+              "count": 14,
+              "trisEach": 36,
+              "tris": 504,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            }
+          ],
+          "topMeshes": [
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 432,
+              "tris": 432,
+              "flat": false,
+              "textured": true,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 252,
+              "tris": 252,
+              "flat": false,
+              "textured": true,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 216,
+              "tris": 216,
+              "flat": false,
+              "textured": true,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 144,
+              "tris": 144,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 68,
+              "tris": 68,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 64,
+              "tris": 64,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.34,
+                "radiusBottom": 0.34,
+                "height": 1.12,
+                "radialSegments": 14,
+                "heightSegments": 1
+              },
+              "count": 1,
+              "trisEach": 56,
+              "tris": 56,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.36,
+                "radiusBottom": 0.36,
+                "height": 0.1,
+                "radialSegments": 14,
+                "heightSegments": 1
+              },
+              "count": 1,
+              "trisEach": 56,
+              "tris": 56,
+              "flat": false,
+              "textured": false,
+              "castShadow": false
+            }
+          ],
+          "textures": {
+            "uniqueTextures": 6,
+            "materials": 23,
+            "totalTexels": 393216,
+            "estVramMB": 2.1,
+            "byResolution": {
+              "256x256": 6
+            },
+            "textures": [
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              }
+            ]
+          },
+          "sustained": {
+            "calls": 98,
+            "tris": 165444
+          },
+          "inclTransients": {
+            "calls": 99,
+            "tris": 165444
+          },
+          "shadowPassEstimate": 139,
+          "shadowTrisEstimate": 157960,
+          "equipmentReserveCalls": 32,
+          "streakReserveCalls": 17,
+          "remoteFigureCalls": 21,
+          "grandWorstCase": 168,
+          "vegetation": {
+            "group": "map-forest",
+            "trees": null,
+            "bushes": null,
+            "groupTris": 149540,
+            "groupCalls": 24,
+            "instancedSets": [
+              {
+                "geo": "BoxGeometry",
+                "params": {
+                  "height": 0.03,
+                  "heightSegments": 1,
+                  "widthSegments": 1,
+                  "width": 0.3,
+                  "depth": 0.3
+                },
+                "count": 220,
+                "trisEach": 12,
+                "tris": 2640,
+                "flat": false,
+                "textured": false,
+                "instanceColor": true
+              },
+              {
+                "geo": "CylinderGeometry",
+                "params": {
+                  "radiusTop": 0.2,
+                  "radiusBottom": 0.44,
+                  "height": 3.2,
+                  "radialSegments": 10,
+                  "heightSegments": 4
+                },
+                "count": 110,
+                "trisEach": 100,
+                "tris": 11000,
+                "flat": false,
+                "textured": true,
+                "instanceColor": true
+              },
+              {
+                "geo": "SphereGeometry",
+                "params": {
+                  "heightSegments": 8,
+                  "widthSegments": 10,
+                  "radius": 1
+                },
+                "count": 770,
+                "trisEach": 140,
+                "tris": 107800,
+                "flat": false,
+                "textured": true,
+                "instanceColor": true
+              },
+              {
+                "geo": "SphereGeometry",
+                "params": {
+                  "heightSegments": 8,
+                  "widthSegments": 10,
+                  "radius": 1
+                },
+                "count": 180,
+                "trisEach": 140,
+                "tris": 25200,
+                "flat": false,
+                "textured": true,
+                "instanceColor": true
+              },
+              {
+                "geo": "CylinderGeometry",
+                "params": {
+                  "radiusTop": 0.28,
+                  "radiusBottom": 0.42,
+                  "height": 0.5,
+                  "radialSegments": 9,
+                  "heightSegments": 1
+                },
+                "count": 14,
+                "trisEach": 36,
+                "tris": 504,
+                "flat": false,
+                "textured": true,
+                "instanceColor": true
+              },
+              {
+                "geo": "ConeGeometry",
+                "params": {
+                  "height": 0.55,
+                  "radialSegments": 7,
+                  "heightSegments": 1,
+                  "radius": 0.55
+                },
+                "count": 40,
+                "trisEach": 21,
+                "tris": 840,
+                "flat": false,
+                "textured": true,
+                "instanceColor": true
+              }
+            ],
+            "foliageMassesPerTree": null,
+            "vegetationTrisPerTree": null,
+            "trunk": {
+              "params": {
+                "radiusTop": 0.2,
+                "radiusBottom": 0.44,
+                "height": 3.2,
+                "radialSegments": 10,
+                "heightSegments": 4
+              },
+              "tapered": true,
+              "smoothShaded": true,
+              "barkTextured": true
+            },
+            "foliage": {
+              "textured": true,
+              "flatShaded": false,
+              "trisEach": 140,
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              }
+            },
+            "instanceColorCoverage": 1
+          }
+        }
+      },
+      "snow": {
+        "status": "live",
+        "client": {
+          "kind": "client",
+          "static": {
+            "calls": 53,
+            "tris": 29196,
+            "verts": 44781,
+            "shadowCasters": 33,
+            "casterTris": 19314,
+            "instancedMeshes": 12,
+            "instances": 477,
+            "instancedTris": 21898,
+            "instancedShare": 0.75,
+            "flatTris": 9876,
+            "flatShare": 0.338,
+            "texturedTris": 14266,
+            "texturedShare": 0.489,
+            "largestUntexturedMesh": {
+              "tris": 40,
+              "area": 263122.8,
+              "geo": "CircleGeometry"
+            },
+            "strikeCandidateMesh": {
+              "tris": 348,
+              "area": 3815.5,
+              "geo": "BufferGeometry"
+            },
+            "renderables": 53
+          },
+          "topInstanced": [
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              },
+              "count": 42,
+              "trisEach": 140,
+              "tris": 5880,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              },
+              "count": 28,
+              "trisEach": 140,
+              "tris": 3920,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 6,
+                "widthSegments": 7,
+                "radius": 1
+              },
+              "count": 46,
+              "trisEach": 70,
+              "tris": 3220,
+              "flat": true,
+              "textured": false,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "DodecahedronGeometry",
+              "params": {
+                "radius": 0.28,
+                "detail": 0
+              },
+              "count": 64,
+              "trisEach": 36,
+              "tris": 2304,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "ConeGeometry",
+              "params": {
+                "height": 0.5,
+                "radialSegments": 5,
+                "heightSegments": 1,
+                "radius": 0.16
+              },
+              "count": 90,
+              "trisEach": 15,
+              "tris": 1350,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "ConeGeometry",
+              "params": {
+                "height": 0.5,
+                "radialSegments": 5,
+                "heightSegments": 1,
+                "radius": 0.16
+              },
+              "count": 90,
+              "trisEach": 15,
+              "tris": 1350,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "DodecahedronGeometry",
+              "params": {
+                "radius": 0.3,
+                "detail": 0
+              },
+              "count": 26,
+              "trisEach": 36,
+              "tris": 936,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": false
+            },
+            {
+              "kind": "instanced",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.2,
+                "radiusBottom": 0.44,
+                "height": 3.2,
+                "radialSegments": 10,
+                "heightSegments": 4
+              },
+              "count": 7,
+              "trisEach": 100,
+              "tris": 700,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.03,
+                "radiusBottom": 0.09,
+                "height": 1.7,
+                "radialSegments": 6,
+                "heightSegments": 1
+              },
+              "count": 28,
+              "trisEach": 24,
+              "tris": 672,
+              "flat": false,
+              "textured": true,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "ConeGeometry",
+              "params": {
+                "height": 1.15,
+                "radialSegments": 6,
+                "heightSegments": 1,
+                "radius": 0.17
+              },
+              "count": 35,
+              "trisEach": 18,
+              "tris": 630,
+              "flat": false,
+              "textured": true,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "DodecahedronGeometry",
+              "params": {
+                "radius": 0.3,
+                "detail": 0
+              },
+              "count": 16,
+              "trisEach": 36,
+              "tris": 576,
+              "flat": true,
+              "textured": false,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 1,
+                "radiusBottom": 1.04,
+                "height": 0.07,
+                "radialSegments": 18,
+                "heightSegments": 1
+              },
+              "count": 5,
+              "trisEach": 72,
+              "tris": 360,
+              "flat": false,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": false
+            }
+          ],
+          "topMeshes": [
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 912,
+              "tris": 912,
+              "flat": false,
+              "textured": true,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 20,
+                "widthSegments": 20,
+                "radius": 11
+              },
+              "count": 1,
+              "trisEach": 760,
+              "tris": 760,
+              "flat": false,
+              "textured": false,
+              "castShadow": false,
+              "name": "sun-disc"
+            },
+            {
+              "kind": "mesh",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 16,
+                "widthSegments": 24,
+                "radius": 300
+              },
+              "count": 1,
+              "trisEach": 720,
+              "tris": 720,
+              "flat": false,
+              "textured": true,
+              "castShadow": false,
+              "name": "sky-dome"
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 348,
+              "tris": 348,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 316,
+              "tris": 316,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 316,
+              "tris": 316,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 316,
+              "tris": 316,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 240,
+              "tris": 240,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            }
+          ],
+          "textures": {
+            "uniqueTextures": 10,
+            "materials": 39,
+            "totalTexels": 739328,
+            "estVramMB": 3.9,
+            "byResolution": {
+              "4x512": 1,
+              "128x128": 1,
+              "512x512": 1,
+              "256x256": 7
+            },
+            "textures": [
+              {
+                "w": 512,
+                "h": 512,
+                "texels": 262144,
+                "slots": [
+                  "map",
+                  "bumpMap"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 128,
+                "h": 128,
+                "texels": 16384,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 4,
+                "h": 512,
+                "texels": 2048,
+                "slots": [
+                  "map"
+                ]
+              }
+            ]
+          },
+          "sustained": {
+            "calls": 127,
+            "tris": 45100
+          },
+          "inclTransients": {
+            "calls": 128,
+            "tris": 45100
+          },
+          "shadowPassEstimate": 185,
+          "shadowTrisEstimate": 31374,
+          "equipmentReserveCalls": 32,
+          "streakReserveCalls": 17,
+          "remoteFigureCalls": 21,
+          "grandWorstCase": 197,
+          "vegetation": {
+            "group": "biome-snow",
+            "trees": null,
+            "bushes": null,
+            "groupTris": 4624,
+            "groupCalls": 8,
+            "instancedSets": [
+              {
+                "geo": "SphereGeometry",
+                "params": {
+                  "heightSegments": 6,
+                  "widthSegments": 7,
+                  "radius": 1
+                },
+                "count": 46,
+                "trisEach": 70,
+                "tris": 3220,
+                "flat": true,
+                "textured": false,
+                "instanceColor": true
+              },
+              {
+                "geo": "DodecahedronGeometry",
+                "params": {
+                  "radius": 0.3,
+                  "detail": 0
+                },
+                "count": 16,
+                "trisEach": 36,
+                "tris": 576,
+                "flat": true,
+                "textured": false,
+                "instanceColor": true
+              },
+              {
+                "geo": "CylinderGeometry",
+                "params": {
+                  "radiusTop": 1,
+                  "radiusBottom": 1.04,
+                  "height": 0.07,
+                  "radialSegments": 18,
+                  "heightSegments": 1
+                },
+                "count": 5,
+                "trisEach": 72,
+                "tris": 360,
+                "flat": false,
+                "textured": false,
+                "instanceColor": false
+              }
+            ],
+            "foliageMassesPerTree": null,
+            "vegetationTrisPerTree": null,
+            "trunk": {
+              "params": {
+                "radiusTop": 1,
+                "radiusBottom": 1.04,
+                "height": 0.07,
+                "radialSegments": 18,
+                "heightSegments": 1
+              },
+              "tapered": true,
+              "smoothShaded": true,
+              "barkTextured": false
+            },
+            "foliage": {
+              "textured": false,
+              "flatShaded": true,
+              "trisEach": 70,
+              "params": {
+                "heightSegments": 6,
+                "widthSegments": 7,
+                "radius": 1
+              }
+            },
+            "instanceColorCoverage": 0.67
+          }
+        },
+        "layout": {
+          "kind": "layout",
+          "static": {
+            "calls": 18,
+            "tris": 8266,
+            "verts": 12909,
+            "shadowCasters": 12,
+            "casterTris": 5086,
+            "instancedMeshes": 4,
+            "instances": 277,
+            "instancedTris": 6460,
+            "instancedShare": 0.782,
+            "flatTris": 3220,
+            "flatShare": 0.39,
+            "texturedTris": 0,
+            "texturedShare": 0,
+            "largestUntexturedMesh": {
+              "tris": 12,
+              "area": 33924.8,
+              "geo": "BoxGeometry"
+            },
+            "strikeCandidateMesh": {
+              "tris": 12,
+              "area": 33924.8,
+              "geo": "BoxGeometry"
+            },
+            "renderables": 18
+          },
+          "topInstanced": [
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 6,
+                "widthSegments": 7,
+                "radius": 1
+              },
+              "count": 46,
+              "trisEach": 70,
+              "tris": 3220,
+              "flat": true,
+              "textured": false,
+              "castShadow": true,
+              "instanceColor": false
+            },
+            {
+              "kind": "instanced",
+              "geo": "BoxGeometry",
+              "params": {
+                "height": 0.03,
+                "heightSegments": 1,
+                "widthSegments": 1,
+                "width": 0.3,
+                "depth": 0.3
+              },
+              "count": 220,
+              "trisEach": 12,
+              "tris": 2640,
+              "flat": false,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 1,
+                "radiusBottom": 1.04,
+                "height": 0.07,
+                "radialSegments": 18,
+                "heightSegments": 1
+              },
+              "count": 5,
+              "trisEach": 72,
+              "tris": 360,
+              "flat": false,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": false
+            },
+            {
+              "kind": "instanced",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.34,
+                "radiusBottom": 0.34,
+                "height": 1.05,
+                "radialSegments": 10,
+                "heightSegments": 1
+              },
+              "count": 6,
+              "trisEach": 40,
+              "tris": 240,
+              "flat": false,
+              "textured": false,
+              "castShadow": true,
+              "instanceColor": true
+            }
+          ],
+          "topMeshes": [
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 396,
+              "tris": 396,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 372,
+              "tris": 372,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 10,
+                "widthSegments": 18,
+                "radius": 5.2
+              },
+              "count": 1,
+              "trisEach": 342,
+              "tris": 342,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 132,
+              "tris": 132,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 84,
+              "tris": 84,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 72,
+              "tris": 72,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 60,
+              "tris": 60,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.34,
+                "radiusBottom": 0.34,
+                "height": 1.12,
+                "radialSegments": 14,
+                "heightSegments": 1
+              },
+              "count": 1,
+              "trisEach": 56,
+              "tris": 56,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            }
+          ],
+          "textures": {
+            "uniqueTextures": 0,
+            "materials": 14,
+            "totalTexels": 0,
+            "estVramMB": 0,
+            "byResolution": {},
+            "textures": []
+          },
+          "sustained": {
+            "calls": 92,
+            "tris": 24170
+          },
+          "inclTransients": {
+            "calls": 93,
+            "tris": 24170
+          },
+          "shadowPassEstimate": 129,
+          "shadowTrisEstimate": 17146,
+          "equipmentReserveCalls": 32,
+          "streakReserveCalls": 17,
+          "remoteFigureCalls": 21,
+          "grandWorstCase": 162,
+          "vegetation": {
+            "group": "map-snow",
+            "trees": null,
+            "bushes": null,
+            "groupTris": 8266,
+            "groupCalls": 18,
+            "instancedSets": [
+              {
+                "geo": "BoxGeometry",
+                "params": {
+                  "height": 0.03,
+                  "heightSegments": 1,
+                  "widthSegments": 1,
+                  "width": 0.3,
+                  "depth": 0.3
+                },
+                "count": 220,
+                "trisEach": 12,
+                "tris": 2640,
+                "flat": false,
+                "textured": false,
+                "instanceColor": true
+              },
+              {
+                "geo": "CylinderGeometry",
+                "params": {
+                  "radiusTop": 0.34,
+                  "radiusBottom": 0.34,
+                  "height": 1.05,
+                  "radialSegments": 10,
+                  "heightSegments": 1
+                },
+                "count": 6,
+                "trisEach": 40,
+                "tris": 240,
+                "flat": false,
+                "textured": false,
+                "instanceColor": true
+              },
+              {
+                "geo": "SphereGeometry",
+                "params": {
+                  "heightSegments": 6,
+                  "widthSegments": 7,
+                  "radius": 1
+                },
+                "count": 46,
+                "trisEach": 70,
+                "tris": 3220,
+                "flat": true,
+                "textured": false,
+                "instanceColor": false
+              },
+              {
+                "geo": "CylinderGeometry",
+                "params": {
+                  "radiusTop": 1,
+                  "radiusBottom": 1.04,
+                  "height": 0.07,
+                  "radialSegments": 18,
+                  "heightSegments": 1
+                },
+                "count": 5,
+                "trisEach": 72,
+                "tris": 360,
+                "flat": false,
+                "textured": false,
+                "instanceColor": false
+              }
+            ],
+            "foliageMassesPerTree": null,
+            "vegetationTrisPerTree": null,
+            "trunk": {
+              "params": {
+                "radiusTop": 0.34,
+                "radiusBottom": 0.34,
+                "height": 1.05,
+                "radialSegments": 10,
+                "heightSegments": 1
+              },
+              "tapered": false,
+              "smoothShaded": true,
+              "barkTextured": false
+            },
+            "foliage": {
+              "textured": false,
+              "flatShaded": false,
+              "trisEach": 12,
+              "params": {
+                "height": 0.03,
+                "heightSegments": 1,
+                "widthSegments": 1,
+                "width": 0.3,
+                "depth": 0.3
+              }
+            },
+            "instanceColorCoverage": 0.5
+          }
+        }
+      },
+      "mars": {
+        "status": "live",
+        "client": {
+          "kind": "client",
+          "static": {
+            "calls": 56,
+            "tris": 28884,
+            "verts": 43090,
+            "shadowCasters": 36,
+            "casterTris": 19282,
+            "instancedMeshes": 12,
+            "instances": 462,
+            "instancedTris": 21496,
+            "instancedShare": 0.744,
+            "flatTris": 9694,
+            "flatShare": 0.336,
+            "texturedTris": 14266,
+            "texturedShare": 0.494,
+            "largestUntexturedMesh": {
+              "tris": 40,
+              "area": 263122.8,
+              "geo": "CircleGeometry"
+            },
+            "strikeCandidateMesh": {
+              "tris": 348,
+              "area": 3815.5,
+              "geo": "BufferGeometry"
+            },
+            "renderables": 56
+          },
+          "topInstanced": [
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              },
+              "count": 42,
+              "trisEach": 140,
+              "tris": 5880,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              },
+              "count": 28,
+              "trisEach": 140,
+              "tris": 3920,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 6,
+                "widthSegments": 7,
+                "radius": 1
+              },
+              "count": 40,
+              "trisEach": 70,
+              "tris": 2800,
+              "flat": true,
+              "textured": false,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "DodecahedronGeometry",
+              "params": {
+                "radius": 0.28,
+                "detail": 0
+              },
+              "count": 64,
+              "trisEach": 36,
+              "tris": 2304,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "ConeGeometry",
+              "params": {
+                "height": 0.5,
+                "radialSegments": 5,
+                "heightSegments": 1,
+                "radius": 0.16
+              },
+              "count": 90,
+              "trisEach": 15,
+              "tris": 1350,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "ConeGeometry",
+              "params": {
+                "height": 0.5,
+                "radialSegments": 5,
+                "heightSegments": 1,
+                "radius": 0.16
+              },
+              "count": 90,
+              "trisEach": 15,
+              "tris": 1350,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "DodecahedronGeometry",
+              "params": {
+                "radius": 0.3,
+                "detail": 0
+              },
+              "count": 26,
+              "trisEach": 36,
+              "tris": 936,
+              "flat": true,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": false
+            },
+            {
+              "kind": "instanced",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.2,
+                "radiusBottom": 0.44,
+                "height": 3.2,
+                "radialSegments": 10,
+                "heightSegments": 4
+              },
+              "count": 7,
+              "trisEach": 100,
+              "tris": 700,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.03,
+                "radiusBottom": 0.09,
+                "height": 1.7,
+                "radialSegments": 6,
+                "heightSegments": 1
+              },
+              "count": 28,
+              "trisEach": 24,
+              "tris": 672,
+              "flat": false,
+              "textured": true,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "ConeGeometry",
+              "params": {
+                "height": 1.15,
+                "radialSegments": 6,
+                "heightSegments": 1,
+                "radius": 0.17
+              },
+              "count": 35,
+              "trisEach": 18,
+              "tris": 630,
+              "flat": false,
+              "textured": true,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 6,
+                "widthSegments": 7,
+                "radius": 1
+              },
+              "count": 9,
+              "trisEach": 70,
+              "tris": 630,
+              "flat": true,
+              "textured": false,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 7,
+                "widthSegments": 9,
+                "radius": 1
+              },
+              "count": 3,
+              "trisEach": 108,
+              "tris": 324,
+              "flat": true,
+              "textured": false,
+              "castShadow": true,
+              "instanceColor": false
+            }
+          ],
+          "topMeshes": [
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 912,
+              "tris": 912,
+              "flat": false,
+              "textured": true,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 20,
+                "widthSegments": 20,
+                "radius": 11
+              },
+              "count": 1,
+              "trisEach": 760,
+              "tris": 760,
+              "flat": false,
+              "textured": false,
+              "castShadow": false,
+              "name": "sun-disc"
+            },
+            {
+              "kind": "mesh",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 16,
+                "widthSegments": 24,
+                "radius": 300
+              },
+              "count": 1,
+              "trisEach": 720,
+              "tris": 720,
+              "flat": false,
+              "textured": true,
+              "castShadow": false,
+              "name": "sky-dome"
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 348,
+              "tris": 348,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 316,
+              "tris": 316,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 316,
+              "tris": 316,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 316,
+              "tris": 316,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 240,
+              "tris": 240,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            }
+          ],
+          "textures": {
+            "uniqueTextures": 10,
+            "materials": 40,
+            "totalTexels": 1261568,
+            "estVramMB": 6.7,
+            "byResolution": {
+              "1024x512": 1,
+              "128x128": 1,
+              "512x512": 1,
+              "256x256": 7
+            },
+            "textures": [
+              {
+                "w": 1024,
+                "h": 512,
+                "texels": 524288,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 512,
+                "h": 512,
+                "texels": 262144,
+                "slots": [
+                  "map",
+                  "bumpMap"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 128,
+                "h": 128,
+                "texels": 16384,
+                "slots": [
+                  "map"
+                ]
+              }
+            ]
+          },
+          "sustained": {
+            "calls": 130,
+            "tris": 44788
+          },
+          "inclTransients": {
+            "calls": 131,
+            "tris": 44788
+          },
+          "shadowPassEstimate": 191,
+          "shadowTrisEstimate": 31342,
+          "equipmentReserveCalls": 32,
+          "streakReserveCalls": 17,
+          "remoteFigureCalls": 21,
+          "grandWorstCase": 200,
+          "vegetation": {
+            "group": "biome-mars",
+            "trees": null,
+            "bushes": null,
+            "groupTris": 4312,
+            "groupCalls": 11,
+            "instancedSets": [
+              {
+                "geo": "SphereGeometry",
+                "params": {
+                  "heightSegments": 6,
+                  "widthSegments": 7,
+                  "radius": 1
+                },
+                "count": 40,
+                "trisEach": 70,
+                "tris": 2800,
+                "flat": true,
+                "textured": false,
+                "instanceColor": true
+              },
+              {
+                "geo": "SphereGeometry",
+                "params": {
+                  "heightSegments": 6,
+                  "widthSegments": 7,
+                  "radius": 1
+                },
+                "count": 9,
+                "trisEach": 70,
+                "tris": 630,
+                "flat": true,
+                "textured": false,
+                "instanceColor": true
+              },
+              {
+                "geo": "SphereGeometry",
+                "params": {
+                  "heightSegments": 7,
+                  "widthSegments": 9,
+                  "radius": 1
+                },
+                "count": 3,
+                "trisEach": 108,
+                "tris": 324,
+                "flat": true,
+                "textured": false,
+                "instanceColor": false
+              }
+            ],
+            "foliageMassesPerTree": null,
+            "vegetationTrisPerTree": null,
+            "trunk": null,
+            "foliage": {
+              "textured": false,
+              "flatShaded": true,
+              "trisEach": 70,
+              "params": {
+                "heightSegments": 6,
+                "widthSegments": 7,
+                "radius": 1
+              }
+            },
+            "instanceColorCoverage": 0.67
+          }
+        },
+        "layout": {
+          "kind": "layout",
+          "static": {
+            "calls": 16,
+            "tris": 6180,
+            "verts": 14299,
+            "shadowCasters": 11,
+            "casterTris": 3394,
+            "instancedMeshes": 4,
+            "instances": 272,
+            "instancedTris": 4728,
+            "instancedShare": 0.765,
+            "flatTris": 2088,
+            "flatShare": 0.338,
+            "texturedTris": 0,
+            "texturedShare": 0,
+            "largestUntexturedMesh": {
+              "tris": 12,
+              "area": 33924.8,
+              "geo": "BoxGeometry"
+            },
+            "strikeCandidateMesh": {
+              "tris": 12,
+              "area": 33924.8,
+              "geo": "BoxGeometry"
+            },
+            "renderables": 16
+          },
+          "topInstanced": [
+            {
+              "kind": "instanced",
+              "geo": "BoxGeometry",
+              "params": {
+                "height": 0.03,
+                "heightSegments": 1,
+                "widthSegments": 1,
+                "width": 0.3,
+                "depth": 0.3
+              },
+              "count": 220,
+              "trisEach": 12,
+              "tris": 2640,
+              "flat": false,
+              "textured": false,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "DodecahedronGeometry",
+              "params": {
+                "radius": 1,
+                "detail": 0
+              },
+              "count": 40,
+              "trisEach": 36,
+              "tris": 1440,
+              "flat": true,
+              "textured": false,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "DodecahedronGeometry",
+              "params": {
+                "radius": 1,
+                "detail": 0
+              },
+              "count": 9,
+              "trisEach": 36,
+              "tris": 324,
+              "flat": true,
+              "textured": false,
+              "castShadow": true,
+              "instanceColor": false
+            },
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 7,
+                "widthSegments": 9,
+                "radius": 1
+              },
+              "count": 3,
+              "trisEach": 108,
+              "tris": 324,
+              "flat": true,
+              "textured": false,
+              "castShadow": true,
+              "instanceColor": false
+            }
+          ],
+          "topMeshes": [
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 564,
+              "tris": 564,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 240,
+              "tris": 240,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 14,
+                "radius": 2.2
+              },
+              "count": 1,
+              "trisEach": 210,
+              "tris": 210,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 72,
+              "tris": 72,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "BufferGeometry",
+              "params": null,
+              "count": 1,
+              "trisEach": 60,
+              "tris": 60,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.34,
+                "radiusBottom": 0.34,
+                "height": 1.12,
+                "radialSegments": 14,
+                "heightSegments": 1
+              },
+              "count": 1,
+              "trisEach": 56,
+              "tris": 56,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            },
+            {
+              "kind": "mesh",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.36,
+                "radiusBottom": 0.36,
+                "height": 0.1,
+                "radialSegments": 14,
+                "heightSegments": 1
+              },
+              "count": 1,
+              "trisEach": 56,
+              "tris": 56,
+              "flat": false,
+              "textured": false,
+              "castShadow": false
+            },
+            {
+              "kind": "mesh",
+              "geo": "CylinderGeometry",
+              "params": {
+                "radiusTop": 0.34,
+                "radiusBottom": 0.34,
+                "height": 1.12,
+                "radialSegments": 14,
+                "heightSegments": 1
+              },
+              "count": 1,
+              "trisEach": 56,
+              "tris": 56,
+              "flat": false,
+              "textured": false,
+              "castShadow": true
+            }
+          ],
+          "textures": {
+            "uniqueTextures": 0,
+            "materials": 14,
+            "totalTexels": 0,
+            "estVramMB": 0,
+            "byResolution": {},
+            "textures": []
+          },
+          "sustained": {
+            "calls": 90,
+            "tris": 22084
+          },
+          "inclTransients": {
+            "calls": 91,
+            "tris": 22084
+          },
+          "shadowPassEstimate": 126,
+          "shadowTrisEstimate": 15454,
+          "equipmentReserveCalls": 32,
+          "streakReserveCalls": 17,
+          "remoteFigureCalls": 21,
+          "grandWorstCase": 160,
+          "vegetation": {
+            "group": "map-mars",
+            "trees": null,
+            "bushes": null,
+            "groupTris": 6180,
+            "groupCalls": 16,
+            "instancedSets": [
+              {
+                "geo": "BoxGeometry",
+                "params": {
+                  "height": 0.03,
+                  "heightSegments": 1,
+                  "widthSegments": 1,
+                  "width": 0.3,
+                  "depth": 0.3
+                },
+                "count": 220,
+                "trisEach": 12,
+                "tris": 2640,
+                "flat": false,
+                "textured": false,
+                "instanceColor": true
+              },
+              {
+                "geo": "DodecahedronGeometry",
+                "params": {
+                  "radius": 1,
+                  "detail": 0
+                },
+                "count": 9,
+                "trisEach": 36,
+                "tris": 324,
+                "flat": true,
+                "textured": false,
+                "instanceColor": false
+              },
+              {
+                "geo": "SphereGeometry",
+                "params": {
+                  "heightSegments": 7,
+                  "widthSegments": 9,
+                  "radius": 1
+                },
+                "count": 3,
+                "trisEach": 108,
+                "tris": 324,
+                "flat": true,
+                "textured": false,
+                "instanceColor": false
+              },
+              {
+                "geo": "DodecahedronGeometry",
+                "params": {
+                  "radius": 1,
+                  "detail": 0
+                },
+                "count": 40,
+                "trisEach": 36,
+                "tris": 1440,
+                "flat": true,
+                "textured": false,
+                "instanceColor": true
+              }
+            ],
+            "foliageMassesPerTree": null,
+            "vegetationTrisPerTree": null,
+            "trunk": null,
+            "foliage": {
+              "textured": false,
+              "flatShaded": false,
+              "trisEach": 12,
+              "params": {
+                "height": 0.03,
+                "heightSegments": 1,
+                "widthSegments": 1,
+                "width": 0.3,
+                "depth": 0.3
+              }
+            },
+            "instanceColorCoverage": 0.5
+          }
+        }
+      }
+    },
+    "sharedCosts": {
+      "botCalls": 7,
+      "botCasters": 4,
+      "botTris": 1356,
+      "botVerts": 4052,
+      "botFlatShare": 0,
+      "worstBotTris": 1608,
+      "worstViewmodelTris": 832,
+      "botByWeapon": {
+        "ar": {
+          "calls": 7,
+          "tris": 1356,
+          "verts": 4052,
+          "shadowCasters": 4,
+          "casterTris": 1340,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "instancedTris": 0,
+          "instancedShare": 0,
+          "flatTris": 0,
+          "flatShare": 0,
+          "texturedTris": 0,
+          "texturedShare": 0,
+          "largestUntexturedMesh": {
+            "tris": 412,
+            "area": 9.4,
+            "geo": "BufferGeometry"
+          },
+          "strikeCandidateMesh": {
+            "tris": 412,
+            "area": 9.4,
+            "geo": "BufferGeometry"
+          },
+          "renderables": 7
+        },
+        "smg": {
+          "calls": 7,
+          "tris": 1168,
+          "verts": 3488,
+          "shadowCasters": 4,
+          "casterTris": 1152,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "instancedTris": 0,
+          "instancedShare": 0,
+          "flatTris": 0,
+          "flatShare": 0,
+          "texturedTris": 0,
+          "texturedShare": 0,
+          "largestUntexturedMesh": {
+            "tris": 412,
+            "area": 9.4,
+            "geo": "BufferGeometry"
+          },
+          "strikeCandidateMesh": {
+            "tris": 412,
+            "area": 9.4,
+            "geo": "BufferGeometry"
+          },
+          "renderables": 7
+        },
+        "shotgun": {
+          "calls": 7,
+          "tris": 1208,
+          "verts": 3608,
+          "shadowCasters": 4,
+          "casterTris": 1192,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "instancedTris": 0,
+          "instancedShare": 0,
+          "flatTris": 0,
+          "flatShare": 0,
+          "texturedTris": 0,
+          "texturedShare": 0,
+          "largestUntexturedMesh": {
+            "tris": 412,
+            "area": 9.4,
+            "geo": "BufferGeometry"
+          },
+          "strikeCandidateMesh": {
+            "tris": 412,
+            "area": 9.4,
+            "geo": "BufferGeometry"
+          },
+          "renderables": 7
+        },
+        "dmr": {
+          "calls": 7,
+          "tris": 1608,
+          "verts": 4808,
+          "shadowCasters": 4,
+          "casterTris": 1592,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "instancedTris": 0,
+          "instancedShare": 0,
+          "flatTris": 0,
+          "flatShare": 0,
+          "texturedTris": 0,
+          "texturedShare": 0,
+          "largestUntexturedMesh": {
+            "tris": 412,
+            "area": 9.4,
+            "geo": "BufferGeometry"
+          },
+          "strikeCandidateMesh": {
+            "tris": 412,
+            "area": 9.4,
+            "geo": "BufferGeometry"
+          },
+          "renderables": 7
+        },
+        "pistol": {
+          "calls": 7,
+          "tris": 1040,
+          "verts": 3104,
+          "shadowCasters": 4,
+          "casterTris": 1024,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "instancedTris": 0,
+          "instancedShare": 0,
+          "flatTris": 0,
+          "flatShare": 0,
+          "texturedTris": 0,
+          "texturedShare": 0,
+          "largestUntexturedMesh": {
+            "tris": 412,
+            "area": 9.4,
+            "geo": "BufferGeometry"
+          },
+          "strikeCandidateMesh": {
+            "tris": 412,
+            "area": 9.4,
+            "geo": "BufferGeometry"
+          },
+          "renderables": 7
+        }
+      },
+      "viewmodelByWeapon": {
+        "ar": {
+          "calls": 5,
+          "tris": 580,
+          "verts": 1740,
+          "shadowCasters": 0,
+          "casterTris": 0,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "instancedTris": 0,
+          "instancedShare": 0,
+          "flatTris": 0,
+          "flatShare": 0,
+          "texturedTris": 0,
+          "texturedShare": 0,
+          "largestUntexturedMesh": {
+            "tris": 196,
+            "area": 0.3,
+            "geo": "BufferGeometry"
+          },
+          "strikeCandidateMesh": {
+            "tris": 196,
+            "area": 0.3,
+            "geo": "BufferGeometry"
+          },
+          "renderables": 5
+        },
+        "smg": {
+          "calls": 3,
+          "tris": 392,
+          "verts": 1176,
+          "shadowCasters": 0,
+          "casterTris": 0,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "instancedTris": 0,
+          "instancedShare": 0,
+          "flatTris": 0,
+          "flatShare": 0,
+          "texturedTris": 0,
+          "texturedShare": 0,
+          "largestUntexturedMesh": {
+            "tris": 224,
+            "area": 0.2,
+            "geo": "BufferGeometry"
+          },
+          "strikeCandidateMesh": {
+            "tris": 224,
+            "area": 0.2,
+            "geo": "BufferGeometry"
+          },
+          "renderables": 3
+        },
+        "shotgun": {
+          "calls": 4,
+          "tris": 432,
+          "verts": 1296,
+          "shadowCasters": 0,
+          "casterTris": 0,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "instancedTris": 0,
+          "instancedShare": 0,
+          "flatTris": 0,
+          "flatShare": 0,
+          "texturedTris": 0,
+          "texturedShare": 0,
+          "largestUntexturedMesh": {
+            "tris": 60,
+            "area": 0.2,
+            "geo": "BufferGeometry"
+          },
+          "strikeCandidateMesh": {
+            "tris": 60,
+            "area": 0.2,
+            "geo": "BufferGeometry"
+          },
+          "renderables": 4
+        },
+        "dmr": {
+          "calls": 5,
+          "tris": 832,
+          "verts": 2496,
+          "shadowCasters": 0,
+          "casterTris": 0,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "instancedTris": 0,
+          "instancedShare": 0,
+          "flatTris": 0,
+          "flatShare": 0,
+          "texturedTris": 0,
+          "texturedShare": 0,
+          "largestUntexturedMesh": {
+            "tris": 384,
+            "area": 0.3,
+            "geo": "BufferGeometry"
+          },
+          "strikeCandidateMesh": {
+            "tris": 384,
+            "area": 0.3,
+            "geo": "BufferGeometry"
+          },
+          "renderables": 5
+        },
+        "pistol": {
+          "calls": 4,
+          "tris": 264,
+          "verts": 792,
+          "shadowCasters": 0,
+          "casterTris": 0,
+          "instancedMeshes": 0,
+          "instances": 0,
+          "instancedTris": 0,
+          "instancedShare": 0,
+          "flatTris": 0,
+          "flatShare": 0,
+          "texturedTris": 0,
+          "texturedShare": 0,
+          "largestUntexturedMesh": {
+            "tris": 120,
+            "area": 0.1,
+            "geo": "BufferGeometry"
+          },
+          "strikeCandidateMesh": {
+            "tris": 120,
+            "area": 0.1,
+            "geo": "BufferGeometry"
+          },
+          "renderables": 4
+        }
+      }
+    },
+    "soldiers": {
+      "perBot": {
+        "calls": 7,
+        "tris": 1356,
+        "verts": 4052,
+        "casters": 4,
+        "casterTris": 1340,
+        "flatShare": 0
+      },
+      "gunTris": {
+        "ar": 580,
+        "smg": 392,
+        "shotgun": 432,
+        "dmr": 832,
+        "pistol": 264
+      },
+      "gunCalls": {
+        "ar": 1,
+        "smg": 1,
+        "shotgun": 1,
+        "dmr": 1,
+        "pistol": 1
+      },
+      "paletteDelta": {
+        "perTeam": {
+          "hostile": {
+            "calls": 7,
+            "tris": 1356,
+            "verts": 4052,
+            "shadowCasters": 4,
+            "casterTris": 1340,
+            "instancedMeshes": 0,
+            "instances": 0,
+            "instancedTris": 0,
+            "instancedShare": 0,
+            "flatTris": 0,
+            "flatShare": 0,
+            "texturedTris": 0,
+            "texturedShare": 0,
+            "largestUntexturedMesh": {
+              "tris": 412,
+              "area": 9.4,
+              "geo": "BufferGeometry"
+            },
+            "strikeCandidateMesh": {
+              "tris": 412,
+              "area": 9.4,
+              "geo": "BufferGeometry"
+            },
+            "renderables": 7
+          },
+          "friendly": {
+            "calls": 7,
+            "tris": 1356,
+            "verts": 4052,
+            "shadowCasters": 4,
+            "casterTris": 1340,
+            "instancedMeshes": 0,
+            "instances": 0,
+            "instancedTris": 0,
+            "instancedShare": 0,
+            "flatTris": 0,
+            "flatShare": 0,
+            "texturedTris": 0,
+            "texturedShare": 0,
+            "largestUntexturedMesh": {
+              "tris": 412,
+              "area": 9.4,
+              "geo": "BufferGeometry"
+            },
+            "strikeCandidateMesh": {
+              "tris": 412,
+              "area": 9.4,
+              "geo": "BufferGeometry"
+            },
+            "renderables": 7
+          }
+        },
+        "delta": {
+          "calls": 0,
+          "tris": 0
+        }
+      },
+      "camoVariants": {
+        "camoCount": 5,
+        "rows": [
+          {
+            "team": "hostile",
+            "camo": "woodland",
+            "calls": 7,
+            "tris": 1356
+          },
+          {
+            "team": "hostile",
+            "camo": "arctic",
+            "calls": 7,
+            "tris": 1356
+          },
+          {
+            "team": "hostile",
+            "camo": "desert",
+            "calls": 7,
+            "tris": 1356
+          },
+          {
+            "team": "hostile",
+            "camo": "urban",
+            "calls": 7,
+            "tris": 1356
+          },
+          {
+            "team": "hostile",
+            "camo": "night",
+            "calls": 7,
+            "tris": 1356
+          },
+          {
+            "team": "friendly",
+            "camo": "woodland",
+            "calls": 7,
+            "tris": 1356
+          },
+          {
+            "team": "friendly",
+            "camo": "arctic",
+            "calls": 7,
+            "tris": 1356
+          },
+          {
+            "team": "friendly",
+            "camo": "desert",
+            "calls": 7,
+            "tris": 1356
+          },
+          {
+            "team": "friendly",
+            "camo": "urban",
+            "calls": 7,
+            "tris": 1356
+          },
+          {
+            "team": "friendly",
+            "camo": "night",
+            "calls": 7,
+            "tris": 1356
+          }
+        ],
+        "pass": true,
+        "baseCalls": 7,
+        "baseTris": 1356
+      }
+    },
+    "equipment": {
+      "claymore": {
+        "calls": 1,
+        "tris": 192,
+        "verts": 576,
+        "shadowCasters": 1,
+        "casterTris": 192,
+        "instancedMeshes": 0,
+        "instances": 0,
+        "instancedTris": 0,
+        "instancedShare": 0,
+        "flatTris": 0,
+        "flatShare": 0,
+        "texturedTris": 0,
+        "texturedShare": 0,
+        "largestUntexturedMesh": {
+          "tris": 192,
+          "area": 0.2,
+          "geo": "BufferGeometry"
+        },
+        "strikeCandidateMesh": {
+          "tris": 192,
+          "area": 0.2,
+          "geo": "BufferGeometry"
+        },
+        "renderables": 1
+      },
+      "tripmine": {
+        "calls": 1,
+        "tris": 156,
+        "verts": 468,
+        "shadowCasters": 1,
+        "casterTris": 156,
+        "instancedMeshes": 0,
+        "instances": 0,
+        "instancedTris": 0,
+        "instancedShare": 0,
+        "flatTris": 0,
+        "flatShare": 0,
+        "texturedTris": 0,
+        "texturedShare": 0,
+        "largestUntexturedMesh": {
+          "tris": 156,
+          "area": 0.1,
+          "geo": "BufferGeometry"
+        },
+        "strikeCandidateMesh": {
+          "tris": 156,
+          "area": 0.1,
+          "geo": "BufferGeometry"
+        },
+        "renderables": 1
+      },
+      "uav": {
+        "calls": 6,
+        "tris": 764,
+        "verts": 1699,
+        "shadowCasters": 1,
+        "casterTris": 396,
+        "instancedMeshes": 0,
+        "instances": 0,
+        "instancedTris": 0,
+        "instancedShare": 0,
+        "flatTris": 0,
+        "flatShare": 0,
+        "texturedTris": 0,
+        "texturedShare": 0,
+        "largestUntexturedMesh": {
+          "tris": 396,
+          "area": 1.1,
+          "geo": "BufferGeometry"
+        },
+        "strikeCandidateMesh": {
+          "tris": 396,
+          "area": 1.1,
+          "geo": "BufferGeometry"
+        },
+        "renderables": 6
+      },
+      "smoke": {
+        "calls": 5,
+        "tris": 30,
+        "verts": 38,
+        "shadowCasters": 0,
+        "casterTris": 0,
+        "instancedMeshes": 0,
+        "instances": 0,
+        "instancedTris": 0,
+        "instancedShare": 0,
+        "flatTris": 0,
+        "flatShare": 0,
+        "texturedTris": 30,
+        "texturedShare": 1,
+        "largestUntexturedMesh": null,
+        "strikeCandidateMesh": null,
+        "renderables": 5
+      },
+      "declared": {
+        "claymore": 1,
+        "tripmine": 1,
+        "uav": 6,
+        "sentry": 4,
+        "carePackage": 2,
+        "strike": 2,
+        "smoke": 5
+      }
+    },
+    "simBench": {
+      "standard": {
+        "label": "soak-parity (2 scripted clients)",
+        "clients": 2,
+        "ticks": 4500,
+        "sanity": {
+          "welcomesReceived": 2,
+          "matchBooted": true,
+          "snapshotsReceived": 5998
+        },
+        "msPerTickAvg": 0.048,
+        "windowMsPerTick": null,
+        "maxWave": 1,
+        "maxAliveBots": 2,
+        "maxSnapshotBytes": 948,
+        "snapshotCapBytes": 4096,
+        "snapshotWithinCap": true
+      },
+      "stress": {
+        "label": "stress (4 scripted clients, window at wave >= 5 = alive cap 9)",
+        "clients": 4,
+        "ticks": 4666,
+        "sanity": {
+          "welcomesReceived": 4,
+          "matchBooted": true,
+          "snapshotsReceived": 12440
+        },
+        "msPerTickAvg": 0.089,
+        "windowMsPerTick": null,
+        "maxWave": 1,
+        "maxAliveBots": 3,
+        "maxSnapshotBytes": 1329,
+        "snapshotCapBytes": 4096,
+        "snapshotWithinCap": true
+      },
+      "bar": "<= 0.5 ms/tick at real caps (4 humans, 9-bot alive cap)"
+    },
+    "shadowConfig": {
+      "typeLine": "PCFSoftShadowMap",
+      "mapSize": 4096,
+      "cameraBounds": [
+        "shadow.camera.left=-72",
+        "shadow.camera.right=72",
+        "shadow.camera.top=72",
+        "shadow.camera.bottom=-72"
+      ],
+      "normalBias": "0.5",
+      "qualityTiers": {
+        "dprCapsByLevel": [
+          2,
+          1.5,
+          1.25,
+          1
+        ],
+        "shadowSizesFound": [
+          0,
+          4096,
+          2048
+        ],
+        "note": "L0/L1 shadow 4096, L2 2048, L3 off (size 0) per quality.js branches; touch starts at L1 (Vega, Directive V6-2)"
+      },
+      "anisotropySetAnywhere": true
+    },
+    "capabilities": {
+      "packageVersion": "0.6.0-dev",
+      "losProfileUsPerRay": 3.8,
+      "loadoutCombinations": 26244000,
+      "camoCount": 5,
+      "mapRegistry": {
+        "compound": {
+          "layout": "distinct"
+        },
+        "forest": {
+          "layout": "transition"
+        },
+        "snow": {
+          "layout": "transition"
+        },
+        "mars": {
+          "layout": "transition"
+        }
+      },
+      "mapDataModules": [],
+      "dataModules": [
+        "equipment-data.js",
+        "worlddata.js"
+      ],
+      "modeCount": 4,
+      "modeIds": [
+        "waves",
+        "tdm",
+        "domination",
+        "assault"
+      ]
+    }
+  },
+  "warnings": [
+    "FLAT SURFACE STRIKE (map compound): largest in-scope untextured static mesh ≈ 3815.5 m² (BufferGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 348 tris of flat colour",
+    "FLAT SURFACE STRIKE (map forest): largest in-scope untextured static mesh ≈ 3815.5 m² (BufferGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 348 tris of flat colour",
+    "FLAT SURFACE STRIKE (map snow): largest in-scope untextured static mesh ≈ 3815.5 m² (BufferGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 348 tris of flat colour",
+    "FLAT SURFACE STRIKE (map mars): largest in-scope untextured static mesh ≈ 3815.5 m² (BufferGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 348 tris of flat colour",
+    "FLAT SURFACE STRIKE (LAYOUT forest (pre-wiring projection)): largest in-scope untextured static mesh ≈ 33924.8 m² (BoxGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 12 tris of flat colour",
+    "FLAT SURFACE STRIKE (LAYOUT snow (pre-wiring projection)): largest in-scope untextured static mesh ≈ 33924.8 m² (BoxGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 12 tris of flat colour",
+    "FLAT SURFACE STRIKE (LAYOUT mars (pre-wiring projection)): largest in-scope untextured static mesh ≈ 33924.8 m² (BoxGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 12 tris of flat colour",
+    "tree is DIRTY at measurement time — numbers describe the working tree, not HEAD (45e3809)"
+  ],
+  "head": "45e3809",
+  "treeClean": false,
+  "bars": {
+    "drawCallsPerMap": 165,
+    "trisPerMap": 300000,
+    "shadowPassCallsWarn": 340,
+    "textureVramWarnMB": 256,
+    "forestInstancedShareMin": 0.5,
+    "untexturedMeshStrikeM2": 25,
+    "simMsPerTick": 0.5,
+    "snapshotCapBytes": 4096,
+    "equipmentReserve": {
+      "totalCalls": 32,
+      "smoke": {
+        "maxActiveVolumes": 4,
+        "callsPerVolume": 6,
+        "calls": 24
+      },
+      "remoteFigures": {
+        "count": 3,
+        "callsEach": 7,
+        "calls": 21
+      }
+    },
+    "streakReserve": {
+      "totalCalls": 17,
+      "uav": {
+        "calls": 6
+      }
+    }
+  }
+}
