@@ -273,7 +273,12 @@ async function waitFor(fn, timeoutMs, label) {
   if (lastA && lastA.ackSeq >= 20) ok(`W7 ackSeq advanced over the wire (ackSeq=${lastA.ackSeq})`);
   else fail(`W7 ackSeq -> ${lastA?.ackSeq}`);
   const kindsA = new Set(aBox.inbox.events.map(e => e.kind));
-  if (kindsA.has('wave')) ok('W8 wave event reached clients over the wire');
+  // V5: this room runs TDM (W1) — the mode layer, not the wave
+  // director, drives it now. The wire proof is mode-layer
+  // traffic (mode_score) and NO wave events in a round-mode
+  // room. (V4 asserted 'wave' here because every room ran the
+  // wave director underneath; that was the join+present era.)
+  if (kindsA.has('mode_score') && !kindsA.has('wave')) ok('W8 TDM mode-layer events reached clients over the wire (mode_score, no wave)');
   else fail(`W8 A event kinds -> ${[...kindsA].join(',') || 'none'}`);
   if (kindsA.has('hit') || kindsA.has('kill')) {
     ok(`W9 server raycast resolved over the wire (hit/kill events: ${aBox.inbox.events.filter(e => e.kind === 'hit').length} hits)`);
