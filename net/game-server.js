@@ -41,7 +41,7 @@ export function createOnlineServer({ port = 8081, host = '0.0.0.0' } = {}) {
       protocol: PROTOCOL_VERSION,
       status: 'up',
       rooms: [...game.rooms.values()].map(r => ({
-        code: r.code, mode: r.mode, players: r.players.size, state: r.state,
+        code: r.code, mode: r.mode, map: r.map, players: r.players.size, state: r.state,
       })),
       playPath: transport.path,
       note: 'WebSocket clients connect at ws://<host>' + transport.path + ' — see net/README.md',
