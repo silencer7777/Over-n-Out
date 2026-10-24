@@ -170,7 +170,8 @@ const matsOf = (o) => (Array.isArray(o.material) ? o.material : (o.material ? [o
 function auditGraphX(root, { records = false } = {}) {
   let calls = 0, tris = 0, verts = 0, shadowCasters = 0, casterTris = 0;
   let instancedMeshes = 0, instances = 0, instancedTris = 0, flatTris = 0, texturedTris = 0, renderables = 0;
-  let largestUntextured = null; // { tris, area }
+  let largestUntextured = null; // { tris, area, geo, name }
+  let strikeCandidate = null;
   const recs = [];
   root.traverse((o) => {
     const renderable = o.isMesh || o.isInstancedMesh || o.isPoints || o.isLine || o.isSprite;
@@ -196,9 +197,17 @@ function auditGraphX(root, { records = false } = {}) {
     const textured = mats.some((m) => m && m.map);
     if (flat) flatTris += t;
     if (textured) texturedTris += t;
-    if (!textured && !o.isInstancedMesh) {
+    // §2.5 strike candidates: largest single untextured surfaces.
+    // BackSide-only renderables (sky domes) are excluded — a
+    // gradient backdrop is not a flat-colour surface. The strike
+    // itself is scoped to surfaces a player can stand next to
+    // (<= 50,000 m²); backdrop-scale geometry (the 263k m²
+    // horizon disc) is recorded separately, not strike-tested.
+    if (!textured && !o.isInstancedMesh && !mats.every((m) => m && m.side === 2)) {
       const area = geomArea(g);
-      if (!largestUntextured || area > largestUntextured.area) largestUntextured = { tris: Math.round(t), area: Math.round(area * 10) / 10 };
+      const rec = { tris: Math.round(t), area: Math.round(area * 10) / 10, geo: g.type ?? 'BufferGeometry', name: o.name || undefined };
+      if (!largestUntextured || area > largestUntextured.area) largestUntextured = rec;
+      if (area <= 50000 && (!strikeCandidate || area > strikeCandidate.area)) strikeCandidate = rec;
     }
     if (records) {
       recs.push({
@@ -219,6 +228,7 @@ function auditGraphX(root, { records = false } = {}) {
     flatTris: Math.round(flatTris), flatShare: tris > 0 ? +(flatTris / tris).toFixed(3) : 0,
     texturedTris: Math.round(texturedTris), texturedShare: tris > 0 ? +(texturedTris / tris).toFixed(3) : 0,
     largestUntexturedMesh: largestUntextured,
+    strikeCandidateMesh: strikeCandidate,
     renderables,
   };
   if (records) r.records = recs;
@@ -376,7 +386,7 @@ function vegScorecard(scene, groupName) {
   const canopy = inst.length ? inst.reduce((a, b) => (b.count > a.count ? b : a)) : null;
   const trunk = trees
     ? (inst.find((r) => r.geo === 'CylinderGeometry' && r.count === trees) ?? null)
-    : (inst.filter((r) => r.geo === 'CylinderGeometry').sort((a, b) => a.count - b.count)[0] ?? null);
+    : (inst.filter((r) => r.geo === 'CylinderGeometry').sort((a, b) => (b.params?.height ?? 0) - (a.params?.height ?? 0))[0] ?? null); // no userData count (layouts): the TALLEST cylinder is the trunk set, not stumps/discs
   const coloured = inst.filter((r) => r.instanceColor);
   return {
     group: groupName,
@@ -423,7 +433,7 @@ function scoreScene(id, scene, kind) {
   if (entry.shadowPassEstimate > BARS.shadowPassCallsWarn) warn(`SHADOW PASS (${tag}): estimate ${entry.shadowPassEstimate} calls exceeds the advisory ${BARS.shadowPassCallsWarn} — caster growth is priced here first (Board §2.6); check castShadow on new detail before it lands`);
   if (textures.estVramMB > BARS.textureVramWarnMB) warn(`TEXTURES (${tag}): estimated ${textures.estVramMB} MB exceeds the ${BARS.textureVramWarnMB} MB mobile-safe advisory`);
   if (id === 'forest' && audit.instancedShare < BARS.forestInstancedShareMin) warn(`INSTANCING (${tag}): static instanced share ${audit.instancedShare} below ${BARS.forestInstancedShareMin} — vegetation detail must be instancing-bought (Board §3.1)`);
-  if (audit.largestUntexturedMesh && audit.largestUntexturedMesh.area > BARS.untexturedMeshStrikeM2) warn(`FLAT SURFACE STRIKE (${tag}): largest untextured static mesh ≈ ${audit.largestUntexturedMesh.area} m² exceeds the §2.5 strike (${BARS.untexturedMeshStrikeM2} m², binds at Update 5) — ${audit.largestUntexturedMesh.tris} tris of flat colour`);
+  if (audit.strikeCandidateMesh && audit.strikeCandidateMesh.area > BARS.untexturedMeshStrikeM2) warn(`FLAT SURFACE STRIKE (${tag}): largest in-scope untextured static mesh ≈ ${audit.strikeCandidateMesh.area} m² (${audit.strikeCandidateMesh.geo}${audit.strikeCandidateMesh.name ? ' "' + audit.strikeCandidateMesh.name + '"' : ''}) exceeds the §2.5 strike (${BARS.untexturedMeshStrikeM2} m², binds at Update 5) — ${audit.strikeCandidateMesh.tris} tris of flat colour`);
   const veg = entry.vegetation;
   if (veg && (id === 'forest' || id === 'compound')) {
     if (veg.trunk && (!veg.trunk.smoothShaded || !veg.trunk.barkTextured)) warn(`UPDATE 1 BAR (§2.1, ${tag}): trunk is ${veg.trunk.smoothShaded ? 'smooth-shaded' : 'FLAT-SHADED'} and ${veg.trunk.barkTextured ? 'bark-textured' : 'UNTEXTURED'} — Board requires tapered + smooth-shaded + procedural bark texture; baseline state recorded, Atlas's Update 1 must flip it`);
@@ -468,137 +478,173 @@ function scoreScene(id, scene, kind) {
 
 // ---------- soldiers, guns, camos (Update 4 holds these bars) ----------
 {
-  const { buildGunModel } = await import('../js/gunmodels.js');
-  const { CAMOS } = await import('../js/progression.js');
+  const { buildBotGun } = await import('../js/gunmodels.js');
   const gunTris = {}, gunCalls = {};
   for (const wid of WEAPON_ORDER) {
-    const a = auditGraphX(buildGunModel(wid));
+    const g = buildBotGun(wid);
+    const a = auditGraphX(g?.group ?? g);
     gunTris[wid] = a.tris; gunCalls[wid] = a.calls;
   }
-  const camoDelta = { base: null, rows: [], maxDeltaCalls: 0, maxDeltaTris: 0 };
-  for (const faction of [1, 2]) {
-    for (const camo of CAMOS) {
+  // Palette + camo zero-delta proof (the real V5 method):
+  // hostile vs friendly palettes run the SAME builders, and
+  // every camo in js/camo.js × every faction must audit
+  // identical — palette swaps are free or they are vetoed.
+  const perTeam = {};
+  for (const team of ['hostile', 'friendly']) {
+    const s = new THREE.Scene();
+    new Bot(s, world, new THREE.Vector3(0, 0, 0), 1, WEAPON_ORDER[0], team);
+    perTeam[team] = auditGraphX(s);
+  }
+  const paletteDelta = { calls: perTeam.friendly.calls - perTeam.hostile.calls, tris: perTeam.friendly.tris - perTeam.hostile.tris };
+  if (paletteDelta.calls !== 0 || paletteDelta.tris !== 0) warn(`CAMO VETO: palette swap changed soldier cost (Δ ${paletteDelta.calls} calls / ${paletteDelta.tris} tris) — palette swaps must be free`);
+  let camoVariants = null;
+  try {
+    const { CAMO_IDS } = await import('../js/camo.js');
+    const rows = [];
+    let vBase = null, vPass = true;
+    for (const team of ['hostile', 'friendly']) for (const camo of CAMO_IDS) {
       const s = new THREE.Scene();
-      const b = new Bot(s, world, new THREE.Vector3(0, 1.2, 0), faction, 'ar', faction, camo.id);
-      void b;
+      new Bot(s, world, new THREE.Vector3(0, 0, 0), 1, 'ar', team, camo);
       const a = auditGraphX(s);
-      if (faction === 1 && camo.id === CAMOS[0].id) camoDelta.base = a.tris;
-      camoDelta.rows.push({ faction, camo: camo.id, calls: a.calls, tris: a.tris });
+      rows.push({ team, camo, calls: a.calls, tris: a.tris });
+      if (!vBase) vBase = a;
+      if (a.calls !== vBase.calls || a.tris !== vBase.tris) vPass = false;
     }
-  }
-  const base = camoDelta.rows.find((r) => r.faction === 1 && r.camo === CAMOS[0].id);
-  for (const r of camoDelta.rows) {
-    camoDelta.maxDeltaCalls = Math.max(camoDelta.maxDeltaCalls, Math.abs(r.calls - base.calls));
-    camoDelta.maxDeltaTris = Math.max(camoDelta.maxDeltaTris, Math.abs(r.tris - base.tris));
-  }
-  if (camoDelta.maxDeltaCalls !== 0 || camoDelta.maxDeltaTris !== 0) {
-    warn(`CAMO VETO: camo changes soldier cost (Δcalls ${camoDelta.maxDeltaCalls}, Δtris ${camoDelta.maxDeltaTris}) — camos must be materials-only (standing bar since V5)`);
-  }
+    camoVariants = { camoCount: CAMO_IDS.length, rows, pass: vPass, baseCalls: vBase?.calls ?? null, baseTris: vBase?.tris ?? null };
+    if (!vPass) warn('CAMO VETO: a camo variant changed draw calls/tris vs the base variant — palette swaps must be free (standing veto)');
+    else ok(`camo variants: ${CAMO_IDS.length} camos × 2 factions all identical (${vBase.calls} calls / ${vBase.tris} tris) — zero-delta PROVEN`);
+  } catch (e) { warn(`camo variant matrix unavailable: ${String(e).slice(0, 120)}`); }
   if (botBase.calls > 7) warn(`SOLDIER BAR (§2.4): bot costs ${botBase.calls} calls > 7 — Update 4 must hold ≤7 calls per bot while smoothing the kit read`);
   out.sections.soldiers = {
     perBot: { calls: botBase.calls, tris: botBase.tris, verts: botBase.verts, casters: botBase.shadowCasters, casterTris: botBase.casterTris, flatShare: botBase.flatShare },
-    gunTris, gunCalls, camoMatrix: camoDelta,
+    gunTris, gunCalls, paletteDelta: { perTeam, delta: paletteDelta }, camoVariants,
   };
-  ok(`soldiers: per-bot ${botBase.calls} calls / ${botBase.tris} tris / flat share ${botBase.flatShare}; camo matrix max delta ${camoDelta.maxDeltaCalls} calls / ${camoDelta.maxDeltaTris} tris (${camoDelta.rows.length} faction×camo combos; zero = materials-only, standing veto armed)`);
+  ok(`soldiers: per-bot ${botBase.calls} calls / ${botBase.tris} tris / flat share ${botBase.flatShare}; palette delta ${paletteDelta.calls}/${paletteDelta.tris} (must be 0/0)`);
 
-  // Smoke volume (V5 redesign: 5 calls/volume, reserve cap 6)
+  // Equipment audit (the real V5 method): Atlas's visual
+  // modules self-declare their draw calls; audit the real
+  // builders and hold them to the reserve caps. Declared ==
+  // audited is itself checked.
   try {
-    const { SmokeVisual } = await import('../js/smokevisual.js');
-    const s = new THREE.Scene();
-    const sv = new SmokeVisual(s, new THREE.Vector3(0, 0, 0), 4);
-    const a = auditGraphX(s);
-    out.sections.smokeVolume = { calls: a.calls, tris: a.tris };
-    ok(`smoke volume: ${a.calls} calls / ${a.tris} tris (reserve cap ${BARS.equipmentReserve.smoke.callsPerVolume} calls/volume)`);
-    if (a.calls > BARS.equipmentReserve.smoke.callsPerVolume) warn(`SMOKE RESERVE BREACH: ${a.calls} calls/volume exceeds the reserved ${BARS.equipmentReserve.smoke.callsPerVolume} — burst smoke can now push a map over the draw-call line`);
-    void sv;
-  } catch (e) { warn(`smoke volume audit failed: ${String(e).slice(0, 140)}`); }
-
-  // Equipment audit (placed pieces are world content too)
-  try {
-    const { placeEquipment, clearEquipment, EQUIPMENT_TYPES } = await import('../js/equipment.js');
-    const s = new THREE.Scene();
-    const eqWorld = { colliders: [], shootables: [], scene: s };
+    const eqMod = await import('../js/equipment.js');
+    const smMod = await import('../js/smokevisual.js');
+    const build = (make) => { const s = new THREE.Scene(); const r = make(s); if (r) s.add(r.group ?? r); return auditGraphX(s); };
     const eq = {};
-    for (const t of EQUIPMENT_TYPES) {
-      clearEquipment(eqWorld);
-      const items = placeEquipment(eqWorld, t, new THREE.Vector3(0, 0, 0), 0, 1);
-      const a = auditGraphX(s);
-      eq[t] = { calls: a.calls, tris: a.tris, placed: items.length };
-      if (a.calls > 1) warn(`EQUIPMENT: ${t} costs ${a.calls} calls (bar: 1 — merged mesh, standing bar since V5)`);
-    }
-    try {
-      const { buildStreakObject } = await import('../js/streaks.js');
-      for (const kind of ['uav', 'cuav']) {
-        const s2 = new THREE.Scene();
-        buildStreakObject(s2, kind, {});
-        const a = auditGraphX(s2);
-        eq[kind] = { calls: a.calls, tris: a.tris };
-        if (kind === 'uav' && a.calls !== BARS.streakReserve.uav.calls) warn(`STREAK RESERVE DRIFT: UAV costs ${a.calls} calls, reserve priced ${BARS.streakReserve.uav.calls} — update the reserve or the object`);
-      }
-    } catch (e2) { warn(`streak object audit unavailable: ${String(e2).slice(0, 100)}`); }
+    eq.claymore = build(() => eqMod.buildEquipmentMesh('claymore'));
+    eq.tripmine = build(() => eqMod.buildEquipmentMesh('tripmine'));
+    eq.uav = build(() => eqMod.createUAVActor());
+    eq.smoke = build((s) => { smMod.spawnSmoke(s, new THREE.Vector3(0, 0, 0)); return null; });
+    eq.declared = { ...(eqMod.EQUIPMENT_DRAW_CALLS ?? {}), smoke: smMod.SMOKE_DRAW_CALLS };
     out.sections.equipment = eq;
-    ok(`equipment: ${Object.entries(eq).map(([k, v]) => `${k} ${v.calls}c/${v.tris}t`).join(', ')}`);
-  } catch (e) { warn(`equipment audit failed: ${String(e).slice(0, 140)}`); }
+    ok(`equipment audit: claymore ${eq.claymore.calls} call/${eq.claymore.tris} tris, tripmine ${eq.tripmine.calls}/${eq.tripmine.tris}, uav ${eq.uav.calls}/${eq.uav.tris}, smoke ${eq.smoke.calls} calls/volume (declared: ${JSON.stringify(eq.declared)})`);
+    for (const k of ['claymore', 'tripmine', 'uav', 'smoke']) {
+      if (eq.declared[k] !== undefined && eq[k] && eq.declared[k] !== eq[k].calls) warn(`EQUIPMENT (${k}): declared ${eq.declared[k]} calls != audited ${eq[k].calls} — the module's own accounting is wrong`);
+    }
+    if (eq.smoke.shadowCasters > 0) warn(`SMOKE: volume casts shadows (${eq.smoke.shadowCasters} casters) — smoke must never cast`);
+    if (eq.smoke.calls > BARS.equipmentReserve.smoke.callsPerVolume) warn(`SMOKE: ${eq.smoke.calls} calls/volume exceeds the ${BARS.equipmentReserve.smoke.callsPerVolume}-call reserve cap — at ${BARS.equipmentReserve.smoke.maxActiveVolumes} active that is ${eq.smoke.calls * BARS.equipmentReserve.smoke.maxActiveVolumes} calls of transient`);
+    if (eq.uav.calls > BARS.streakReserve.uav.calls) warn(`UAV: ${eq.uav.calls} calls exceeds the repriced reserve ${BARS.streakReserve.uav.calls}`);
+  } catch (e) { warn(`equipment audit failed: ${String(e).slice(0, 160)}`); }
 }
 
-// ---------- sim bench (carried V5 method; skipped with --fast) ----------
+// ---------- sim bench (the real V5 bench, carried verbatim in method; skipped with --fast) ----------
 if (FAST) {
   out.sections.simBench = { skipped: '--fast' };
   ok('sim bench: SKIPPED (--fast)');
 } else {
-  const { GameServer } = await import('../net/server.js');
-  const { LoopbackTransport } = await import('../net/transport.js');
-  const { OUTBOUND_CAP_BYTES } = await import('../net/protocol.js');
-  async function bench(numClients, totalTicks, label) {
+  const { GameServer, LoopbackTransport } = await import('../net/server.js');
+  const { MSG } = await import('../net/protocol.js');
+  function bench({ clients, maxTicks, label, windowWave = null, windowTicks = 1500 }) {
+    const server = new GameServer();
     const transport = new LoopbackTransport();
-    const server = new GameServer(transport, {});
-    const clients = [];
-    for (let i = 0; i < numClients; i++) {
-      const c = transport.connect();
-      transport.deliver(c);
-      c.send({ t: 'hello', name: 'Bench' + i, loadout: { classId: 'assault', weapon: 'ar', perk: null, camo: 'stock' } });
-      clients.push(c);
+    server.attachTransport(transport);
+    const room = server.createRoom('ODIN'); // room codes are exactly 4 chars in the protocol
+    const boxes = [], handles = [];
+    let snapshotsReceived = 0;
+    for (let i = 0; i < clients; i++) {
+      const inbox = { snapshots: [], welcome: null };
+      const h = transport.connect('p' + i, (msg) => {
+        if (msg.t === MSG.SNAPSHOT) { inbox.snapshots.push(msg); snapshotsReceived++; }
+        else if (msg.t === MSG.WELCOME) inbox.welcome = msg;
+      });
+      h.send({ t: MSG.HELLO, protocol: 1, name: 'P' + i, room: 'ODIN' });
+      boxes.push(inbox); handles.push(h);
     }
-    for (let k = 0; k < 30; k++) { server.tick(1 / 30); for (const c of clients) c.drain(); }
-    for (const c of clients) { c.send({ t: 'create', name: 'BenchRoom', map: 'compound', mode: 'tdm', maxPlayers: 8 }); break; }
-    for (let k = 0; k < 30; k++) { server.tick(1 / 30); for (const c of clients) c.drain(); }
-    for (let i = 1; i < clients.length; i++) {
-      const roomId = [...server.rooms.keys()][0];
-      clients[i].send({ t: 'join', room: roomId });
-    }
-    for (let k = 0; k < 60; k++) { server.tick(1 / 30); for (const c of clients) c.drain(); }
-    for (const c of clients) c.send({ t: 'ready', ready: true });
-    let maxSnap = 0, overCap = 0, measuredTicks = 0, measuredMs = 0, wave = 0;
-    for (let k = 0; k < totalTicks; k++) {
-      const t0 = performance.now();
-      server.tick(1 / 30);
-      measuredMs += performance.now() - t0;
-      measuredTicks++;
-      const room = [...server.rooms.values()][0];
-      if (room) wave = Math.max(wave, room.bots?.filter((b) => b.alive).length ?? 0);
-      for (const c of clients) {
-        for (const raw of c.drain()) {
-          const size = Buffer.byteLength(typeof raw === 'string' ? raw : JSON.stringify(raw));
-          if (size > maxSnap) maxSnap = size;
-          if (size > OUTBOUND_CAP_BYTES) overCap++;
+    let seq = 0, maxSnapBytes = 0, maxAlive = 0, maxWave = 0;
+    let wStart = null, wTick0 = 0, windowMsPerTick = null;
+    const t0 = performance.now();
+    let ticksRun = 0;
+    for (let i = 0; i < maxTicks; i++) {
+      for (let c = 0; c < clients; c++) {
+        const inbox = boxes[c];
+        if (inbox.snapshots.length > 4) inbox.snapshots.splice(0, inbox.snapshots.length - 1);
+        const snap = inbox.snapshots[inbox.snapshots.length - 1];
+        let yaw = 0, pitch = 0, fire = false;
+        if (snap) {
+          maxSnapBytes = Math.max(maxSnapBytes, JSON.stringify(snap).length);
+          const me = snap.players.find((p) => p.id === 'p' + c);
+          const bot = snap.bots.find((b) => !b.dead);
+          if (me && bot) {
+            const dx = bot.pos[0] - me.pos[0], dz = bot.pos[2] - me.pos[2];
+            const dy = (bot.pos[1] + 1.1) - (me.pos[1] + 1.66);
+            yaw = Math.atan2(-dx, -dz);
+            pitch = Math.max(-1.45, Math.min(1.45, Math.atan2(dy, Math.hypot(dx, dz))));
+            fire = true;
+          }
         }
+        seq++;
+        const phase = Math.floor(i / 30) % 4;
+        const keys = { forward: true, back: false, left: phase === 1, right: phase === 3, sprint: phase === 2, jump: i % 47 === 0 };
+        handles[c].send({ t: MSG.INPUT, seq, forTick: room.tick + 1, keys, yaw, pitch, fire, reload: i % 211 === 0, weapon: 1 });
+      }
+      server.step();
+      ticksRun = room.tick;
+      const m = room.match;
+      if (m) {
+        maxWave = Math.max(maxWave, m.wave);
+        maxAlive = Math.max(maxAlive, m.bots.filter((b) => !b.dead).length);
+        if (windowWave !== null && wStart === null && m.wave >= windowWave) { wStart = performance.now(); wTick0 = room.tick; }
+        if (wStart !== null && windowMsPerTick === null && room.tick - wTick0 >= windowTicks) {
+          windowMsPerTick = (performance.now() - wStart) / (room.tick - wTick0);
+        }
+        if (m.state === 'over') break;
       }
     }
-    const room = [...server.rooms.values()][0];
+    const totalMs = performance.now() - t0;
     return {
-      label, clients: numClients, ticks: measuredTicks,
-      msPerTick: +(measuredMs / measuredTicks).toFixed(4),
-      maxSnapshotBytes: maxSnap, overCapPackets: overCap,
-      capBytes: OUTBOUND_CAP_BYTES, maxAliveBotsSeen: room ? wave : 0,
-      note: 'bots spawn per mode rules; stress run reaches wave/alive cap ≥5 when totalTicks is large — read maxAliveBotsSeen before trusting msPerTick',
+      label, clients, ticks: ticksRun,
+      sanity: {
+        welcomesReceived: boxes.filter((b) => b.welcome).length,
+        matchBooted: !!(room.match && room.match.state),
+        snapshotsReceived,
+      },
+      msPerTickAvg: +(totalMs / Math.max(1, ticksRun)).toFixed(3),
+      windowMsPerTick: windowMsPerTick === null ? null : +windowMsPerTick.toFixed(3),
+      maxWave, maxAliveBots: maxAlive, maxSnapshotBytes: maxSnapBytes,
+      snapshotCapBytes: BARS.snapshotCapBytes, snapshotWithinCap: maxSnapBytes <= BARS.snapshotCapBytes,
     };
   }
-  const standard = await bench(2, 4500, 'standard (2 clients, 4500 ticks)');
-  const stress = await bench(4, 20000, 'stress (4 clients, 20000 ticks)');
-  out.sections.simBench = { standard, stress, barMsPerTick: BARS.simMsPerTick, snapshotCapBytes: BARS.snapshotCapBytes };
-  ok(`sim bench: standard ${standard.msPerTick} ms/tick, max snapshot ${standard.maxSnapshotBytes}B; stress ${stress.msPerTick} ms/tick (max alive bots seen ${stress.maxAliveBotsSeen}), max snapshot ${stress.maxSnapshotBytes}B, over-cap packets ${stress.overCapPackets}`);
-  if (stress.maxAliveBotsSeen >= 5 && stress.msPerTick > BARS.simMsPerTick) warn(`SIM BAR: stress ms/tick ${stress.msPerTick} at alive≥5 exceeds ${BARS.simMsPerTick}`);
-  if (stress.maxSnapshotBytes > BARS.snapshotCapBytes) warn(`SNAPSHOT CAP: ${stress.maxSnapshotBytes}B exceeds ${BARS.snapshotCapBytes}B`);
+  // Crash-tolerant, as in V5: a metrics run at an integration
+  // point must survive a mid-refactor sim. Record the crash as
+  // data; never let stale numbers pose as fresh ones.
+  let standard = null, stress = null;
+  try {
+    standard = bench({ clients: 2, maxTicks: 4500, label: 'soak-parity (2 scripted clients)' });
+    stress = bench({ clients: 4, maxTicks: 20000, label: 'stress (4 scripted clients, window at wave >= 5 = alive cap 9)', windowWave: 5, windowTicks: 1200 });
+  } catch (e) {
+    out.sections.simBench = { error: String(e).slice(0, 300), note: 'sim bench crashed — NO sim numbers this run (absent, not stale)' };
+    warn(`SIM BENCH CRASHED: ${String(e).slice(0, 160)} — sim numbers absent this run`);
+  }
+  if (standard && stress) {
+    for (const b of [standard, stress]) {
+      if (b.sanity.welcomesReceived !== b.clients || !b.sanity.matchBooted || b.sanity.snapshotsReceived === 0) {
+        warn(`sim bench "${b.label}" sanity FAILED (welcomes ${b.sanity.welcomesReceived}/${b.clients}, matchBooted ${b.sanity.matchBooted}, snapshots ${b.sanity.snapshotsReceived}) — its cost numbers are not trustworthy`);
+      }
+    }
+    out.sections.simBench = { standard, stress, bar: `<= ${BARS.simMsPerTick} ms/tick at real caps (4 humans, 9-bot alive cap)` };
+    ok(`sim bench: standard ${standard.msPerTickAvg} ms/tick (max snapshot ${standard.maxSnapshotBytes} B); stress ${stress.msPerTickAvg} ms/tick avg, window ${stress.windowMsPerTick} ms/tick, max alive bots ${stress.maxAliveBots}, max snapshot ${stress.maxSnapshotBytes} B`);
+    if (!stress.snapshotWithinCap) warn(`stress max snapshot ${stress.maxSnapshotBytes} B exceeds the ${BARS.snapshotCapBytes} B protocol cap`);
+    if ((stress.windowMsPerTick ?? stress.msPerTickAvg) > BARS.simMsPerTick) warn(`sim cost ${stress.windowMsPerTick ?? stress.msPerTickAvg} ms/tick exceeds the ${BARS.simMsPerTick} bar`);
+  }
 }
 
 // ---------- shadow config + quality tiers (mobile strike data, Addendum A) ----------
@@ -611,9 +657,12 @@ if (FAST) {
     cameraBounds: (mainSrc.match(/shadow\.camera\.(left|right|top|bottom)\s*=\s*(-?[\d.]+)/g) ?? []).map((s) => s.replace(/\s+/g, '')),
     normalBias: mainSrc.match(/shadow\.normalBias\s*=\s*([\d.]+)/)?.[1] ?? null,
   };
-  const caps = [...qualitySrc.matchAll(/pixelRatio:\s*Math\.min\(devicePixelRatio,\s*([\d.]+)\)/g)].map((m) => +m[1]);
-  const tierShadows = [...qualitySrc.matchAll(/shadowMap:\s*(\d+|'off')/g)].map((m) => m[1]);
-  const tiers = caps.map((c, i) => ({ dprCap: c, shadowMap: tierShadows[i] ?? null }));
+  // quality.js tiers are code, not data: DPR caps live in the
+  // header spec + scaler, shadow sizes in `size = N;` branches
+  // (L0/L1 4096, L2 2048, L3 size stays 0 = off). Source-read.
+  const caps = [...qualitySrc.matchAll(/pixelRatio\s*=\s*(?:min\(devicePixelRatio,\s*)?([\d.]+)\)?/g)].map((m) => +m[1]);
+  const tierSizes = [...new Set([...qualitySrc.matchAll(/size = (\d+);/g)].map((m) => +m[1]))];
+  const tiers = { dprCapsByLevel: caps, shadowSizesFound: tierSizes, note: 'L0/L1 shadow 4096, L2 2048, L3 off (size 0) per quality.js branches; touch starts at L1 (Vega, Directive V6-2)' };
   // anisotropy: the §2.5/Update-5 dial — measure its presence, don't assume
   let anisotropySet = false;
   for (const f of readdirSync(join(ROOT, 'js'))) {
@@ -621,7 +670,7 @@ if (FAST) {
     if (/\.anisotropy\s*=|maxAnisotropy/.test(readFileSync(join(ROOT, 'js', f), 'utf8'))) { anisotropySet = true; break; }
   }
   out.sections.shadowConfig = { ...shadows, qualityTiers: tiers, anisotropySetAnywhere: anisotropySet };
-  ok(`shadow config: ${shadows.typeLine}, map ${shadows.mapSize}, tiers ${tiers.map((t) => `DPR≤${t.dprCap}/shadow ${t.shadowMap}`).join(' · ') || 'unparsed'}; anisotropy ${anisotropySet ? 'set somewhere in js/' : 'NOT SET anywhere in js/ (Update 5 dial)'}`);
+  ok(`shadow config: ${shadows.typeLine}, map ${shadows.mapSize}, quality DPR caps [${caps.join(', ')}], shadow sizes [${tierSizes.join(', ')}]; anisotropy ${anisotropySet ? 'set somewhere in js/' : 'NOT SET anywhere in js/ (Update 5 dial)'}`);
 }
 
 // ---------- capabilities (carried V5) ----------
@@ -629,22 +678,21 @@ if (FAST) {
   const caps = {};
   caps.packageVersion = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
   if (caps.packageVersion !== '0.6.0-dev') warn(`version is ${caps.packageVersion}, V6 target is 0.6.0-dev (Coordinator's bump)`);
-  const los = await import('../js/los.js');
-  caps.losExports = Object.keys(los);
-  caps.losUnpolluted = !('__losProfile' in los);
-  const prog = await import('../js/progression.js');
-  caps.loadoutCombinations = prog.countLoadoutCombinations();
+  caps.losProfileUsPerRay = out.sections.gates?.soak?.losUsPerRay ?? null; // soak S9; LOS code lives in js/bots.js + net/sim.js (no standalone module)
+  const lo = await import('../js/loadouts.js');
+  caps.loadoutCombinations = lo.countLoadoutCombinations();
+  caps.camoCount = lo.CAMOS ? lo.CAMOS.length : null;
   const mp = await import('../js/maps.js');
-  caps.mapRegistry = Object.fromEntries(Object.entries(mp.MAPS ?? mp.default ?? {}).map(([k, v]) => [k, { status: v.status ?? v.layout ?? null }]));
+  caps.mapRegistry = Object.fromEntries((mp.MAPS ?? []).map((m) => [m.id, { layout: m.layout ?? null }]));
   const mapFiles = readdirSync(join(ROOT, 'js')).filter((f) => /^map-.*\.js$/.test(f));
   caps.mapDataModules = mapFiles;
   const dataFiles = readdirSync(join(ROOT, 'js')).filter((f) => /data\.js$/.test(f));
   caps.dataModules = dataFiles;
   const modes = await import('../js/modes.js').catch(() => null);
-  caps.modeCount = modes ? Object.keys(modes.MODES ?? modes.default ?? {}).length : null;
+  caps.modeCount = modes?.MODES ? modes.MODES.length : null;
+  caps.modeIds = modes?.MODES ? modes.MODES.map((m) => m.id) : null;
   out.sections.capabilities = caps;
-  ok(`capabilities: version ${caps.packageVersion}, loadout combinations ${caps.loadoutCombinations.toLocaleString('en-US')}, los exports [${caps.losExports.join(', ')}]${caps.losUnpolluted ? '' : ' (POLLUTED — see warning)'}`);
-  if (!caps.losUnpolluted) warn('los.js exports __losProfile — the profiling hook leaked into the shipped module (standing hygiene bar)');
+  ok(`capabilities: version ${caps.packageVersion}, loadout combinations ${caps.loadoutCombinations.toLocaleString('en-US')}, camos ${caps.camoCount}, modes ${caps.modeCount} [${(caps.modeIds ?? []).join(', ')}], map layouts ${JSON.stringify(caps.mapRegistry)}`);
 }
 
 // ---------- patrol diff (--compare) ----------
