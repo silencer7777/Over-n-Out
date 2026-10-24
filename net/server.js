@@ -1,21 +1,24 @@
-// server.js — OVER N' OUT authoritative server (M0 + M1).
+// server.js — OVER N' OUT authoritative server (M0 + M1 + M3/M4).
 //
 // Division Zero — Dmitri "Mainframe" Volkov, with Lena "Sync"
 // Fischer (state sync) and Sofia "Uplink" Petrova (netcode).
-// M0 (§8.4): rooms, a tick loop, protocol-validated message
-// routing, and a transport seam. M1 (Phase 2): the headless sim
-// (net/sim.js) is wired into the tick — matches start on first
-// hello, inputs step sim players, events and snapshots flow back
-// over the transport. Still NO sockets: §10.1 is Brett/Vault's
-// pending decision, and this file stays transport-agnostic.
+// Online systems owned by Vega (V4). M0 (§8.4): rooms, a tick
+// loop, protocol-validated message routing, and a transport seam.
+// M1 (Phase 2): the headless sim (net/sim.js) is wired into the
+// tick — matches start on first hello, inputs step sim players,
+// events and snapshots flow back over the transport. M3/M4 (V4):
+// REAL sessions — net/ws-transport.js (hand-rolled RFC 6455,
+// Board 004's §10.1 ruling) plugs into attachTransport() exactly
+// the way LoopbackTransport does, rooms carry a mode
+// (js/modes.js), hellos may carry a server-validated loadout
+// class (js/loadouts.js), and the server accumulates per-session
+// XP from sim events (js/progression.js XP_VALUES) and reports it
+// in a `results` event when a match ends.
 //
-// TRANSPORT-AGNOSTIC BY DESIGN: this file contains no socket code
-// and no networking imports (node: builtins only, and only
-// node:url for the direct-run guard). The §10.1 decision —
-// hand-rolled RFC 6455 framing vs the `ws` dependency — is PENDING
-// (a Brett/Vault CTO call, see net/README.md). When it lands, a
-// real transport plugs into attachTransport() exactly the way
-// LoopbackTransport does below, and nothing in GameServer changes.
+// TRANSPORT-AGNOSTIC BY DESIGN: this file still contains no
+// socket code and no networking imports (node: builtins only, and
+// only node:url for the direct-run guard). Everything socket-
+// shaped lives in net/ws.js + net/ws-transport.js.
 //
 // NOTHING here is wired into the live single-player game. No file
 // under js/ imports this module; importing it never binds, listens,
@@ -29,8 +32,12 @@ import {
   validateHello,
   validateInput,
   LIMITS,
+  DEFAULT_MODE,
 } from './protocol.js';
 import { WEAPONS } from '../js/weapons.js';
+import { MODE_ORDER } from '../js/modes.js';
+import { validateClass } from '../js/loadouts.js';
+import { XP_VALUES } from '../js/progression.js';
 import {
   createMatch,
   startWaveSim,
@@ -148,21 +155,26 @@ export class GameServer {
     return this._timer !== null;
   }
 
-  // createRoom(code) -> { code, players: Map, tick: 0,
-  //   state: 'lobby', createdAt }
-  // Idempotent per code: asking for an existing room returns it
-  // (a second `hello` for the same code must not wipe the match).
-  createRoom(code) {
+  // createRoom(code, { mode }) -> room. Idempotent per code:
+  // asking for an existing room returns it (a second `hello` for
+  // the same code must not wipe the match — or its mode).
+  // `mode` is a js/modes.js id; an unknown id falls back to
+  // DEFAULT_MODE rather than inventing a mode the sim can't run.
+  createRoom(code, { mode } = {}) {
     const existing = this.rooms.get(code);
     if (existing) return existing;
     const room = {
       code,
+      mode: MODE_ORDER.includes(mode) ? mode : DEFAULT_MODE,
       players: new Map(),
       tick: 0,
       state: 'lobby',
       createdAt: Date.now(),
       match: null,          // M1: headless sim state (net/sim.js), created on first hello
       pendingEvents: [],     // sim events awaiting delivery on the next tick
+      xp: new Map(),         // M4: playerId -> { counts: {source: n} } session XP tallies
+      resultsSent: false,    // M4: the `results` event fires exactly once per match
+      _headMarks: new Map(), // M4: botId -> playerId of the latest headshot (XP bonus)
       _snapAcc: 0,           // snapshot-rate accumulator
     };
     this.rooms.set(code, room);
@@ -186,6 +198,14 @@ export class GameServer {
   //     falling back to the first room / a fresh 'LOBBY'.
   attachTransport(transport) {
     this.transport = transport;
+    // Additive seam convention (M3): a transport that can observe
+    // disconnects registers for them here, so a closed socket is
+    // leaving (§5.6) without GameServer knowing sockets exist.
+    // LoopbackTransport doesn't implement it (its tests drive
+    // removePlayer explicitly) — behaviour there is unchanged.
+    if (transport && typeof transport.setDisconnectHandler === 'function') {
+      transport.setDisconnectHandler((clientId) => this.removePlayer(clientId));
+    }
     if (transport && typeof transport.setServerHandler === 'function') {
       transport.setServerHandler((clientId, msg) => {
         let room;
@@ -269,6 +289,29 @@ export class GameServer {
         if (!check.ok) {
           return this._error(playerId, 'protocol', check.errors.join('; '));
         }
+        // Mode membership (js/modes.js owns the ids): an unknown
+        // mode is refused here rather than silently downgraded —
+        // the client asked for a game that doesn't exist.
+        if (msg.mode !== undefined && !MODE_ORDER.includes(msg.mode)) {
+          return this._error(playerId, 'bad_mode', `unknown mode: ${msg.mode}`);
+        }
+        // Loadout (Board 004 §3): the class is validated against
+        // the SAME tables the client built it from, before the
+        // sim ever sees the player. The sanitized class — never
+        // the raw payload — is what gets stored and echoed.
+        let loadout = null;
+        if (msg.loadout !== undefined) {
+          const vc = validateClass(msg.loadout);
+          if (!vc.ok) {
+            return this._error(playerId, 'bad_loadout', vc.errors.join('; '));
+          }
+          loadout = vc.cls;
+        }
+        // The first hello to a FRESH room sets the room's mode;
+        // later hellos join the mode the room already runs.
+        if (!room.match && room.players.size === 0 && msg.mode !== undefined) {
+          room.mode = msg.mode;
+        }
         const player = {
           id: playerId,
           name: msg.name,
@@ -276,21 +319,27 @@ export class GameServer {
           latestInput: null,
           joinedAt: Date.now(),
           lastSeen: Date.now(),
+          loadout,
         };
         room.players.set(playerId, player);
+        if (!room.xp.has(playerId)) room.xp.set(playerId, { counts: {} });
         // M1: the first hello boots the room's headless match and
         // every hello adds a sim player to it. The wave-1 event
         // queued by startWaveSim rides the next tick's delivery.
         if (!room.match) {
           room.match = createMatch(seedFromCode(room.code));
+          // Mode carriage into the sim: the mode layer reads its
+          // id off the match state; snapshots report it back.
+          room.match.modeId = room.mode;
           room.state = 'playing';
           startWaveSim(room.match, room.pendingEvents);
         }
         if (!room.match.players.has(playerId)) {
           addSimPlayer(room.match, playerId, msg.name);
         }
-        // Welcome (§5.1) — now carrying the server's weapons table
-        // so a client can catch version skew at the handshake.
+        // Welcome (§5.1) — carrying the server's weapons table so
+        // a client can catch version skew at the handshake, plus
+        // the room's mode and the accepted (sanitized) loadout.
         const welcome = {
           t: MSG.WELCOME,
           playerId,
@@ -299,6 +348,8 @@ export class GameServer {
           tickRate: this.tickRate,
           snapshotRate: this.snapshotRate,
           room: room.code,
+          mode: room.mode,
+          loadout,
           weapons: WEAPONS,
         };
         return this._reply(playerId, welcome);
@@ -311,11 +362,12 @@ export class GameServer {
         }
         let player = room.players.get(playerId);
         if (!player) {
-          // No hello yet: keep the skeleton forgiving for tests and
-          // loopback tooling by creating a minimal record. A real
-          // transport (M3) additionally enforces hello-first with a
-          // timeout per §5.1 — that is a connection-layer rule, not
-          // a routing rule, so it does not live here.
+          // No hello yet: keep routing forgiving for tests and
+          // loopback tooling by creating a minimal record. The
+          // real transport (net/ws-transport.js) additionally
+          // enforces hello-first with a timeout per §5.1 — that
+          // is a connection-layer rule, not a routing rule, so it
+          // does not live here.
           player = {
             id: playerId,
             name: null,
@@ -374,15 +426,71 @@ export class GameServer {
     }
   }
 
+  // Session XP tally (Board 004 §4: online XP is server-computed
+  // from sim events, never client-asserted). Sources and values
+  // are js/progression.js XP_VALUES; this layer counts, the
+  // progression module prices. Kill/headshot/wave-clear are read
+  // straight off sim events; mode-specific sources (capture,
+  // channelTick, streaks, matchWin) arrive via the carriage
+  // below — the mode layer annotates any event with
+  // { xp: { player, source, count } } and it is tallied verbatim.
+  _tallyXp(room, events) {
+    const bump = (pid, source, count = 1) => {
+      const rec = room.xp.get(pid);
+      if (rec) rec.counts[source] = (rec.counts[source] || 0) + count;
+    };
+    for (const ev of events) {
+      if (ev.kind === 'hit' && ev.head && room.players.has(ev.by)) {
+        room._headMarks.set(ev.target, ev.by);
+      } else if (ev.kind === 'kill' && room.players.has(ev.by)) {
+        bump(ev.by, 'kill');
+        if (room._headMarks.get(ev.target) === ev.by) bump(ev.by, 'headshot');
+        room._headMarks.delete(ev.target);
+      } else if (ev.kind === 'wave_clear') {
+        for (const pid of room.players.keys()) bump(pid, 'waveClear');
+      }
+      if (ev.xp && room.players.has(ev.xp.player) && XP_VALUES[ev.xp.source] !== undefined) {
+        bump(ev.xp.player, ev.xp.source, Math.max(1, Math.floor(ev.xp.count) || 1));
+      }
+    }
+  }
+
+  _resultsEvent(room) {
+    const xp = {};
+    for (const [pid, rec] of room.xp) {
+      const bySource = {};
+      let gained = 0;
+      for (const [source, count] of Object.entries(rec.counts)) {
+        const per = XP_VALUES[source];
+        if (!per || !count) continue;
+        bySource[source] = per * count;
+        gained += per * count;
+      }
+      xp[pid] = { gained, bySource };
+    }
+    return {
+      t: MSG.EVENT, kind: 'results', tick: room.match.tick,
+      room: room.code, mode: room.mode,
+      wave: room.match.wave, kills: room.match.kills, xp,
+    };
+  }
+
   // onTick(room) — M1: step the room's headless sim one tick
   // (net/sim.js stepMatch: wave director, bot sim, player stepping,
   // server raycast), deliver its events immediately (§5.4), and
   // emit snapshots at snapshotRate (§5.3) via the accumulator.
+  // M4: events are XP-tallied before delivery; snapshots carry
+  // the room's mode id + the match's objective state verbatim
+  // (the mode layer owns objective shape; this layer owns its
+  // carriage — MULTIPLAYER.md §5.3 + js/modes.js objectiveText
+  // consume the same fields client-side); when the match ends, a
+  // single `results` event reports the session XP (§4 above).
   onTick(room) {
     if (!room.match) return;
     const events = room.pendingEvents;
     stepMatch(room.match, 1 / this.tickRate, events);
     if (events.length) {
+      this._tallyXp(room, events);
       for (const ev of events) {
         const msg = { t: MSG.EVENT, tick: room.match.tick, ...ev };
         for (const pid of room.players.keys()) this._reply(pid, msg);
@@ -393,8 +501,16 @@ export class GameServer {
     if (room._snapAcc >= 1) {
       room._snapAcc -= 1;
       for (const pid of room.players.keys()) {
-        this._reply(pid, buildSnapshot(room.match, pid));
+        const snap = buildSnapshot(room.match, pid);
+        snap.match.mode = room.mode;
+        snap.match.objectives = room.match.objectives ?? null;
+        this._reply(pid, snap);
       }
+    }
+    if (room.match.state === 'over' && !room.resultsSent) {
+      room.resultsSent = true;
+      const results = this._resultsEvent(room);
+      for (const pid of room.players.keys()) this._reply(pid, results);
     }
   }
 
