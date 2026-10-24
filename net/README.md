@@ -6,10 +6,15 @@ Architect), Lena "Sync" Fischer (State Sync & Replication), Sofia
 
 Design authority: `docs/MULTIPLAYER.md`. This folder implements
 **M0 + M1** of its build order (§8.4): the foundation plus the
-headless simulation, wired into GameServer's tick. Nothing here
-is wired into the live single-player game: no file under `js/`
-imports anything from `net/`, and importing these modules never
-binds, listens, or starts a loop.
+headless simulation, wired into GameServer's tick — and, as of
+V4, **M3 + the online half of M4**: a hand-rolled RFC 6455
+WebSocket transport, real multi-client sessions on the
+authoritative sim, and a runnable online server (`net/game-server.js`).
+The browser client reaches the sim through the Coordinator's
+`js/online.js` (Board 004 §2 scoped lint exception); the M2 full
+loopback refactor of the solo game remains deferred by Board 004,
+so single-player still runs its local loop. Importing these
+modules never binds, listens, or starts a loop.
 
 ## What M0 shipped
 
@@ -37,11 +42,44 @@ read by client and server alike (see Verification below).
 - **No sockets of any kind.** No WebSocket implementation, no
   networking imports — `net/server.js` uses `node:url` only, for
   its direct-run guard. See the §10.1 decision status below.
+  *(Superseded in V4: sockets shipped — see the V4 section.)*
 - **No client puppets / loopback refactor** — that is M2 (§8.4):
   the browser game does not consume the sim yet, and single-player
   is untouched by all of this.
 - **No Stage 2 session verification** — `hello` shape only, as in
-  M0 (see the dependency note below).
+  M0 (see the dependency note below). **Still true in V4.**
+
+## What V4 shipped — online play (M3 + online M4), Oct 24, 2026
+
+Owner: **Vega** (online systems). All of it behind the same
+`attachTransport()` seam M0 defined, so LoopbackTransport remains
+the test transport and the sim never knows which wire it is on.
+
+| File | Contents |
+|---|---|
+| `net/ws.js` | RFC 6455 framing core, zero dependencies (`node:crypto` only): `computeAcceptKey`, a frame encoder (server/client masking), a streaming `FrameDecoder` (fragmentation reassembly, control frames surfaced whole, masking-direction enforcement, RSV=0, minimal length encodings, UTF-8 validity, and a hard cap on assembled message size that fails fast with 1009 from the header, before the payload is buffered), and a minimal masked `WsClient` for headless tests. Verified against the RFC's own worked examples. |
+| `net/ws-transport.js` | `WebSocketTransport` — LoopbackTransport's sibling on `node:http`'s `upgrade` event. Upgrades only on `/play`. Connection-layer rules live HERE, not in GameServer: first message must be `hello` within 5 s (close 1002), idle close at `LIMITS.IDLE_TIMEOUT_MS`, malformed JSON → error + 1007, `input` rate cap `LIMITS.INPUT_MAX_PER_SEC` (1008), decoder size cap (1009), slow-client close past 4 MB unsent (1008). Frame-level ping → pong at this layer; protocol `ping` messages still route to GameServer (§5.5). Exposes the additive `setDisconnectHandler(fn)` convention GameServer uses: **a closed socket IS leaving** (§5.6), so transports that can detect disconnect should say so. |
+| `net/game-server.js` | The runnable online entrypoint: `createOnlineServer()` wires GameServer + WebSocketTransport on one HTTP server. Plain HTTP requests get a status JSON (name, protocol, room list, player counts) for host health checks. Env: `PORT` (default 8081), `HOST` (default 0.0.0.0). Graceful SIGINT/SIGTERM shutdown. Importing never listens; run it with `node net/game-server.js`. |
+| `net/protocol.js` | V4 carriage, same `PROTOCOL_VERSION` 1, same 8 `MSG` types: `hello` gains shape-checked optionals — `session` (Stage 2 token, **shape only**, ≤1024 chars), `mode` (mode id shape), `loadout` (one class object); `input` gains optional strictly-boolean `lethal`/`tactical` throw edges (Board 004 §3). New exports: `DEFAULT_MODE` (`'waves'`) and `isValidModeId()`. |
+| `net/server.js` | Session carriage: `createRoom(code, { mode })`; the first `hello` to a fresh room sets the room's mode (unknown id → `bad_mode` error); `hello.loadout` is validated against `js/loadouts.js` (`validateClass`) — invalid → `bad_loadout` error, and only the **sanitized** class is stored and echoed in `welcome`. The sim match is stamped `match.modeId`; snapshots are wrapped with `match.mode` + `match.objectives` (shape owned by the mode layer — this layer carries it verbatim, `null` until modes populate it). Events are XP-tallied with `js/progression.js` `XP_VALUES` (kill/headshot from sim events; `wave_clear` to all players; any event annotated `{ xp: { player, source, count } }` is tallied verbatim — the mode layer's channel for capture/channel/match-win sources), and one `results` event reports per-player XP totals at match end. Profiles stay client-local this version. |
+| `tools/ws-soak.mjs` | Online acceptance, **27 checks**: (A) framing units on `net/ws.js` incl. the RFC vectors; (B) a live two-client session over real localhost WebSockets — client A on the hand-rolled `WsClient`, client B on Node's built-in WebSocket (browser-family interop) — room by code, mode/loadout carriage, ~1600 snapshots each, both players in shared state, events over the wire, ping/pong, socket-close leaving; (C) abuse suite at production limits (1007/1009/1002/1008 closes, wrong-path handshake refusal, `bad_loadout`). Wired into `tools/smoke.mjs` §1i as the W-suite — the build now fails if online play breaks. |
+
+**Client contract (for `js/online.js`, Coordinator-owned):**
+connect to `ws(s)://<host>/play`; first message `hello`
+(`{ t:'hello', protocol:1, name, room:<4-char code|null>, session?, mode?, loadout? }`);
+expect `welcome` (`playerId, room, mode, loadout, weapons` — the
+server's table); send `input` per §5.2 (≤40/s); consume
+`snapshot` (20 Hz, carries `match.mode` + `match.objectives`),
+`event`, and the terminal `results` event; `ping` → `pong`.
+Errors arrive as `{ t:'error', code, message }` (`bad_mode`,
+`bad_loadout`, `protocol`, …) before the close that follows them.
+
+One production bug worth remembering: the soak's first run hung
+`httpServer.close()` forever — a peer that sent a close frame
+left the socket half-open in CLOSE_WAIT because teardown never
+ended it. `_teardown` now ends the socket, and a socket `end`
+listener covers peers that vanish without a close frame
+(commit `86dbdc7`).
 
 ## Run the demo
 
@@ -54,6 +92,20 @@ Boots a `GameServer` + one `LoopbackTransport` client, exchanges
 latest input), and `ping` → `pong`, runs the tick loop for
 ~120 ms, prints the results, stops, and exits 0. Importing
 `net/server.js` from other code does **not** run the demo.
+
+## Run the online server
+
+```sh
+node net/game-server.js          # PORT=8081 HOST=0.0.0.0 by default
+curl http://localhost:8081/      # status JSON (health check)
+```
+
+Clients connect WebSockets at `ws://<host>:8081/play`. Hosting
+it somewhere public needs TLS in front (browsers require `wss://`
+from the HTTPS Pages client) — options and the recommendation
+are in `docs/sessions/v4-hosting-brief.md`. Until Stage 2
+(below) exists, keep it on localhost / LAN / a private tunnel:
+session tokens are shape-checked only.
 
 ## Verification (M0, Oct 24, 2026)
 
@@ -95,18 +147,17 @@ transport seam; single-player must feel identical), M3 socket +
 room of one (gated on Brett's §10.1 decision), M4 co-op — v3's
 ship point (§8.4).
 
-## §10.1 decision status: PENDING — BRIEF PREPARED (Board 003)
+## §10.1 decision status: DECIDED — hand-rolled (Board 004), shipped in V4
 
 Node has no built-in WebSocket server, and the studio rule is
-zero dependencies without CTO sign-off. The choice — (a) hand-roll
-RFC 6455 framing on `node:http`'s `upgrade` event, or (b) take
-the `ws` dependency — remains **Brett's decision**. Board Meeting
-003 prepared the full brief (options + tradeoffs) with a board
-recommendation for (a) hand-rolled; Brett ratifies or overrules
-before M3. M0/M1 take no side: the server works with either,
-because both plug into the same `attachTransport()` seam
-`LoopbackTransport` uses today. Nothing in §5–§8 of the design
-changes under either option.
+zero dependencies without CTO sign-off. Board Meeting 003's brief
+recommended (a) hand-rolled RFC 6455 framing on `node:http`'s
+`upgrade` event over (b) the `ws` dependency; Board 004
+proceeded on that recommendation and V4 shipped it (`net/ws.js`,
+`net/ws-transport.js`). **Brett may still overrule to `ws`** —
+the transport seam makes that a swap behind
+`WebSocketTransport`'s interface, not a rewrite: nothing in
+§5–§8, the sim, or the client contract changes.
 
 ## Stage-2 session dependency (§11 risk 4)
 
