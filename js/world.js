@@ -1,116 +1,104 @@
 import * as THREE from 'three';
 import { mergeColoredParts, mergePartsByMaterial } from './geo.js';
+import { LIGHTING_PROFILES, sunVector, makeSkyTexture } from './lighting.js';
 
 // Builds the arena: dusk-lit compound, perimeter walls, cover crates.
 // Returns collision data + lists used by shooting / bot line-of-sight.
 export function buildWorld(scene) {
   // ============================================================
-  // LIGHTING REWORK — V3 Fix 1 (2026-10-24)
-  // Owners: Mira "Golden Hour" Castellanos (Lighting Director,
-  // Team Lumen), Petra "Photon" Ilves, Ezra "Emissive" Vance.
-  // Sign-off floor (Elena "Verity" Marsh, Chief Realism
-  // Director): hostiles and cover stay readable at 40m+.
-  // Before -> After summary:
-  //   background 0x241a36 -> 0x352130 (= new fog colour)
-  //   fog 0x4a3448, 45-150 -> 0x352130, 42-138
-  //   hemi 0x8a6fc0 / 0x33221a, 0.85 -> 0x6f83b0 / 0x2e231c, 0.60
-  //   sun 0xffa860, 2.0 at (-47.16, 12, -28.3), ~12.3 deg
-  //     -> 0xff8f3c, 1.75 at (-47.16, 9.7, -28.3), ~10.0 deg
-  //   sun disc 0xffdca8 -> 0xffbf6e; glow amber deepened
-  //   sky gradient: deeper zenith, tighter richer amber band,
-  //     darker below-horizon (stops below)
-  //   renderer exposure 1.1 -> 0.95 (specified for main.js,
-  //     which owns that value; not set in this file)
-  // PHASE 2 REVISION (Brett's live playtest — too dark, enemies
-  // unreadable, shadows too heavy): hemisphere fill 0.60 -> 0.95
-  // (the shadow-lift lever), sun 1.75 -> 1.85, exposure 0.95 ->
-  // 1.10 in main.js, bot emissive floor in bots.js. Sun angle,
-  // colours and fog (42->138, the 40 m readability floor) are
-  // UNCHANGED — brighter visibility, same golden-hour mood.
-  // One shared SUN_POS drives the light, disc and glow so the
-  // light and the picture always agree.
+  // LIGHTING — V5 REWORK (Board Meeting 005 §2, charter D1)
+  // Owners: Coordinator (rig + profiles), Mira "Golden Hour"
+  // Castellanos (Lighting Director, Team Lumen), Iris "Prism"
+  // Chen, Petra "Photon" Ilves.
+  // Sign-off floor (Elena "Verity" Marsh): hostiles and cover
+  // readable at 40 m+ in the deepest shadow, every map.
+  //
+  // Brett's order: the sun is IN THE SKY or MATCHING THE
+  // WEATHER, per map, and it is NEVER TOO DARK. The grade no
+  // longer lives in this file: js/lighting.js holds one weather
+  // profile per map, and this rig is built from the compound
+  // profile, then re-dressed by applyLightingProfile() on every
+  // level switch (main.js). Light, disc, glow, sky, fog and
+  // exposure all derive from the one profile — they cannot
+  // disagree.
+  //
+  // Before -> After (the V4 shipped grade -> V5 compound):
+  //   sun elevation ~10 deg (a setting sun) -> 38 deg (in the sky)
+  //   sun 0xff8f3c @ 1.85 -> 0xffeecf @ 2.6 (daylight key)
+  //   hemi 0x8296bd/0x3a2a20 @ 0.95 -> 0xbfd6e8/0x8a7a63 @ 1.05
+  //   fog/bg 0x352130 dusk -> 0xcfdde8 day haze, 42-190 -> 42-220
+  //   sky: dusk gradient -> per-profile day gradient
+  //   stars visible -> hidden in daytime profiles (rig kept)
+  // The V4 grade's readability intent survives as the numeric
+  // floor in js/lighting.js (effectiveProxy >= 0.36 = that
+  // grade's measured shadow brightness, smoke L-suite enforced).
+  // Git history keeps the Phase 1/2 grades in full.
   // ============================================================
-  const SUN_POS = new THREE.Vector3(-47.16, 9.7, -28.3);
-  scene.background = new THREE.Color(0x352130);
-  // Deeper dusk fog, matched to the background. The near value
-  // (42) sets the 40m readability floor and is LOCKED by Brett's
-  // Phase 2 playtest verdict — never move it. V4 (Atlas): the far
-  // value extends 138 -> 190 for the ±62 worlds so ring POIs read
-  // across the expanded map; a longer far range only ever reduces
-  // blend at distance — visibility improves, never darker.
-  scene.fog = new THREE.Fog(0x352130, 42, 190);
+  const profile = LIGHTING_PROFILES.compound;
+  const SUN_DIR = sunVector(profile);
+  scene.background = new THREE.Color(profile.fogColor);
+  // Fog near (42) is the 40 m readability floor — locked by
+  // Brett's Phase 2 playtest and carried into Board 005 §2.3.
+  // Far extends with the V5 day haze; a longer far range only
+  // ever reduces blend at distance — visibility improves.
+  scene.fog = new THREE.Fog(profile.fogColor, profile.fogNear, profile.fogFar);
 
-  // Hemisphere fill — PHASE 2 READABILITY REVISION (Brett's live
-  // playtest, Oct 24: "lighting still kinda dark, you can barely
-  // see the enemies, shadows too shadowy"). In this renderer a
-  // shadow is only as black as the non-directional light is weak,
-  // so the fix is the FILL RATIO, not the sun: hemisphere 0.60 ->
-  // 0.95 lifts every shadowed surface ~58% while the sun keeps the
-  // golden-hour modeling Brett asked for. Sky/ground bounce warmed
-  // slightly so lifted shadows read as dusk, not grey.
-  // (Phase 1 grade kept in git history: 0x6f83b0 / 0x2e231c, 0.60.)
-  scene.add(new THREE.HemisphereLight(0x8296bd, 0x3a2a20, 0.95));
-  const sun = new THREE.DirectionalLight(0xff8f3c, 1.85);
-  sun.position.copy(SUN_POS);
+  const hemi = new THREE.HemisphereLight(profile.hemiSky, profile.hemiGround, profile.hemiIntensity);
+  hemi.name = 'hemi-light'; // named for js/lighting.js (applyLightingProfile)
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight(profile.sunColor, profile.sunIntensity);
+  sun.position.set(SUN_DIR.x * 150, SUN_DIR.y * 150, SUN_DIR.z * 150);
+  sun.name = 'sun-light'; // named: main.js shadow config + lighting.js find it by name
   scene.add(sun);
 
-  // Dusk sky dome — procedural vertical gradient on a large BackSide sphere.
-  // Canvas top maps to the zenith, canvas middle to the horizon, bottom to the
-  // dark below-horizon haze (hidden by the ground apron / ridges).
+  // Sky dome — gradient generated from the active profile by
+  // js/lighting.js so dome, fog and background always agree.
   {
-    const cv = document.createElement('canvas'); cv.width = 4; cv.height = 512;
-    const c = cv.getContext('2d');
-    const grad = c.createLinearGradient(0, 0, 0, 512);
-    grad.addColorStop(0.00, '#0a0d26'); // deeper zenith
-    grad.addColorStop(0.28, '#1c183f');
-    grad.addColorStop(0.40, '#4a2c55');
-    grad.addColorStop(0.47, '#c65a32');
-    grad.addColorStop(0.495, '#ffb056'); // tighter, richer amber horizon band
-    grad.addColorStop(0.51, '#6e363c');
-    grad.addColorStop(0.62, '#140f1c');
-    grad.addColorStop(1.00, '#09070f'); // darker below-horizon
-    c.fillStyle = grad; c.fillRect(0, 0, 4, 512);
-    const tex = new THREE.CanvasTexture(cv);
-    tex.colorSpace = THREE.SRGBColorSpace;
     const sky = new THREE.Mesh(
       new THREE.SphereGeometry(300, 24, 16),
-      new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false })
+      new THREE.MeshBasicMaterial({ map: makeSkyTexture(THREE, profile), side: THREE.BackSide, fog: false, depthWrite: false })
     );
     sky.renderOrder = -10; // draw first; stars/sun sit inside it and stay visible
-    sky.name = 'sky-dome'; // named so biomes.js can re-dress it (Mars) and restore it
+    sky.name = 'sky-dome'; // biomes.js re-dresses it (Mars) and restores it; lighting.js re-paints it per profile
+    sky.userData.lightingMap = sky.material.map;
     scene.add(sky);
   }
 
-  // Visible sun — bright disc + soft radial glow, derived from
-  // the same SUN_POS as the directional light (see the lighting
-  // rework block above) so light and picture agree. Same azimuth
-  // as before, lowered to ~10 degrees elevation.
+  // Visible sun — disc + soft radial glow, derived from the
+  // same SUN_DIR as the directional light so the light and the
+  // picture always agree. The glow texture is baked WHITE and
+  // tinted per profile (material colour) by applyLightingProfile.
   {
-    const sunPos = SUN_POS.clone().normalize().multiplyScalar(255);
+    const sunPos = new THREE.Vector3(SUN_DIR.x * 255, SUN_DIR.y * 255, SUN_DIR.z * 255);
     const disc = new THREE.Mesh(
       new THREE.SphereGeometry(11, 20, 20),
-      new THREE.MeshBasicMaterial({ color: 0xffbf6e, fog: false })
+      new THREE.MeshBasicMaterial({ color: profile.discColor, fog: false })
     );
     disc.position.copy(sunPos);
+    disc.name = 'sun-disc';
     scene.add(disc);
 
     const cv = document.createElement('canvas'); cv.width = cv.height = 128;
     const c = cv.getContext('2d');
     const glowGrad = c.createRadialGradient(64, 64, 0, 64, 64, 64);
-    glowGrad.addColorStop(0, 'rgba(255,170,85,0.80)');
-    glowGrad.addColorStop(0.35, 'rgba(255,120,45,0.28)');
-    glowGrad.addColorStop(1, 'rgba(230,90,35,0)');
+    glowGrad.addColorStop(0, 'rgba(255,255,255,0.85)');
+    glowGrad.addColorStop(0.35, 'rgba(255,255,255,0.30)');
+    glowGrad.addColorStop(1, 'rgba(255,255,255,0)');
     c.fillStyle = glowGrad; c.fillRect(0, 0, 128, 128);
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({
       map: new THREE.CanvasTexture(cv), transparent: true, fog: false,
       depthWrite: false, blending: THREE.AdditiveBlending,
+      color: profile.glowColor, opacity: profile.glowAlpha,
     }));
     glow.position.copy(sunPos);
-    glow.scale.setScalar(115);
+    glow.scale.setScalar(profile.glowScale);
+    glow.name = 'sun-glow';
     scene.add(glow);
   }
 
-  // Stars
+  // Stars — kept in the rig for future night work; every V5
+  // profile is a daytime sky, so the field starts hidden and
+  // applyLightingProfile drives its visibility/opacity.
   {
     const n = 500, pos = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
@@ -121,7 +109,10 @@ export function buildWorld(scene) {
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xcfe4ff, size: 0.9, fog: false })));
+    const stars = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xcfe4ff, size: 0.9, fog: false, transparent: true, opacity: 0 }));
+    stars.name = 'star-field';
+    stars.visible = false;
+    scene.add(stars);
   }
 
   const colliders = [];   // THREE.Box3 list for movement collision
@@ -277,17 +268,37 @@ export function buildWorld(scene) {
   // and walkable-on-top. yBase is 0 for ground-built blocks, >0 for blocks
   // sitting on a deck / rooftop / another crate; collider + top are
   // world-space either way.
+  // V5 BATCHING (Atlas): addBox no longer spawns one mesh per
+  // box — boxes accumulate into per-material buckets and flush
+  // as ONE merged mesh per material at the end of buildWorld
+  // (the ring's mergedBoxes discipline, extended to the inner
+  // course: ~25 meshes -> ~6). Colliders + walkables are
+  // registered from the box spec directly (identical values to
+  // the old Box3.setFromObject). UVs survive the merge, so the
+  // canvas-textured materials shade exactly as before.
+  const _boxBuckets = new Map();
   function addBox(x, yBase, z, w, h, d, mat) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-    m.position.set(x, yBase + h / 2, z);
-    // Frame cost: solids never move, so freeze the local matrix — saves per-frame matrix composition for ~40 static meshes (updateMatrix once here instead).
-    m.matrixAutoUpdate = false; m.updateMatrix();
-    m.castShadow = true;    // inert until the renderer/shadow camera are enabled
-    m.receiveShadow = true;
-    scene.add(m); shootables.push(m);
-    colliders.push(new THREE.Box3().setFromObject(m));
+    colliders.push(new THREE.Box3(
+      new THREE.Vector3(x - w / 2, yBase, z - d / 2),
+      new THREE.Vector3(x + w / 2, yBase + h, z + d / 2)));
     walkables.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, top: yBase + h });
-    return m;
+    if (!_boxBuckets.has(mat)) _boxBuckets.set(mat, []);
+    _boxBuckets.get(mat).push({ w, h, d, x, y: yBase + h / 2, z });
+    return null;
+  }
+  function flushBoxBuckets() {
+    for (const [mat, boxes] of _boxBuckets) {
+      const geo = mergeColoredParts(boxes.map(b => ({
+        geo: new THREE.BoxGeometry(b.w, b.h, b.d), color: 0xffffff, x: b.x, y: b.y, z: b.z,
+      })));
+      geo.deleteAttribute('color');
+      const m = new THREE.Mesh(geo, mat);
+      m.matrixAutoUpdate = false; m.updateMatrix();
+      m.castShadow = true;
+      m.receiveShadow = true;
+      scene.add(m); shootables.push(m);
+    }
+    _boxBuckets.clear();
   }
   function solid(x, z, w, h, d, mat) { return addBox(x, 0, z, w, h, d, mat); }
   // Block whose base sits at yBase (on a deck / rooftop / another crate).
@@ -532,6 +543,80 @@ export function buildWorld(scene) {
 
   mergedBoxes(ringCratesA, crateMat);
   mergedBoxes(ringCratesB, crateMat2);
+
+  // --- V5 STRUCTURES (Atlas): two built structures on the
+  // ring + motor-pool dressing. The compound course is the
+  // game's home map; V5 gives it the built depth the other
+  // maps are born with. All solids mirror into worlddata.js.
+  // Ops Building (SW ring, centre (-32, 44)): enterable —
+  // south door gap (x -31..-29.4) + east door gap (z 43..45);
+  // roof (top 3.45) reached by the exterior crate stack east
+  // (1.15 -> 2.3 -> roof), a fighting position over the SW
+  // lanes. Interior: a hop crate + a full stack.
+  solid(-32, 40.15, 10, 3.2, 0.3, wallMat);            // north wall
+  solid(-34, 47.85, 6, 3.2, 0.3, wallMat);             // south wall L
+  solid(-28.2, 47.85, 2.4, 3.2, 0.3, wallMat);         // south wall R
+  solid(-36.85, 44, 0.3, 3.2, 7.4, wallMat);           // west wall
+  solid(-27.15, 41.65, 0.3, 3.2, 2.7, wallMat);        // east wall S
+  solid(-27.15, 46.35, 0.3, 3.2, 2.7, wallMat);        // east wall N
+  elevated(-32, 3.2, 44, 10.4, 0.25, 8.4, slabMat);    // roof slab (top 3.45)
+  solid(-35, 42, 2.2, 1.15, 2.2, crateMat);            // interior hop crate
+  solid(-29, 46, 2.2, 2.2, 2.2, crateMat2);            // interior stack
+  solid(-25.6, 44, 2.2, 1.15, 2.2, crateMat);          // exterior stack 1
+  solid(-25.6, 41.6, 2.2, 2.3, 2.2, crateMat2);        // exterior stack 2
+  // Comms Shed (S ring, (24, 56)) — guards the ruin gap lane
+  // [24,30]: three walls, open south, roof + awning on posts,
+  // a guyed mast at its corner.
+  solid(24, 53.65, 6, 2.4, 0.3, wallMat);              // north wall
+  solid(21.15, 56, 0.3, 2.4, 4.4, wallMat);            // west wall
+  solid(26.85, 56, 0.3, 2.4, 4.4, wallMat);            // east wall
+  elevated(24, 2.4, 56, 6.4, 0.2, 5.4, slabMat);       // roof (top 2.6)
+  solid(21.5, 59.5, 0.18, 2.2, 0.18, deckMat);         // awning post W
+  solid(26.5, 59.5, 0.18, 2.2, 0.18, deckMat);         // awning post E
+  elevated(24, 2.2, 59.3, 6, 0.12, 1.8, slabMat);      // awning slab (top 2.32)
+  solid(27.6, 53.2, 0.14, 5.2, 0.14, deckMat);         // corner mast
+  // Motor-pool fuel drums (merged; EXTRA colliders in
+  // worlddata — hard cover, not explosive) + ring dressing:
+  // instanced rubble along the ruin gaps and two dark
+  // puddles on the lanes (visual only, stated plainly).
+  {
+    const P = [];
+    for (const [x, z] of [[36.5, 58.5], [37.8, 59.3], [35.6, 59.9]]) {
+      P.push({ geo: new THREE.CylinderGeometry(0.34, 0.34, 1.05, 10), color: 0x5a6a75, x, y: 0.525, z });
+      P.push({ geo: new THREE.CylinderGeometry(0.355, 0.355, 0.09, 10), color: 0x3c454c, x, y: 0.8, z });
+    }
+    const drums = new THREE.Mesh(mergeColoredParts(P),
+      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.4 }));
+    drums.castShadow = true; drums.receiveShadow = true;
+    scene.add(drums); shootables.push(drums);
+
+    const rubble = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.3),
+      new THREE.MeshStandardMaterial({ color: 0x6a6f76, roughness: 1, flatShading: true }), 26);
+    const dummy = new THREE.Object3D();
+    let seed = 555111;
+    const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    const gaps = [[-27, -50], [0, -50], [24, -50], [-24, 50], [0, 50], [27, 50], [50, -30], [50, 18], [-50, -18], [-50, 24]];
+    for (let i = 0; i < 26; i++) {
+      const [gx, gz] = gaps[i % gaps.length];
+      const alongX = Math.abs(gz) === 50;
+      dummy.position.set(gx + (alongX ? (rand() - 0.5) * 5 : (rand() - 0.5) * 1.6), 0.10,
+        gz + (alongX ? (rand() - 0.5) * 1.6 : (rand() - 0.5) * 5));
+      dummy.rotation.set(rand() * 0.6, rand() * 3, rand() * 0.6);
+      dummy.scale.set(0.5 + rand() * 0.9, 0.35 + rand() * 0.4, 0.5 + rand() * 0.9);
+      dummy.updateMatrix(); rubble.setMatrixAt(i, dummy.matrix);
+    }
+    rubble.receiveShadow = true;
+    scene.add(rubble);
+
+    const puddleMat = new THREE.MeshStandardMaterial({ color: 0x22242a, roughness: 0.15, metalness: 0.1 });
+    for (const [x, z, r] of [[-12, 32, 2.2], [14, 55, 1.6]]) {
+      const p = new THREE.Mesh(new THREE.CircleGeometry(r, 18), puddleMat);
+      p.rotation.x = -Math.PI / 2;
+      p.position.set(x, 0.015, z);
+      p.receiveShadow = true;
+      scene.add(p);
+    }
+  }
 
   // ---- Horizon dressing (visual only: NOT in colliders or shootables) ----
   // Dark outer apron under everything beyond the arena floor, so the ridges
@@ -830,6 +915,7 @@ export function buildWorld(scene) {
     new THREE.Vector3(0, 0, 58),       // ring S — centre gap
   ];
 
+  flushBoxBuckets();
   return { colliders, shootables, spawnPoints, bounds: 62, groundHeightAt };
 }
 
