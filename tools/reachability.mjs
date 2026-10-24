@@ -124,10 +124,21 @@ const cratePass = discreteApex !== null && discreteApex >= CRATE_HOP;
 const ROUTES = [
   { route: 'Ground → Mid via Stair A', detail: `rise ${STAIR_RISE} ×4, walkable, needs tolerance`, pass: stairPass },
   { route: 'Ground → Mid via Stair B', detail: `rise ${STAIR_RISE} ×4, walkable, needs tolerance`, pass: stairPass },
+  { route: 'Ground → Mid via Stair C (west deck, Phase 2)', detail: `rise ${STAIR_RISE} ×4, walkable, needs tolerance`, pass: stairPass },
   { route: 'Ground → Mid via crate hop', detail: `two ${CRATE_HOP} jumps, needs apex`, pass: cratePass },
   { route: 'Mid → Top via deck stairs', detail: `rise ${STAIR_RISE} ×4, walkable, needs tolerance`, pass: stairPass },
   { route: 'Mid → Top via deck crate hop', detail: `two ${CRATE_HOP} jumps, needs apex`, pass: cratePass },
 ];
+
+// --- Phase 2 course-expansion source pins --------------------------------
+// The west deck + Stair C must actually exist in the shipped world
+// source — a route row without geometry behind it is a lie.
+if (worldSrc) {
+  if (!worldSrc.includes('groundStairs(-34, -6, 3)')) fail('Phase 2 pin — Stair C call groundStairs(-34, -6, 3) missing from js/world.js');
+  else ok('Phase 2 pin Stair C exists in js/world.js (groundStairs(-34, -6, 3))');
+  if (!worldSrc.includes('solid(-34, -16, 10, 2.3, 20')) fail('Phase 2 pin — west deck solid(-34, -16, 10, 2.3, 20) missing from js/world.js');
+  else ok('Phase 2 pin west deck exists in js/world.js (solid(-34, -16, 10, 2.3, 20))');
+}
 
 console.log('\nRoute table:');
 for (const r of ROUTES) {
