@@ -13,7 +13,7 @@ or grades. No new gameplay systems.
 
 | # | Update | Scope | Status |
 |---|--------|-------|--------|
-| 1 | Vegetation + buildings realism — Compound & Forest | Tapered textured trunks, layered irregular canopies, per-instance variation; rooflines/trim/doors/window grids/parapets/panel seams, beveled edges, procedural facade textures. Instancing/merging pays for all of it. (Atlas) | **IN FLIGHT** |
+| 1 | Vegetation + buildings realism — Compound & Forest | Tapered textured trunks, layered irregular canopies, per-instance variation; rooflines/trim/doors/window grids/parapets/panel seams, beveled edges, procedural facade textures. Instancing/merging pays for all of it. (Atlas) | **LANDED Oct 24** (commits be2cb74, 21d2e7e, f9b1185 + report 45e3809) — awaiting Brett playtest; ships in the next push |
 | 2 | Vegetation + buildings parity — Snow Station & Mars Uplink | Update 1's treatment carried to the remaining two maps (snow-loaded pines, station architecture; Mars habitat/industrial structures, rock forms). (Atlas) | queued |
 | 3 | Terrain & ground realness — all maps | Smooth-shaded undulation, blended ground materials (asphalt/concrete/grass/dirt/snow/rock), edge wear, instanced scatter (rocks, tufts, debris). (Atlas) | queued |
 | 4 | Soldiers & guns realism | Rounded, blended forms — capsule/sphere-blended limbs and kit, fabric-ish texture variation. Hit cores byte-identical (proof required); per-bot call budget held. (Atlas) | queued |
@@ -51,7 +51,7 @@ Coordinator owns any `js/main.js` merge).
 
 | # | Milestone | Scope | Status |
 |---|-----------|-------|--------|
-| M1 | **Solo fully playable on iPhone** | Touch input layer (`js/touchcontrols.js`: joystick + push-to-sprint, drag look, FIRE/JUMP/ADS/RELOAD/switch/throwable/streak/pause feeding the same input state as keyboard/mouse; pointer lock skipped on touch) + responsive shell (≥44px targets, safe-area insets, touch-action none, orientation/resize, WebAudio unlock on first tap). Done = Brett opens the Pages link on his iPhone 17 Pro in Safari and completes a wave/match solo. Desktop path untouched. (Vega) | **IN FLIGHT** |
+| M1 | **Solo fully playable on iPhone** | Touch input layer (`js/touchcontrols.js`: joystick + push-to-sprint, drag look, FIRE/JUMP/ADS/RELOAD/switch/throwable/streak/pause feeding the same input state as keyboard/mouse; pointer lock skipped on touch) + responsive shell (≥44px targets, safe-area insets, touch-action none, orientation/resize, WebAudio unlock on first tap). Done = Brett opens the Pages link on his iPhone 17 Pro in Safari and completes a wave/match solo. Desktop path untouched. (Vega) | **PUSHED Oct 24** (owner tap — see Landing log) — Pages flip pending scheduled confirmation (~3:15pm PT); M1 completes on Brett's on-device verdict |
 | M2 | Mobile perf defaults measured | DPR cap ≤2, lower starting quality tier on mobile GPUs, shadow-map size as render-resolution knob only (lighting grade LOCKED) — landed and measured against Odin's mobile bar (Board 006 Addendum A). | queued |
 | M3 | On-device polish | HUD/menu adjustments from Brett's hands-on iPhone test of M1/M2. | queued |
 
@@ -66,8 +66,58 @@ only when they cost the graphics mission nothing:
 - Per-mode end-condition soak scripts (TDM/Domination/Relay Assault
   driven to `mode_end` over sockets) — Vega.
 
+## Coordination notes
+
+- **One pen per tree (Oct 24):** Update 1 has a single builder
+  (Coordinator's Atlas) as sole writer on `js/world.js`,
+  `js/biomes.js`, `js/mapbuilders.js`. A second Atlas detected the
+  overlap and stood down with zero writes; he serves as
+  **independent verifier** — gates + metrics + diff review of the
+  Update 1 landing against Board 006, fixes routed back through
+  the Coordinator to the builder.
+- **Scope overlap, noted not blocked:** the in-flight Update 1
+  `world.js` work already includes **wreck-vehicle detail** —
+  Update 14 (props & clutter) scope landing early inside Update 1.
+  Harmless and credited here; Update 14's slot re-scopes when its
+  turn comes.
+
 ## Landing log
 
 - **0.6.0-dev** — version bump (package.json + menu tag + smoke
   M6/M8 pins, one commit + M8 literal fix). Tree green.
 - **Board 006** — detail bars ruled; this ledger opened.
+- **Update 1 LANDED** (Oct 24): vegetation + buildings, Compound &
+  Forest. Compound 113→119 calls / 31.3k→40.5k tris; Forest client
+  122→128 calls / 84.4k→206.3k tris (vetoes held; +6k over
+  Forest's 200k planning budget, dispositioned in Board 006
+  Addendum 1); flat-shaded share 0.92→0.031; rendered Forest trees
+  84→116 (shipped scatter byte-identical + separately-seeded
+  supplemental stand); instance-colour variation 60%→100%.
+  Coordinator's gate run on the integrated tree: smoke, biome,
+  reachability, map-reachability, ws-soak ALL PASS. Board 006
+  Addendum 1 ratifies the struck thresholds (incl. §2.5 = 25 m² by
+  Update 5, mobile bar struck) and scores U1: §2.1 MET, §2.2 MET
+  as written / partial vs the counts adopted forward (≥20 windows
+  / ≥4 doors by Update 6). Report:
+  `docs/sessions/v6-update-01-report.md`. Not pushed — ships in
+  the next push on Brett's tap.
+- **§3.4 amendment** (Oct 24, parent amendment per the independent
+  verifier's finding — the verifier passed every bar except this
+  documentation item): Update 1's net **+6 sustained calls per map**
+  (Compound 113→119, Forest 122→128) are **offset** by call-avoidance
+  inside the same landing — the 7th canopy mass and 2nd bush mass
+  folded into the existing vegetation InstancedMeshes at +0 calls,
+  and the entire Compound facade program merged into 5 meshes
+  instead of per-cue meshes; unmerged, that detail would have cost
+  well over the +6 added. Post-add headroom vs the 165 veto:
+  Compound 119/165, Forest 128/165.
+- **Mobile M1 PUSHED** — owner tap ("Push mobile live now," Oct 24):
+  `git archive HEAD` snapshot of HEAD 9ddc0d0 (v0.6.0-dev, the
+  committed/gated tree incl. Vega's touch landing) pushed via the
+  Contents API; remote main = 722365ec; `js/touchcontrols.js`
+  verified present remotely (13,636 B); smoke re-run on the
+  snapshot PASSED before the push. Atlas's uncommitted Update 1
+  files (`js/world.js`, `js/proctex.js`) deliberately EXCLUDED —
+  Update 1 ships in the next push once integrated. Pages
+  confirmation check scheduled ~3:15pm PT; Brett gets the live
+  ping + iPhone try-it steps from that check.
