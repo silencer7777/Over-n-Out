@@ -4,6 +4,10 @@ import { Player } from './player.js';
 import { Bot } from './bots.js';
 import { Sfx } from './audio.js';
 import { WEAPONS, WEAPON_ORDER, getWeapon } from './weapons.js';
+import { STORY, briefingForWave, objectiveForWave, deathLine, clearLine } from './story.js';
+import { FpsMeter } from './perfmeter.js';
+import { QualityScaler } from './quality.js';
+import { applyBiome, clearBiome } from './biomes.js';
 
 // ---------------- setup ----------------
 const canvas = document.getElementById('game');
@@ -13,7 +17,7 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+renderer.toneMappingExposure = 0.95;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 400);
@@ -37,6 +41,8 @@ scene.traverse(o => {
 });
 const player = new Player(scene, camera, world);
 const sfx = new Sfx();
+const perfMeter = new FpsMeter(renderer);
+const quality = new QualityScaler(renderer, scene);
 
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
@@ -52,6 +58,38 @@ const healthFill = $('health-fill'), healthNum = $('health-num');
 const ammoNum = $('ammo-num'), hitmarker = $('hitmarker'), vignette = $('vignette');
 const waveBanner = $('wave-banner');
 const weaponName = $('weapon-name');
+const storyText = $('story-text');
+const objectiveEl = $('objective');
+const briefingEl = $('briefing');
+const contextLineEl = $('context-line');
+const sensSlider = $('sens-slider');
+const sensVal = $('sens-val');
+const biomeSelect = $('biome-select');
+
+// Story fill — premise lines joined with spaces (textContent only).
+if (storyText) storyText.textContent = STORY.premise.join(' ');
+
+// Sensitivity — restore the persisted value on boot, if valid.
+try {
+  const savedSens = localStorage.getItem('ono-sensitivity');
+  if (savedSens !== null) {
+    const sensValue = Number(savedSens);
+    if (Number.isFinite(sensValue)) {
+      player.sensitivity = sensValue;
+      if (sensSlider) sensSlider.value = sensValue;
+      if (sensVal) sensVal.textContent = sensValue.toFixed(2);
+    }
+  }
+} catch (e) { /* storage unavailable — keep the player default */ }
+if (sensSlider) {
+  sensSlider.addEventListener('input', () => {
+    const sensValue = Number(sensSlider.value);
+    if (!Number.isFinite(sensValue)) return;
+    player.sensitivity = sensValue;
+    if (sensVal) sensVal.textContent = sensValue.toFixed(2);
+    try { localStorage.setItem('ono-sensitivity', String(sensValue)); } catch (e) { /* ignore */ }
+  });
+}
 
 // ---------------- state ----------------
 /*
@@ -95,6 +133,28 @@ let currentId = 'ar';         // the deployed weapon (id into js/weapons.js)
 let startingId = 'ar';        // loadout choice, deployed by startRun()
 const mags = {};              // rounds currently loaded, keyed by weapon id
 
+// Biome state — ctx is the fixed contract object for applyBiome /
+// clearBiome; activeBiomeGroup is the group returned by applyBiome
+// (null for the default 'compound', which is a no-op).
+const biomeCtx = { scene, colliders: world.colliders, shootables: world.shootables };
+let activeBiomeGroup = null;
+let selectedBiome = 'compound';
+if (biomeSelect && biomeSelect.value) selectedBiome = biomeSelect.value;
+
+// Clear the old biome, then apply the currently selected one. Fully
+// guarded: a biome error must never break startRun or the menu.
+function applySelectedBiome() {
+  try {
+    if (activeBiomeGroup) {
+      clearBiome(biomeCtx, activeBiomeGroup);
+      activeBiomeGroup = null;
+    }
+    activeBiomeGroup = applyBiome(selectedBiome, biomeCtx);
+  } catch (e) {
+    activeBiomeGroup = null;
+  }
+}
+
 // Bot weapon assignment bookkeeping (Ghost's rule, see pickBotWeapon).
 let spawnsThisWave = 0;
 const spawnCountsThisWave = {};
@@ -109,6 +169,12 @@ function currentWeapon() { return getWeapon(currentId); }
 // ---------------- waves ----------------
 function startWave() {
   wave++;
+  if (objectiveEl) objectiveEl.textContent = objectiveForWave(wave);
+  if (briefingEl) {
+    briefingEl.textContent = briefingForWave(wave);
+    briefingEl.style.opacity = 1;
+    setTimeout(() => briefingEl.style.opacity = 0, 4200);
+  }
   toSpawn = 4 + wave * 2;
   spawnTimer = 0.5;
   // Per-wave bot-weapon tracking resets with the wave.
@@ -352,12 +418,14 @@ function die() {
   const diedBold = document.createElement('b');
   diedBold.textContent = 'YOU DIED';
   menuMsg.append(diedBold, ` — Wave ${wave} · ${kills} kills · ${acc}% accuracy`);
+  menuMsg.appendChild(document.createTextNode(' — ' + deathLine(kills)));
   playBtn.textContent = '↻  REDEPLOY';
   menu.classList.remove('hidden');
   hud.classList.add('hidden');
 }
 
 function startRun() {
+  applySelectedBiome();
   bots.forEach(b => scene.remove(b.root));
   bots = []; kills = 0; shots = 0; hits = 0; wave = 0;
   currentId = getWeapon(startingId).id;   // canonicalize (Aegis, Board 001)
@@ -400,6 +468,16 @@ document.addEventListener('mousedown', e => {
   if (state === 'playing' && e.button === 0) { firing = true; triggerPressed = true; }
 });
 document.addEventListener('mouseup', e => { if (e.button === 0) firing = false; });
+
+// Biome: changing the select while playing only remembers the
+// choice (applied at the next startRun); otherwise it applies now.
+if (biomeSelect) {
+  biomeSelect.addEventListener('change', () => {
+    selectedBiome = biomeSelect.value;
+    if (state === 'playing') return;
+    applySelectedBiome();
+  });
+}
 
 // Loadout: clicking a .wpn button selects the starting weapon for the
 // next deploy; startRun() deploys with startingId.
@@ -470,6 +548,11 @@ function tick() {
     if (toSpawn === 0 && alive === 0 && state === 'playing') {
       player.hp = Math.min(100, player.hp + 25);   // wave-clear breather
       updateHealth();
+      if (contextLineEl) {
+        contextLineEl.textContent = clearLine(wave);
+        contextLineEl.style.opacity = 1;
+        setTimeout(() => contextLineEl.style.opacity = 0, 2600);
+      }
       startWave();
     }
 
@@ -483,7 +566,9 @@ function tick() {
     vignette.style.opacity = Math.max(0, vignette.style.opacity - dt * 1.6);
   }
 
+  quality.update(dt);
   renderer.render(scene, camera);
+  perfMeter.update(dt);
 }
 player.reset();
 tick();
