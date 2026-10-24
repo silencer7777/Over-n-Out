@@ -25,6 +25,12 @@ try {
 } catch (e) {
   fail('read js/world.js: ' + e.message);
 }
+let worlddataSrc = '';
+try {
+  worlddataSrc = readFileSync(join(ROOT, 'js/worlddata.js'), 'utf8');
+} catch (e) {
+  fail('read js/worlddata.js: ' + e.message);
+}
 
 // --- Extract shipped physics constants from js/player.js ---------------
 // Regex on the exported const declarations, e.g.
@@ -128,6 +134,13 @@ const ROUTES = [
   { route: 'Ground → Mid via crate hop', detail: `two ${CRATE_HOP} jumps, needs apex`, pass: cratePass },
   { route: 'Mid → Top via deck stairs', detail: `rise ${STAIR_RISE} ×4, walkable, needs tolerance`, pass: stairPass },
   { route: 'Mid → Top via deck crate hop', detail: `two ${CRATE_HOP} jumps, needs apex`, pass: cratePass },
+  // V4 ring routes (Atlas, Board 004 §5). The tower and ridge use
+  // the same 0.575 rise as every shipped stair, so they inherit
+  // stairPass; ring traversal is gated on the ruin-line source pin.
+  { route: 'Ground → Ring via ruin-line gaps (×10)', detail: 'open gaps in the RUIN_SEGMENTS wall line, needs source pin', pass: 'PIN_RUIN' },
+  { route: 'Ring → Tower L1 via tower ground stairs', detail: `rise ${STAIR_RISE} ×4, walkable, needs tolerance`, pass: stairPass },
+  { route: 'Tower L1 → Tower L2 via tower stair run', detail: `rise ${STAIR_RISE} ×4 (3 steps + L2 edge), needs tolerance`, pass: stairPass },
+  { route: 'Ring → North Ridge top via terraces', detail: `rise ${STAIR_RISE} ×4 terrace steps, needs tolerance`, pass: stairPass },
 ];
 
 // --- Phase 2 course-expansion source pins --------------------------------
@@ -139,6 +152,29 @@ if (worldSrc) {
   if (!worldSrc.includes('solid(-34, -16, 10, 2.3, 20')) fail('Phase 2 pin — west deck solid(-34, -16, 10, 2.3, 20) missing from js/world.js');
   else ok('Phase 2 pin west deck exists in js/world.js (solid(-34, -16, 10, 2.3, 20))');
 }
+
+// --- V4 ring source pins (Atlas) -------------------------------------------
+// The ring geometry must exist in BOTH the renderer source and the
+// sim mirror, or the ring routes above are fiction.
+let ruinPin = false;
+if (worldSrc) {
+  ruinPin = worldSrc.includes('RUIN_SEGMENTS');
+  if (!ruinPin) fail('V4 pin — RUIN_SEGMENTS (ruin-line wall with gaps) missing from js/world.js');
+  else ok('V4 pin ruin line exists in js/world.js (RUIN_SEGMENTS)');
+  if (!worldSrc.includes('groundStairs(40, -47, 3)')) fail('V4 pin — tower ground stairs groundStairs(40, -47, 3) missing from js/world.js');
+  else ok('V4 pin tower ground stairs exist in js/world.js (groundStairs(40, -47, 3))');
+  if (!worldSrc.includes('solid(40, -54, 14, 2.3, 14')) fail('V4 pin — relay tower L1 solid(40, -54, 14, 2.3, 14) missing from js/world.js');
+  else ok('V4 pin relay tower L1 exists in js/world.js (solid(40, -54, 14, 2.3, 14))');
+  if (!worldSrc.includes('elevated(40, 2.3, -57.75, 6.5, 2.3, 6.5')) fail('V4 pin — relay tower L2 missing from js/world.js');
+  else ok('V4 pin relay tower L2 exists in js/world.js (elevated(40, 2.3, -57.75, ...))');
+  if (!worldSrc.includes('bounds: 62')) fail('V4 pin — buildWorld bounds: 62 missing from js/world.js');
+  else ok('V4 pin buildWorld returns bounds: 62 in js/world.js');
+}
+if (worlddataSrc) {
+  if (!worlddataSrc.includes('export const BOUNDS = 62')) fail('V4 pin — worlddata BOUNDS = 62 missing (sim mirror)');
+  else ok('V4 pin worlddata BOUNDS === 62 (sim mirror agrees)');
+}
+for (const r of ROUTES) if (r.pass === 'PIN_RUIN') r.pass = ruinPin;
 
 console.log('\nRoute table:');
 for (const r of ROUTES) {
