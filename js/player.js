@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { collide } from './world.js';
+import { buildViewmodelGun } from './gunmodels.js';
 
 const EYE = 1.66;
 
@@ -21,11 +22,11 @@ const AIR_ACCEL = 9;
 // These numbers change how the held gun LOOKS (accent tint comes from
 // weapon.tint) — they have no effect on damage, spread, or any sim state.
 const WEAPON_VISUALS = {
-  ar:      { scale: 1.0,  barrelZ: 1 },
-  smg:     { scale: 0.92, barrelZ: 1 },
-  shotgun: { scale: 1.12, barrelZ: 1 },
-  dmr:     { scale: 1.05, barrelZ: 1.35 },
-  pistol:  { scale: 0.8,  barrelZ: 1 },
+  ar:      { scale: 1.0 },
+  smg:     { scale: 0.95 },
+  shotgun: { scale: 1.05 },
+  dmr:     { scale: 1.0 },
+  pistol:  { scale: 0.9 },
 };
 
 export class Player {
@@ -66,38 +67,49 @@ export class Player {
     this.landDipT = 1;           // 0→1 recovery progress over ~0.18s
     this.gunKick = 0;            // view-model kickback offset on +Z
 
-    // --- view-model gun (boxes, attached to camera) ---
+    // --- view-model gun: realistic procedural model (js/gunmodels.js).
+    // this.gun is the container the update loop bobs/kicks; the model
+    // group is a child swapped by setWeaponVisual(). Flash + light are
+    // container children positioned at the current model's muzzle.
     const gun = new THREE.Group();
-    const dark = new THREE.MeshStandardMaterial({ color: 0x1c2126, roughness: 0.5, metalness: 0.6 });
-    const accent = new THREE.MeshStandardMaterial({ color: 0x2f7a3d, roughness: 0.4, metalness: 0.3 });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.14, 0.52), dark);
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.3, 10), dark);
-    barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.03, -0.38);
-    const mag = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.09), dark);
-    mag.position.set(0, -0.14, -0.05); mag.rotation.x = 0.25;
-    const sight = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.06, 0.03), accent);
-    sight.position.set(0, 0.1, -0.12);
-    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.16, 0.08), dark);
-    grip.position.set(0, -0.12, 0.16); grip.rotation.x = 0.35;
-    gun.add(body, barrel, mag, sight, grip);
     gun.position.set(0.24, -0.22, -0.45);
     this.gun = gun;
-    // Refs kept for setWeaponVisual(): the gun group, the accent material
-    // (the sight shares it), and the barrel mesh.
     this.gunGroup = gun;
-    this.accentMaterial = accent;
-    this.barrelMesh = barrel;
+    this.gunModel = null;
+    this.accentMaterial = null;
+    this._gunId = null;
     camera.add(gun);
 
     this.flash = new THREE.Mesh(
       new THREE.PlaneGeometry(0.22, 0.22),
       new THREE.MeshBasicMaterial({ color: 0xffc766, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false })
     );
-    this.flash.position.set(0, 0.03, -0.56);
     gun.add(this.flash);
     this.flashLight = new THREE.PointLight(0xffb347, 0, 9);
-    this.flashLight.position.set(0, 0.05, -0.6);
     gun.add(this.flashLight);
+    this._swapGunModel('ar', 0x2f7a3d);
+  }
+
+  // Build (or rebuild) the view-model for a weapon id and retint its
+  // accent parts. Old merged geometries/materials are disposed — a
+  // weapon switch must not leak GPU buffers.
+  _swapGunModel(weaponId, tint) {
+    if (this.gunModel) {
+      this.gun.remove(this.gunModel);
+      this.gunModel.traverse(o => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) o.material.dispose();
+      });
+    }
+    const built = buildViewmodelGun(weaponId);
+    this.gunModel = built.group;
+    this.accentMaterial = built.accentMaterial;
+    if (this.accentMaterial && tint !== undefined) this.accentMaterial.color.set(tint);
+    this.gun.add(this.gunModel);
+    this._gunId = weaponId;
+    // Muzzle flash + light sit just past the muzzle of THIS model.
+    this.flash.position.set(built.muzzle.x, built.muzzle.y, built.muzzle.z - 0.03);
+    this.flashLight.position.set(built.muzzle.x, built.muzzle.y + 0.02, built.muzzle.z - 0.08);
   }
 
   reset() {
@@ -131,15 +143,16 @@ export class Player {
     this.pitchTarget = this.targetPitch;
   }
 
-  // Apply a weapon's cosmetic view-model look: accent tint from the
-  // weapons table, gun-group scale (and barrel stretch for the DMR)
-  // from the WEAPON_VISUALS lookup above. Cosmetic-only.
+  // Apply a weapon's cosmetic view-model look: swap the procedural
+  // model when the weapon changes, retint its accent parts from the
+  // weapons table, and frame it with the WEAPON_VISUALS scale.
+  // Cosmetic-only — no effect on damage, spread, or any sim state.
   setWeaponVisual(weapon) {
     if (!weapon) return;
     const v = WEAPON_VISUALS[weapon.id] || WEAPON_VISUALS.ar;
-    this.accentMaterial.color.set(weapon.tint);
+    if (weapon.id !== this._gunId) this._swapGunModel(weapon.id, weapon.tint);
+    else if (this.accentMaterial) this.accentMaterial.color.set(weapon.tint);
     this.gunGroup.scale.setScalar(v.scale);
-    this.barrelMesh.scale.set(1, 1, v.barrelZ);
   }
 
   update(dt, input) {
