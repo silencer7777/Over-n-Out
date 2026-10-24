@@ -509,12 +509,20 @@ function buildSnow(ctx) {
   {
     const iceMat = new THREE.MeshStandardMaterial({ color: 0xcfe0ee, roughness: 0.22, metalness: 0.08 });
     const ICE_SPOTS = [[30, 40, 3.2], [44, 28, 2.6], [18, 52, 3.4], [52, 14, 2.4], [-34, 50, 2.8]];
-    for (const [x, z, r] of ICE_SPOTS) {
-      const disc = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.04, 0.07, 18), iceMat);
-      disc.position.set(x, 0.055, z);
-      disc.receiveShadow = true;
-      group.add(disc);
-    }
+    // V5 RECLAIM (Odin audit: snow owed −3): the five discs are
+    // ONE InstancedMesh now (unit cylinder, per-instance scale
+    // reproduces each disc's radii exactly) — 5 calls -> 1.
+    const discIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1.04, 0.07, 18), iceMat, ICE_SPOTS.length);
+    const dummy = new THREE.Object3D();
+    ICE_SPOTS.forEach(([x, z, r], i) => {
+      dummy.position.set(x, 0.055, z);
+      dummy.scale.set(r, 1, r);
+      dummy.rotation.set(0, 0, 0);
+      dummy.updateMatrix();
+      discIM.setMatrixAt(i, dummy.matrix);
+    });
+    discIM.receiveShadow = true;
+    group.add(discIM);
     group.userData.iceDiscs = ICE_SPOTS.length;
   }
 
@@ -640,18 +648,27 @@ function buildMars(ctx) {
   {
     const mesaMat = new THREE.MeshStandardMaterial({ color: 0x9c5636, roughness: 1, flatShading: true });
     const MESAS = [[-54, 34, 7], [55, -20, 6], [24, 56, 6]];
+    // V5 RECLAIM (Odin audit: Mars owed −2): the three mesas
+    // are ONE InstancedMesh (shared displaced-sphere geometry,
+    // per-instance transform; per-mesa displacement seeds gave
+    // variety the shared silhouette + rotation still reads).
+    // Colliders unchanged. 3 calls -> 1.
+    const mesaIM = new THREE.InstancedMesh(displacedSphere(1, 51.7, 0.16, 9, 7), mesaMat, MESAS.length);
+    const dummy = new THREE.Object3D();
     MESAS.forEach(([x, z, r], i) => {
-      const mesa = new THREE.Mesh(displacedSphere(1, 51.7 + i * 3.3, 0.16, 9, 7), mesaMat);
-      mesa.position.set(x, -r * 0.10, z);
-      mesa.scale.set(r, r * 0.34, r * 0.9);
-      mesa.castShadow = true; mesa.receiveShadow = true;
-      group.add(mesa);
-      addedShootables.push(mesa); ctx.shootables.push(mesa);
+      dummy.position.set(x, -r * 0.10, z);
+      dummy.scale.set(r, r * 0.34, r * 0.9);
+      dummy.rotation.set(0, i * 1.13, 0);
+      dummy.updateMatrix();
+      mesaIM.setMatrixAt(i, dummy.matrix);
       const collider = new THREE.Box3(
         new THREE.Vector3(x - r * 0.82, 0, z - r * 0.82),
         new THREE.Vector3(x + r * 0.82, r * 0.30, z + r * 0.82));
       addedColliders.push(collider); ctx.colliders.push(collider);
     });
+    mesaIM.castShadow = true; mesaIM.receiveShadow = true;
+    group.add(mesaIM);
+    addedShootables.push(mesaIM); ctx.shootables.push(mesaIM);
     group.userData.mesaCount = MESAS.length;
   }
 
