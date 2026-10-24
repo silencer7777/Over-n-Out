@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { collide } from './world.js';
-import { buildViewmodelGun } from './gunmodels.js';
+import { buildViewmodelGun, buildViewmodelArms } from './gunmodels.js';
 
 const EYE = 1.66;
 
@@ -78,6 +78,14 @@ export class Player {
     this.gunModel = null;
     this.accentMaterial = null;
     this._gunId = null;
+    // V4: soldier viewmodel (arms), ADS state, attachments.
+    this.armsMesh = null;        // camo sleeves + gloves (gunmodels.js)
+    this.laserBeam = null;       // THREE.Line when a laser is fitted
+    this._attachments = [];      // attachment ids on the held weapon
+    this._attKey = '';
+    this.aiming = false;         // right-mouse held (input.aim)
+    this.adsZoom = 1;            // set from the effective weapon (optic)
+    this.aimMoveMult = 1;        // movement multiplier while aiming
     camera.add(gun);
 
     this.flash = new THREE.Mesh(
@@ -101,12 +109,37 @@ export class Player {
         if (o.material) o.material.dispose();
       });
     }
-    const built = buildViewmodelGun(weaponId);
+    const built = buildViewmodelGun(weaponId, this._attachments);
     this.gunModel = built.group;
     this.accentMaterial = built.accentMaterial;
     if (this.accentMaterial && tint !== undefined) this.accentMaterial.color.set(tint);
     this.gun.add(this.gunModel);
     this._gunId = weaponId;
+    // Soldier arms: rebuilt with the weapon (grip/forend anchors
+    // are per class). One merged mesh, disposed with the old gun.
+    if (this.armsMesh) {
+      this.gun.remove(this.armsMesh);
+      this.armsMesh.geometry.dispose();
+      this.armsMesh.material.dispose();
+      this.armsMesh = null;
+    }
+    this.armsMesh = buildViewmodelArms(weaponId);
+    this.gun.add(this.armsMesh);
+    // Laser beam: a thin red line forward from the underbarrel,
+    // present only while a laser attachment is fitted.
+    if (this.laserBeam) {
+      this.gun.remove(this.laserBeam);
+      this.laserBeam.geometry.dispose();
+      this.laserBeam.material.dispose();
+      this.laserBeam = null;
+    }
+    if (this._attachments.includes('laser')) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, -0.065, -0.30, 0, -0.065, -9]), 3));
+      this.laserBeam = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xff2a1a, transparent: true, opacity: 0.55 }));
+      this.laserBeam.frustumCulled = false;
+      this.gun.add(this.laserBeam);
+    }
     // Muzzle flash + light sit just past the muzzle of THIS model.
     this.flash.position.set(built.muzzle.x, built.muzzle.y, built.muzzle.z - 0.03);
     this.flashLight.position.set(built.muzzle.x, built.muzzle.y + 0.02, built.muzzle.z - 0.08);
@@ -128,6 +161,7 @@ export class Player {
     this.jumpCutDone = false; this.jumpCutApplied = false;
     this.landDip = 0; this.landDipMax = 0; this.landDipT = 1;
     this.gunKick = 0;
+    this.aiming = false;
     if (Math.abs(this.camera.fov - this.baseFov) > 0.01) {
       this.camera.fov = this.baseFov;
       this.camera.updateProjectionMatrix();
@@ -147,12 +181,21 @@ export class Player {
   // model when the weapon changes, retint its accent parts from the
   // weapons table, and frame it with the WEAPON_VISUALS scale.
   // Cosmetic-only — no effect on damage, spread, or any sim state.
-  setWeaponVisual(weapon) {
+  setWeaponVisual(weapon, attachments = []) {
     if (!weapon) return;
     const v = WEAPON_VISUALS[weapon.id] || WEAPON_VISUALS.ar;
-    if (weapon.id !== this._gunId) this._swapGunModel(weapon.id, weapon.tint);
+    const attKey = [...(attachments || [])].sort().join(',');
+    const changed = weapon.id !== this._gunId || attKey !== this._attKey;
+    this._attachments = [...(attachments || [])];
+    this._attKey = attKey;
+    if (changed) this._swapGunModel(weapon.id, weapon.tint);
     else if (this.accentMaterial) this.accentMaterial.color.set(weapon.tint);
     this.gunGroup.scale.setScalar(v.scale);
+    // ADS profile rides the effective weapon (set by main.js).
+    if (Number.isFinite(weapon.adsZoom)) this.adsZoom = weapon.adsZoom;
+    if (Number.isFinite(weapon.moveAds)) this.aimMoveMult = weapon.moveAds;
+    // Suppressor identity (Havoc §3): minimal muzzle flash.
+    this.flashDim = weapon.stealth ? 0.3 : 1;
   }
 
   update(dt, input) {
@@ -173,7 +216,10 @@ export class Player {
     // Wish direction in rig space
     const f = (input.forward ? 1 : 0) - (input.back ? 1 : 0);
     const s = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-    const speed = input.sprint ? 9.2 : 5.6;
+    // ADS (V4): aiming forbids sprint and scales movement by the
+    // optic's moveAds (attachments) — irons/no-optic stays 1.
+    this.aiming = !!input.aim;
+    const speed = (input.sprint && !this.aiming ? 9.2 : 5.6) * (this.aiming ? this.aimMoveMult : 1);
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
     const wx = (-sin * f + cos * s);
     const wz = (-cos * f - sin * s);
@@ -238,11 +284,11 @@ export class Player {
     // trajectory (and its ~1.88m apex) is unchanged. A jump fires when
     // held (auto-rejump on landing, as before) or when a buffered
     // press is pending, provided we are grounded or inside coyote time.
-    this.vel.y -= GRAVITY * dt;
+    this.vel.y -= GRAVITY * (this.gravityMult ?? 1) * dt;
     const canJump = this.onGround || this.coyoteTimer > 0;
     const wantsJump = !!input.jump || this.jumpBufferTimer > 0;
     if (wantsJump && canJump) {
-      this.vel.y = JUMP_VELOCITY;
+      this.vel.y = JUMP_VELOCITY * (this.jumpMult ?? 1);
       this.onGround = false;
       this.coyoteTimer = 0;
       this.jumpBufferTimer = 0;
@@ -290,7 +336,9 @@ export class Player {
     // Sprint FOV kick: ease toward 82 only when sprinting, actually moving
     // fast (horizontal speed > 6) and grounded; otherwise ease back to base.
     const hSpeed = Math.hypot(this.vel.x, this.vel.z);
-    const targetFov = (input.sprint && hSpeed > 6 && this.onGround) ? 82 : this.baseFov;
+    const targetFov = (this.aiming && this.adsZoom > 1)
+      ? this.baseFov / this.adsZoom
+      : (input.sprint && hSpeed > 6 && this.onGround) ? 82 : this.baseFov;
     if (Math.abs(this.camera.fov - targetFov) > 0.01) {
       this.camera.fov += (targetFov - this.camera.fov) * Math.min(1, dt * 8);
       if (Math.abs(this.camera.fov - targetFov) <= 0.01) this.camera.fov = targetFov;
@@ -306,9 +354,14 @@ export class Player {
     // View-model kickback recovery (fast exponential ease back to rest).
     this.gunKick *= Math.pow(0.0001, dt);
     if (this.gunKick < 0.0005) this.gunKick = 0;
-    this.gun.position.x = 0.24 + bobX;
-    this.gun.position.y = -0.22 + bobY * 0.7;
-    this.gun.position.z = -0.45 + this.gunKick;
+    // Gun pose: hip (right-low) eases to ADS (centred, optic up)
+    // when aiming — a fast critically-damped-feeling lerp.
+    const gx = this.aiming ? bobX * 0.15 : 0.24 + bobX;
+    const gy = this.aiming ? -0.185 + bobY * 0.2 : -0.22 + bobY * 0.7;
+    const gk = 1 - Math.exp(-18 * dt);
+    this.gun.position.x += (gx - this.gun.position.x) * gk;
+    this.gun.position.y += (gy - this.gun.position.y) * gk;
+    this.gun.position.z = (this.aiming ? -0.42 : -0.45) + this.gunKick;
 
     // Muzzle flash decay
     if (this.flash.material.opacity > 0) this.flash.material.opacity = Math.max(0, this.flash.material.opacity - dt * 14);
@@ -321,9 +374,10 @@ export class Player {
     // (the AR's 0.021 reproduces the original 0.03 kick exactly).
     this.gunKick = Math.min(this.gunKick + 0.03 * (strength / 0.021), 0.075);
     this.gun.position.z = -0.45 + this.gunKick;
-    this.flash.material.opacity = 1;
+    const dim = this.flashDim === undefined ? 1 : this.flashDim;
+    this.flash.material.opacity = dim;
     this.flash.rotation.z = Math.random() * Math.PI;
-    this.flashLight.intensity = 26;
+    this.flashLight.intensity = 26 * dim;
   }
 
   get position() { return this.rig.position; }
