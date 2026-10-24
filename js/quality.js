@@ -16,6 +16,12 @@
 // Coordinator's scoped edit; scaler logic untouched.)
 // main.js owns the sun's shadow camera; this scaler only ever touches
 // the sun's castShadow flag and shadow.mapSize.
+//
+// V6 (Directive V6-2): optional constructor arg { startLevel } —
+// touch/mobile devices start one tier down (L1: render resolution
+// only; the locked V5 lighting grade/profiles/floors never change)
+// and the scaler steps back up on sustained headroom as usual.
+// Desktop passes nothing and starts at L0 exactly as before.
 
 const EMA_ALPHA = 0.05;        // frame-time exponential moving average
 const DOWN_FPS = 50;           // step down when EMA fps stays below this
@@ -26,10 +32,12 @@ const COOLDOWN = 2.5;          // seconds locked after any level change
 const MAX_LEVEL = 3;
 
 export class QualityScaler {
-  constructor(renderer, scene) {
+  constructor(renderer, scene, options = {}) {
     this._renderer = renderer;
     this._sun = null;
     this._level = 0;
+    this._startLevel = Number.isFinite(options.startLevel)
+      ? Math.max(0, Math.min(MAX_LEVEL, options.startLevel | 0)) : 0;
     this._ema = 0;             // EMA of frame time (seconds); 0 = unseeded
     this._downTime = 0;        // sustained seconds below DOWN_FPS
     this._upTime = 0;          // sustained seconds above UP_FPS
@@ -42,7 +50,7 @@ export class QualityScaler {
       if (this._sun === null && o.isDirectionalLight) this._sun = o;
     });
 
-    this._applyLevel(0);
+    this._applyLevel(this._startLevel);
   }
 
   get level() {
