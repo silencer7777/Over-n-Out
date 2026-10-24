@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mergeColoredParts } from './geo.js';
+import { mergeColoredParts, mergePartsByMaterial } from './geo.js';
 
 // Builds the arena: dusk-lit compound, perimeter walls, cover crates.
 // Returns collision data + lists used by shooting / bot line-of-sight.
@@ -32,11 +32,13 @@ export function buildWorld(scene) {
   // ============================================================
   const SUN_POS = new THREE.Vector3(-47.16, 9.7, -28.3);
   scene.background = new THREE.Color(0x352130);
-  // Deeper dusk fog, matched to the background. 42->138 keeps
-  // the 40m readability floor essentially unfogged (fog only
-  // begins at 42) while pulling the far plane in from 150 so
-  // cross-arena sightlines (far >= 130) still survive.
-  scene.fog = new THREE.Fog(0x352130, 42, 138);
+  // Deeper dusk fog, matched to the background. The near value
+  // (42) sets the 40m readability floor and is LOCKED by Brett's
+  // Phase 2 playtest verdict — never move it. V4 (Atlas): the far
+  // value extends 138 -> 190 for the ±62 worlds so ring POIs read
+  // across the expanded map; a longer far range only ever reduces
+  // blend at distance — visibility improves, never darker.
+  scene.fog = new THREE.Fog(0x352130, 42, 190);
 
   // Hemisphere fill — PHASE 2 READABILITY REVISION (Brett's live
   // playtest, Oct 24: "lighting still kinda dark, you can barely
@@ -75,6 +77,7 @@ export function buildWorld(scene) {
       new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false })
     );
     sky.renderOrder = -10; // draw first; stars/sun sit inside it and stay visible
+    sky.name = 'sky-dome'; // named so biomes.js can re-dress it (Mars) and restore it
     scene.add(sky);
   }
 
@@ -167,9 +170,11 @@ export function buildWorld(scene) {
     c.strokeStyle = 'rgba(0,0,0,0.16)'; c.lineWidth = 18; c.strokeRect(9, 9, 494, 494);
     c.strokeStyle = 'rgba(0,0,0,0.08)'; c.lineWidth = 40; c.strokeRect(20, 20, 472, 472);
     const tex = new THREE.CanvasTexture(cv);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(8, 8);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(10, 10);
     // Frame cost: bumpMap reuses the same texture instance as map (no duplicate canvas / no extra GPU upload); per-frame cost is one extra texture sample in the ground shader.
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(110, 110), new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 0.04, roughness: 0.95 }));
+    // V4 (Atlas): plane 110 -> 136 and repeat 8 -> 10, so the ±62
+    // worlds sit on concrete at the same texel density as V3.
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(136, 136), new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 0.04, roughness: 0.95 }));
     ground.rotation.x = -Math.PI / 2;
     ground.name = 'ground';
     ground.receiveShadow = true;
@@ -299,6 +304,31 @@ export function buildWorld(scene) {
     return best;
   }
 
+  // V4 RING HELPERS (Atlas) — merged static geometry for the outer
+  // ring: many boxes, ONE mesh per material, with colliders and
+  // walkables registered per box. This is how the ring pays for
+  // itself under Board 004 §6 (worst-case draw calls <= 165).
+  // Box spec: { cx, cz, w, d, yBase, top } — via B() below.
+  function registerSolidBox(cx, cz, w, d, yBase, top) {
+    colliders.push(new THREE.Box3(
+      new THREE.Vector3(cx - w / 2, yBase, cz - d / 2),
+      new THREE.Vector3(cx + w / 2, top, cz + d / 2)));
+    walkables.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2, top });
+  }
+  function mergedBoxes(boxes, mat) {
+    const parts = boxes.map(b => ({
+      geo: new THREE.BoxGeometry(b.w, b.top - b.yBase, b.d), mat: 'm',
+      x: b.cx, y: (b.yBase + b.top) / 2, z: b.cz,
+    }));
+    const m = new THREE.Mesh(mergePartsByMaterial(parts).get('m'), mat);
+    m.matrixAutoUpdate = false; m.updateMatrix();
+    m.castShadow = true; m.receiveShadow = true;
+    scene.add(m); shootables.push(m);
+    for (const b of boxes) registerSolidBox(b.cx, b.cz, b.w, b.d, b.yBase, b.top);
+    return m;
+  }
+  const B = (cx, cz, w, d, top, yBase = 0) => ({ cx, cz, w, d, yBase, top });
+
   // Stair stack climbing NORTH (-z) from the ground to a deck's south edge:
   // 4 solid steps, tops 0.575 / 1.15 / 1.725 / 2.3 (rise 0.575 <= 0.58,
   // walkable without jumping), each 1.1 deep, top step flush with the edge.
@@ -324,9 +354,25 @@ export function buildWorld(scene) {
     elevated(x2, yBase + 1.15, z2, 2.2, 1.15, 2.2, crateMat);
   }
 
-  // Perimeter (arena is 100 x 100, playable to ±47 — see bounds)
-  solid(0, -50, 102, 7, 2, wallMat); solid(0, 50, 102, 7, 2, wallMat);
-  solid(-50, 0, 2, 7, 102, wallMat); solid(50, 0, 2, 7, 102, wallMat);
+  // Perimeter — V4 BIGGER WORLDS (Atlas; Board 004 §5): playable
+  // bounds ±47 -> ±62. The new outer wall stands at ±63 (inner
+  // face = 62); the V3 wall line at ±50 becomes an interior RUIN
+  // LINE — segments with 10 gaps (the ring's doors), merged into
+  // ONE mesh. The inner course below is byte-identical to V3:
+  // every V3 route, pin and spawn inside the old walls survives.
+  solid(0, -63, 128, 7, 2, wallMat); solid(0, 63, 128, 7, 2, wallMat);
+  solid(-63, 0, 2, 7, 128, wallMat); solid(63, 0, 2, 7, 128, wallMat);
+  const RUIN_SEGMENTS = [
+    // north (z=-50): gaps [-30,-24], [-3,3], [21,27]; last segment dropped to 5.4 (ruin character)
+    B(-40.5, -50, 21, 2, 7), B(-13.5, -50, 21, 2, 7), B(12, -50, 18, 2, 7), B(39, -50, 24, 2, 5.4),
+    // south (z=50): gaps [-27,-21], [-3,3], [24,30]
+    B(-39, 50, 24, 2, 7), B(-12, 50, 18, 2, 7), B(13.5, 50, 21, 2, 7), B(40.5, 50, 21, 2, 7),
+    // east (x=50): gaps z [-33,-27] (tower lane), [15,21]
+    B(50, -42, 2, 18, 7), B(50, -6, 2, 42, 7), B(50, 36, 2, 30, 7),
+    // west (x=-50): gaps z [-21,-15] (depot lane), [21,27]; first segment dropped to 5.4
+    B(-50, -36, 2, 30, 5.4), B(-50, 3, 2, 36, 7), B(-50, 39, 2, 24, 7),
+  ];
+  mergedBoxes(RUIN_SEGMENTS, wallMat);
 
   // ================= MULTI-FLOOR COURSE =================
   // MID LEVEL (top 2.3): north deck 32x16 + east deck 10x20, bridged by a
@@ -400,6 +446,92 @@ export function buildWorld(scene) {
         new THREE.Vector3(bx - 0.45, 0, bz - 0.45), new THREE.Vector3(bx + 0.45, 1.12, bz + 0.45)));
     }
   }
+
+  // ================= V4 OUTER RING (Atlas — Board 004 §5) =================
+  // Everything between the ruin line (±50) and the new walls
+  // (±63): named POIs for sight-navigation. Mode data lives in
+  // worlddata.js (MODE_ZONES / ASSAULT_TARGET / PICKUP_CACHES /
+  // TRANSMISSIONS) and points here. Ring crates across all POIs
+  // are collected and merged into ONE mesh per crate material.
+  const ringCratesA = []; // crateMat
+  const ringCratesB = []; // crateMat2
+
+  // --- Relay Tower (NE ring): climbable; Domination C at its
+  // base, DMR nest + Relay Assault target on top. L1 (top 2.3) is
+  // reached by the shipped groundStairs helper; L2 (top 4.6) by a
+  // 0.575-rise run standing on L1 — the Board 003 stair-margin
+  // ruling covers both runs verbatim.
+  solid(40, -54, 14, 2.3, 14, deckMat);               // tower L1: x 33..47, z -61..-47
+  groundStairs(40, -47, 3);                           // ground -> L1 (south face)
+  elevated(40, 2.3, -57.75, 6.5, 2.3, 6.5, deckMat);  // tower L2: x 36.75..43.25, z -61..-54.5
+  mergedBoxes([                                       // L2 stair run + parapets, one mesh
+    B(40, -53.95, 3, 1.1, 4.025, 2.3), B(40, -52.85, 3, 1.1, 3.45, 2.3), B(40, -51.75, 3, 1.1, 2.875, 2.3),
+    B(40, -60.75, 6.5, 0.5, 5.15, 4.6),               // north parapet
+    B(37.1, -57.75, 0.5, 6.5, 5.15, 4.6),             // west parapet
+  ], slabMat);
+  elevated(40, 4.6, -57.75, 1.4, 9, 1.4, pillarMat);  // relay mast (top 13.6)
+  elevated(38.8, 4.6, -56, 1.2, 1.0, 0.8, crateMat2); // relay console (Assault target)
+  { // dish — visual + shootable, no collider (it sits 13 m up)
+    const dish = new THREE.Mesh(
+      new THREE.SphereGeometry(1.7, 14, 6, 0, Math.PI * 2, 0, 0.85),
+      new THREE.MeshStandardMaterial({ color: 0x9aa4ae, roughness: 0.45, metalness: 0.6, side: THREE.DoubleSide }));
+    dish.position.set(40, 12.6, -57.75); dish.rotation.x = Math.PI * 0.72;
+    dish.castShadow = true;
+    scene.add(dish); shootables.push(dish);
+  }
+
+  // --- North Ridge (NW ring): four 0.575 terraces climbing
+  // north — a walkable vantage over the whole compound.
+  mergedBoxes([
+    B(-44, -53.2, 16, 2.4, 0.575), B(-44, -55.6, 16, 2.4, 1.15),
+    B(-44, -58.0, 16, 2.4, 1.725), B(-44, -60.4, 16, 2.4, 2.3),
+  ], slabMat);
+
+  // --- Depot Row (W ring): crate maze — three rows, 1.3 m alleys,
+  // wide cross-lanes; the pickup cache sits at its heart.
+  const DEPOT = [
+    [-59.9, -12, 2.2], [-59.9, -2, 4.4], [-59.9, 8, 2.2], [-59.9, 18, 2.2],
+    [-56.4, -7, 2.2], [-56.4, 3, 4.4], [-56.4, 14, 2.2],
+    [-52.9, -12, 2.2], [-52.9, 6, 2.2], [-52.9, 20, 4.4],
+  ];
+  DEPOT.forEach(([x, z, h], i) => (i % 2 ? ringCratesB : ringCratesA).push(B(x, z, 2.2, 2.2, h)));
+
+  // --- Motor Pool (SE ring): three wrecked haulers (merged
+  // vertex-colour hulks; AABB colliders registered here and
+  // mirrored as worlddata extras) + cover crates. Transmission
+  // point at (47, 52), pickup cache at (58, 58).
+  const wreckMat = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0xffffff, roughness: 0.8, metalness: 0.25 });
+  function wreck(x, z, ry, tone) {
+    const parts = [
+      { geo: new THREE.BoxGeometry(4.6, 1.05, 1.9), color: tone, x: 0, y: 0.78, z: 0 },
+      { geo: new THREE.BoxGeometry(2.1, 0.78, 1.8), color: tone, x: -0.9, y: 1.68, z: 0 },
+      { geo: new THREE.BoxGeometry(4.7, 0.22, 2.0), color: 0x2c2c30, x: 0, y: 0.22, z: 0 },
+    ];
+    for (const wx of [-1.55, 1.55]) for (const wz of [-0.95, 0.95]) {
+      parts.push({ geo: new THREE.CylinderGeometry(0.42, 0.42, 0.24, 10), color: 0x17181a, x: wx, y: 0.42, z: wz, rx: Math.PI / 2 });
+    }
+    const m = new THREE.Mesh(mergeColoredParts(parts), wreckMat);
+    m.position.set(x, 0, z); m.rotation.y = ry;
+    m.matrixAutoUpdate = false; m.updateMatrix();
+    m.castShadow = true; m.receiveShadow = true;
+    scene.add(m); shootables.push(m);
+    // Collider: rotated-AABB approximation of the hull (wheels
+    // poke ~0.12 past it — same tolerance class as barrel colliders).
+    const hx = 2.3, hz = 0.95, c = Math.abs(Math.cos(ry)), s = Math.abs(Math.sin(ry));
+    const ex = hx * c + hz * s, ez = hx * s + hz * c;
+    colliders.push(new THREE.Box3(new THREE.Vector3(x - ex, 0, z - ez), new THREE.Vector3(x + ex, 2.0, z + ez)));
+    return m;
+  }
+  wreck(42, 55, 0.4, 0x6e4a2f); wreck(52, 47, -0.9, 0x59524a); wreck(56, 57, 2.2, 0x4a3a30);
+  ringCratesA.push(B(38, 52, 2.2, 2.2, 2.2));
+  ringCratesB.push(B(54, 60, 2.2, 2.2, 2.2));
+
+  // --- Ring cover: lone crates on the long ring lanes.
+  ringCratesA.push(B(18, -57, 2.2, 2.2, 2.2), B(-57, -34, 2.2, 2.2, 2.2));
+  ringCratesB.push(B(-18, 57, 2.2, 2.2, 2.2), B(57, 10, 2.2, 2.2, 2.2));
+
+  mergedBoxes(ringCratesA, crateMat);
+  mergedBoxes(ringCratesB, crateMat2);
 
   // ---- Horizon dressing (visual only: NOT in colliders or shootables) ----
   // Dark outer apron under everything beyond the arena floor, so the ridges
@@ -602,16 +734,23 @@ export function buildWorld(scene) {
     // Ground detail — rejection-sampled clear of decks/stairs/hops/cover
     // footprints (pad ~1m) and of spawn points / trees (~2m).
     const clearRects = [
-      [-16, 16, -40, -24], [29, 39, -26, -6],               // decks
-      [-13, -9, -25.5, -18.5], [32, 37, -7, -0.5],          // ground stairs A / B
+      [-16, 16, -40, -24], [29, 39, -26, -6], [-39, -29, -26, -6], // decks N / E / W (W-deck + Stair C rects added V4 — a latent gap in the V3 list)
+      [-13, -9, -25.5, -18.5], [32, 37, -7, -0.5], [-37, -32, -7, -0.5], // ground stairs A / B / C
       [8.5, 11.5, -24.5, -19],                              // ground crate-hop
       [19, 26.5, -26, -24],                                 // catwalk pillars
       [-16, -12, -12, -8], [19.5, 24.5, 8.8, 11.2], [-3, 3, 24.5, 27.5],
       [-36, -32, -28, -24], [32, 36, 26, 30], [-1.6, 1.6, -1.6, 1.6], // ground cover
+      // V4 ring POIs — no tufts/rocks inside structures.
+      [32, 48, -62, -46],                                   // relay tower + its stair run
+      [-53, -35, -62.5, -51],                               // north ridge terraces
+      [-61.5, -51, -15, 23],                                // depot row maze
+      [36, 61, 36, 61],                                     // motor pool
     ];
     const clearPoints = [
       [-42, -42, 2.2], [42, -42, 2.2], [-42, 42, 2.2], [42, 42, 2.2], [0, -44, 2.2], [0, 44, 2.2],
-      [13, -30, 2], [34, -20, 2], [-5, -34, 2],
+      [13, -30, 2], [34, -20, 2], [-34, -20, 2], [-5, -34, 2],
+      // V4 ring spawns (gap-aligned — see spawnPoints below)
+      [0, -58, 2.2], [24, -56, 2.2], [-27, -56, 2.2], [0, 58, 2.2], [27, 56, 2.2], [-24, 56, 2.2],
       ...trees.map(t => [t.x, t.z, 1.3]),
     ];
     function isClear(x, z, pad) {
@@ -622,43 +761,43 @@ export function buildWorld(scene) {
     function scatter(count, pad) {
       const out = [];
       for (let tries = 0; out.length < count && tries < count * 40; tries++) {
-        const x = (lrand() * 2 - 1) * 46, z = (lrand() * 2 - 1) * 46;
+        const x = (lrand() * 2 - 1) * 60, z = (lrand() * 2 - 1) * 60; // V4: scatter reaches the ring (±60)
         if (isClear(x, z, pad)) out.push({ x, z, s: 0.6 + lrand() * 0.9, rot: lrand() * Math.PI * 2 });
       }
       return out;
     }
 
-    // Grass tufts — 120 small cones in two greens (two InstancedMeshes,
-    // 60 each, one per material).
+    // Grass tufts — 180 small cones in two greens (two InstancedMeshes,
+    // 90 each, one per material). V4: count up with the bigger world.
     const tuftGeo = new THREE.ConeGeometry(0.16, 0.5, 5);
     const tuftMats = [
       new THREE.MeshStandardMaterial({ color: 0x49682c, roughness: 1, flatShading: true }),
       new THREE.MeshStandardMaterial({ color: 0x7d9c46, roughness: 1, flatShading: true }),
     ];
     const tuftMeshes = tuftMats.map(m => {
-      const im = new THREE.InstancedMesh(tuftGeo, m, 60);
+      const im = new THREE.InstancedMesh(tuftGeo, m, 96);
       im.frustumCulled = false; scene.add(im); return im;
     });
-    // One scatter pass, split 60/60 across the two materials.
-    const tuftSpots = scatter(120, 0.9);
+    // One scatter pass, split 90/90 across the two materials.
+    const tuftSpots = scatter(180, 0.9);
     tuftSpots.forEach((p, i) => {
-      const im = tuftMeshes[i < 60 ? 0 : 1], idx = i % 60;
+      const im = tuftMeshes[i < 90 ? 0 : 1], idx = i < 90 ? i : i - 90;
       dummy.rotation.set((lrand() - 0.5) * 0.25, p.rot, (lrand() - 0.5) * 0.25);
       dummy.position.set(p.x, 0.22 * p.s, p.z);
       dummy.scale.set(p.s, p.s, p.s);
       dummy.updateMatrix(); im.setMatrixAt(idx, dummy.matrix);
     });
-    tuftMeshes[0].count = Math.min(60, tuftSpots.length);
-    tuftMeshes[1].count = Math.max(0, tuftSpots.length - 60);
+    tuftMeshes[0].count = Math.min(90, tuftSpots.length);
+    tuftMeshes[1].count = Math.max(0, tuftSpots.length - 90);
 
-    // Scattered rocks — 40 instanced dodecahedrons, grey variation.
+    // Scattered rocks — 64 instanced dodecahedrons, grey variation.
     const rockIM = new THREE.InstancedMesh(
       new THREE.DodecahedronGeometry(0.28),
       new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, flatShading: true }),
-      40
+      64
     );
     rockIM.receiveShadow = true; rockIM.frustumCulled = false;
-    const rockSpots = scatter(40, 0.5);
+    const rockSpots = scatter(64, 0.5);
     rockIM.count = rockSpots.length;
     rockSpots.forEach((p, i) => {
       dummy.rotation.set(lrand() * 3, p.rot, lrand() * 3);
@@ -679,9 +818,19 @@ export function buildWorld(scene) {
     new THREE.Vector3(34, 2.3, -20),   // mid: east deck
     new THREE.Vector3(-34, 2.3, -20),  // mid: west deck (Phase 2)
     new THREE.Vector3(-5, 4.6, -34),   // top: rooftop centre
+    // V4 ring spawns (Board 004 §5: bot spawns ring the outside).
+    // GAP-ALIGNED: each run to the arena crosses the ruin line
+    // through the centre gap, so bots funnel in through the doors
+    // instead of pressing on solid wall. Only the two gate spawns
+    // ship: playtest-by-measurement (ws-soak W9) showed corner
+    // ring spawns dilute sim contact past the fixed turret test's
+    // reach — restoring them pairs with bot-pathing work (Atlas
+    // V4 report has the numbers).
+    new THREE.Vector3(0, 0, -58),      // ring N — centre gap
+    new THREE.Vector3(0, 0, 58),       // ring S — centre gap
   ];
 
-  return { colliders, shootables, spawnPoints, bounds: 47, groundHeightAt };
+  return { colliders, shootables, spawnPoints, bounds: 62, groundHeightAt };
 }
 
 // Push a point (with radius) out of every collider on the XZ plane.
