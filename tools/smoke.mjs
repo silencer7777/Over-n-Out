@@ -275,6 +275,91 @@ if (MSG && typeof validateHello === 'function' && typeof validateInput === 'func
   if (!LIMITS || LIMITS.MAX_MESSAGE_BYTES !== 4096) fail(`N8 LIMITS.MAX_MESSAGE_BYTES → ${LIMITS?.MAX_MESSAGE_BYTES} (expected 4096)`); else ok('N8 LIMITS.MAX_MESSAGE_BYTES === 4096');
 }
 
+// 1f) Gun models (V3 Phase 2 workstream 1) — source contract.
+// gunmodels.js imports 'three', so it cannot be imported in plain
+// Node; the contract here is structural: builders for all five
+// classes, both build flavours, and the real-parts vocabulary the
+// realism pass is made of. (Runtime build counts were verified in
+// the Phase 2 session with the vendored three.)
+try {
+  const gunSrc = readFileSync(join(ROOT, 'js/gunmodels.js'), 'utf8');
+  for (const b of ['buildAR', 'buildSMG', 'buildShotgun', 'buildDMR', 'buildPistol']) {
+    if (!gunSrc.includes(`function ${b}(`)) fail(`G1 gunmodels missing builder ${b}`); else ok(`G1 gunmodels builder ${b} present`);
+  }
+  if (gunSrc.includes('export function buildViewmodelGun') && gunSrc.includes('export function buildBotGun')) ok('G2 gunmodels exports buildViewmodelGun + buildBotGun');
+  else fail('G2 gunmodels missing viewmodel/bot exports');
+  const PART_WORDS = ['receiver', 'barrel', 'muzzle', 'magazine', 'trigger guard', 'charging handle', 'stock', 'grip'];
+  const missingParts = PART_WORDS.filter(w => !gunSrc.toLowerCase().includes(w));
+  if (missingParts.length) fail(`G3 gunmodels part vocabulary missing: ${missingParts.join(', ')}`);
+  else ok('G3 gunmodels part vocabulary complete (receiver/barrel/muzzle/magazine/trigger guard/charging handle/stock/grip)');
+  const playerSrc = readFileSync(join(ROOT, 'js/player.js'), 'utf8');
+  if (playerSrc.includes("from './gunmodels.js'") && playerSrc.includes('buildViewmodelGun')) ok('G4 player.js viewmodel comes from gunmodels.js');
+  else fail('G4 player.js does not use gunmodels.js');
+  const botsSrc = readFileSync(join(ROOT, 'js/bots.js'), 'utf8');
+  if (botsSrc.includes('buildBotGun') && botsSrc.includes('mergeColoredParts')) ok('G5 bots.js uses merged bot guns + merged body parts');
+  else fail('G5 bots.js not using merged gun/body builds');
+} catch (e) { fail('G gunmodels checks: ' + e.message); }
+
+// 1g) Fun features (V3 Phase 2, Board 003 set) — source contract +
+// streak behaviour via the real story module.
+try {
+  const worldSrc = readFileSync(join(ROOT, 'js/world.js'), 'utf8');
+  if (worldSrc.includes('userData.explosive')) ok('F1 world.js places explosive barrels (userData.explosive)');
+  else fail('F1 world.js missing explosive barrels');
+  const mainSrc = readFileSync(join(ROOT, 'js/main.js'), 'utf8');
+  for (const marker of ['function explodeBarrel', 'function maybeDropPickup', 'function onBotKilled', "e.code === 'KeyF'", "classList.toggle('kill'"]) {
+    if (!mainSrc.includes(marker)) fail(`F2 main.js missing fun-feature marker: ${marker}`);
+    else ok(`F2 main.js has ${marker}`);
+  }
+  const audioSrc = readFileSync(join(ROOT, 'js/audio.js'), 'utf8');
+  if (audioSrc.includes('explosion()') && audioSrc.includes('pickup()')) ok('F3 audio.js has explosion() + pickup()');
+  else fail('F3 audio.js missing explosion()/pickup()');
+} catch (e) { fail('F fun-feature checks: ' + e.message); }
+
+let streakLine;
+try {
+  ({ streakLine } = await import('../js/story.js'));
+  if (typeof streakLine !== 'function') fail('F4 story import — streakLine is not a function');
+  else {
+    ok('F4 streakLine is a function');
+    if (streakLine(1) === null && typeof streakLine(3) === 'string' && streakLine(3).length > 0 && streakLine(9) === streakLine(5)) {
+      ok('F5 streakLine: null below 2, Relay line at 3, peak line reuses at 9');
+    } else fail(`F5 streakLine behaviour: 1→${JSON.stringify(streakLine(1))}, 3→${JSON.stringify(streakLine(3))}, 9→${JSON.stringify(streakLine(9))}`);
+  }
+} catch (e) { fail('F4 story streakLine import: ' + e.message); }
+
+// 1h) World data (M1) — real import + transcription pins.
+try {
+  const wd = await import('../js/worlddata.js');
+  if (wd.SOLIDS.length === 45) ok('T1 worlddata SOLIDS === 45 (mirrors world.js addBox solids)');
+  else fail(`T1 worlddata SOLIDS → ${wd.SOLIDS.length} (expected 45 — mirror world.js!)`);
+  if (wd.EXTRA_COLLIDERS.length === 16) ok('T2 worlddata EXTRA_COLLIDERS === 16 (3 trees + 8 big bushes + 5 barrels)');
+  else fail(`T2 worlddata EXTRA_COLLIDERS → ${wd.EXTRA_COLLIDERS.length} (expected 16)`);
+  if (wd.SPAWN_POINTS.length === 10) ok('T3 worlddata SPAWN_POINTS === 10');
+  else fail(`T3 worlddata SPAWN_POINTS → ${wd.SPAWN_POINTS.length} (expected 10)`);
+  if (wd.BARRELS.length === 5) ok('T4 worlddata BARRELS === 5');
+  else fail(`T4 worlddata BARRELS → ${wd.BARRELS.length} (expected 5)`);
+  // groundHeightAt is step-relative (a top counts only within
+  // refY + 0.6), so probe the way a walker experiences it.
+  const deckH = wd.groundHeightAt(0, -32, 2.3);
+  const westH = wd.groundHeightAt(-34, -20, 2.3);
+  const stepH = wd.groundHeightAt(-11, -20.15, 0);
+  const groundH = wd.groundHeightAt(0, 34, 0);
+  if (deckH === 2.3 && westH === 2.3 && stepH === 0.575 && groundH === 0) ok('T5 worlddata groundHeightAt: north deck 2.3, west deck 2.3, first stair step 0.575, open ground 0');
+  else fail(`T5 worlddata groundHeightAt: deck ${deckH}, west ${westH}, step ${stepH}, ground ${groundH}`);
+} catch (e) { fail('T worlddata checks: ' + e.message); }
+
+// 1i) Subprocess suites — biome placement + M1 soak are full
+// programs; the smoke gate runs them and requires green.
+for (const [label, script] of [['B-suite', 'tools/biome-check.mjs'], ['T-suite', 'tools/soak.mjs']]) {
+  try {
+    execFileSync(process.execPath, [join(ROOT, script)], { stdio: 'pipe', timeout: 120000 });
+    ok(`${label} ${script} PASSED`);
+  } catch (e) {
+    fail(`${label} ${script} FAILED:\n` + (e.stdout?.toString() || '') + (e.stderr?.toString() || e.message));
+  }
+}
+
 // 2) Boot server + fetch routes
 const PORT = 8199;
 const srv = spawn(process.execPath, [join(ROOT, 'server/server.js')], { env: { ...process.env, PORT }, stdio: 'pipe' });
@@ -301,7 +386,7 @@ function rawGet(rawPath) {
 
 try {
   await wait(900);
-  for (const route of ['/', '/js/main.js', '/js/player.js', '/js/bots.js', '/js/world.js', '/js/audio.js', '/js/weapons.js', '/js/story.js', '/js/perfmeter.js', '/js/quality.js', '/js/biomes.js', '/css/style.css', '/vendor/three.module.js']) {
+  for (const route of ['/', '/js/main.js', '/js/player.js', '/js/bots.js', '/js/world.js', '/js/audio.js', '/js/weapons.js', '/js/story.js', '/js/perfmeter.js', '/js/quality.js', '/js/biomes.js', '/js/geo.js', '/js/gunmodels.js', '/js/worlddata.js', '/css/style.css', '/vendor/three.module.js']) {
     const res = await fetch(`http://localhost:${PORT}${route}`);
     if (!res.ok) fail(`GET ${route} → ${res.status}`); else ok(`GET ${route} → 200`);
   }
