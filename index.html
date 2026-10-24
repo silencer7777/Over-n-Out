@@ -14,11 +14,14 @@
   <div id="crosshair"><span></span><span></span><span></span><span></span></div>
   <div id="hitmarker">✕</div>
   <div id="wave-banner"></div>
+  <div id="briefing"></div>
+  <div id="context-line"></div>
   <div id="stats-top">
     <div>WAVE <b id="ui-wave">1</b></div>
     <div>KILLS <b id="ui-kills">0</b></div>
     <div>HOSTILES <b id="ui-left">0</b></div>
   </div>
+  <div id="objective"></div>
   <div id="health-wrap">
     <div id="health-label">INTEGRITY</div>
     <div id="health-bar"><div id="health-fill"></div></div>
@@ -35,8 +38,9 @@
 <!-- MENU / PAUSE / DEATH overlay -->
 <div id="menu">
   <h1>OVER <span>N'</span> OUT</h1>
-  <p class="tag">TACTICAL BROWSER FPS · v0.2 "ARSENAL"</p>
+  <p class="tag">TACTICAL BROWSER FPS · v0.3.0-dev</p>
   <p id="menu-msg">Hostile waves inbound. Hold the compound.</p>
+  <div id="story-panel"><div class="story-label">TRANSMISSION — OUTPOST MERIDIAN</div><p id="story-text"></p></div>
   <div id="loadout">
     <div class="loadout-label">LOADOUT — CHOOSE YOUR WEAPON</div>
     <div class="loadout-row">
@@ -47,6 +51,8 @@
       <button class="wpn" data-weapon="pistol">PISTOL</button>
     </div>
   </div>
+  <div id="settings"><label for="sens-slider">MOUSE SENSITIVITY</label><input type="range" id="sens-slider" min="0.4" max="2.5" step="0.05" value="1"><span id="sens-val">1.00</span></div>
+  <div id="biome-pick"><label for="biome-select">THEATER</label><select id="biome-select"><option value="compound" selected>THE COMPOUND — OUTPOST MERIDIAN</option><option value="forest">DENSE FOREST — MERIDIAN RELAY</option><option value="snow" disabled>SNOW STATION — COMING IN V3</option><option value="mars" disabled>MARS UPLINK — COMING IN V3</option></select></div>
   <button id="play-btn">▶ &nbsp;DEPLOY</button>
   <div class="controls">
     <div><b>W A S D</b> Move</div>
@@ -56,6 +62,8 @@
     <div><b>SPACE</b> Jump</div>
     <div><b>R</b> Reload</div>
     <div><b>1–5</b> Switch weapon</div>
+    <div><b>F9</b> FPS meter</div>
+    <div><b>SENS</b> Mouse sensitivity — slider above</div>
   </div>
   <p class="fine">Desktop + mouse recommended for now — mobile controls are on the roadmap.</p>
 </div>
