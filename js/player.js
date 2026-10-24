@@ -3,6 +3,20 @@ import { collide } from './world.js';
 
 const EYE = 1.66;
 
+// Jump / gravity — hard ship constraint. Held-jump apex is
+// JUMP_VELOCITY^2 / (2 * GRAVITY) = 9.5^2 / 48 ~= 1.88m, which the
+// v0.2 multi-floor course reachability was verified against.
+export const JUMP_VELOCITY = 9.5;
+export const GRAVITY = 24;
+export const COYOTE_TIME = 0.10;
+export const JUMP_BUFFER_TIME = 0.12;
+export const JUMP_CUT_FACTOR = 0.5;
+export const JUMP_CUT_MIN_SPEED = 2;
+const LOOK_SMOOTHING_RATE = 30;
+const GROUND_ACCEL_INPUT = 40;
+const GROUND_ACCEL_STOP = 55;
+const AIR_ACCEL = 9;
+
 // Cosmetic-only view-model shaping per weapon class, keyed by weapon id.
 // These numbers change how the held gun LOOKS (accent tint comes from
 // weapon.tint) — they have no effect on damage, spread, or any sim state.
@@ -25,6 +39,21 @@ export class Player {
 
     this.yaw = 0;                              // spawn looks toward mid (-Z)
     this.pitch = 0;
+    this.targetYaw = 0;                        // smoothed-look targets (look())
+    this.targetPitch = 0;
+    this.yawTarget = 0;                        // aliases, kept in sync
+    this.pitchTarget = 0;
+    this.sensitivity = 1;                      // public, settable (menu slider)
+    this.coyoteTimer = COYOTE_TIME;            // time left to jump after leaving ground
+    this.coyoteTime = this.coyoteTimer;
+    this.timeSinceGrounded = 0;
+    this.jumpBufferTimer = 0;                  // time left on a buffered jump press
+    this.jumpBuffer = 0;
+    this.prevJump = false;                     // jump held last frame (edge detect)
+    this.prevJumpInput = false;
+    this.jumpActive = false;                   // currently rising from an actual jump
+    this.jumpCutDone = false;                  // variable-height cut used for this jump
+    this.jumpCutApplied = false;
     this.vel = new THREE.Vector3();
     this.onGround = true;
     this.hp = 100;
@@ -74,9 +103,17 @@ export class Player {
   reset() {
     this.rig.position.set(0, 0, 34);
     this.yaw = 0; this.pitch = 0;
+    this.targetYaw = this.yaw; this.targetPitch = this.pitch;
+    this.yawTarget = this.yaw; this.pitchTarget = this.pitch;
     this.vel.set(0, 0, 0);
     this.hp = 100;
     this.onGround = true;
+    this.coyoteTimer = COYOTE_TIME; this.coyoteTime = this.coyoteTimer;
+    this.timeSinceGrounded = 0;
+    this.jumpBufferTimer = 0; this.jumpBuffer = 0;
+    this.prevJump = false; this.prevJumpInput = false;
+    this.jumpActive = false;
+    this.jumpCutDone = false; this.jumpCutApplied = false;
     this.landDip = 0; this.landDipMax = 0; this.landDipT = 1;
     this.gunKick = 0;
     if (Math.abs(this.camera.fov - this.baseFov) > 0.01) {
@@ -86,9 +123,12 @@ export class Player {
   }
 
   look(dx, dy) {
-    this.yaw -= dx * 0.0021;
-    this.pitch -= dy * 0.0021;
-    this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch));
+    const factor = 0.0021 * this.sensitivity;
+    this.targetYaw -= dx * factor;
+    this.targetPitch -= dy * factor;
+    this.targetPitch = Math.max(-1.45, Math.min(1.45, this.targetPitch));
+    this.yawTarget = this.targetYaw;
+    this.pitchTarget = this.targetPitch;
   }
 
   // Apply a weapon's cosmetic view-model look: accent tint from the
@@ -103,6 +143,14 @@ export class Player {
   }
 
   update(dt, input) {
+    // Mouse-look smoothing: ease yaw/pitch toward the look() targets
+    // with a frame-rate-independent factor (~35ms time constant).
+    const lookK = 1 - Math.exp(-LOOK_SMOOTHING_RATE * dt);
+    this.yaw += (this.targetYaw - this.yaw) * lookK;
+    this.pitch += (this.targetPitch - this.pitch) * lookK;
+    this.yawTarget = this.targetYaw;
+    this.pitchTarget = this.targetPitch;
+
     // Orientation
     this.rig.rotation.y = this.yaw;
     this.camera.rotation.x = this.pitch + this.recoil;
@@ -118,17 +166,26 @@ export class Player {
     const wz = (-cos * f - sin * s);
     const len = Math.hypot(wx, wz) || 1;
 
-    const accel = this.onGround ? 60 : 12;
-    this.vel.x += (wx / len) * accel * dt * (f || s ? 1 : 0);
-    this.vel.z += (wz / len) * accel * dt * (f || s ? 1 : 0);
-
-    // Friction (ground)
-    if (this.onGround) {
-      const fr = Math.max(0, 1 - 11 * dt);
-      if (!f && !s) { this.vel.x *= fr; this.vel.z *= fr; }
-      // Cap horizontal speed
-      const hs = Math.hypot(this.vel.x, this.vel.z);
-      if (hs > speed) { this.vel.x *= speed / hs; this.vel.z *= speed / hs; }
+    // Wish-velocity acceleration: move vel.x/vel.z toward the wish
+    // velocity (wishDir * speed cap, or zero with no input) with the
+    // change vector-clamped to rate * dt. Top speeds are unchanged:
+    // walk 5.6 / sprint 9.2, and the approach never overshoots them.
+    const hasInput = !!(f || s);
+    const wishX = hasInput ? (wx / len) * speed : 0;
+    const wishZ = hasInput ? (wz / len) * speed : 0;
+    const rate = this.onGround ? (hasInput ? GROUND_ACCEL_INPUT : GROUND_ACCEL_STOP) : AIR_ACCEL;
+    const dvx = wishX - this.vel.x;
+    const dvz = wishZ - this.vel.z;
+    const dvLen = Math.hypot(dvx, dvz);
+    const maxDelta = rate * dt;
+    if (dvLen > 0) {
+      if (dvLen <= maxDelta) {
+        this.vel.x = wishX; this.vel.z = wishZ;
+      } else {
+        const scale = maxDelta / dvLen;
+        this.vel.x += dvx * scale;
+        this.vel.z += dvz * scale;
+      }
     }
 
     // Height-aware vertical physics (world contract: groundHeightAt
@@ -144,10 +201,44 @@ export class Player {
       ? this.world.groundHeightAt(this.rig.position.x, this.rig.position.z, feetY)
       : 0;
 
-    // Gravity + jump. Jump velocity 9.5 against gravity 24 gives an
-    // apex of 9.5^2 / (2 * 24) ≈ 1.88m.
-    this.vel.y -= 24 * dt;
-    if (input.jump && this.onGround) { this.vel.y = 9.5; this.onGround = false; }
+    // Coyote time: refresh while grounded, count down once airborne.
+    if (this.onGround) { this.coyoteTimer = COYOTE_TIME; this.timeSinceGrounded = 0; }
+    else { this.coyoteTimer = Math.max(0, this.coyoteTimer - dt); this.timeSinceGrounded += dt; }
+
+    // Jump input buffering: a fresh press edge (false -> true) arms the
+    // buffer; it then counts down whether or not it gets consumed.
+    const jumpPressed = !!input.jump && !this.prevJump;
+    if (jumpPressed) this.jumpBufferTimer = JUMP_BUFFER_TIME;
+    else if (this.jumpBufferTimer > 0) this.jumpBufferTimer = Math.max(0, this.jumpBufferTimer - dt);
+
+    // Variable jump height: releasing jump while still rising fast
+    // from an actual jump cuts vertical velocity once per jump. A
+    // full held jump never triggers this, so its apex is unchanged.
+    if (!input.jump && this.jumpActive && !this.jumpCutDone && this.vel.y > JUMP_CUT_MIN_SPEED) {
+      this.vel.y *= JUMP_CUT_FACTOR;
+      this.jumpCutDone = true;
+      this.jumpCutApplied = true;
+    }
+
+    // Gravity + jump. Gravity is integrated first and a jump then
+    // overwrites vel.y, exactly as before, so the held-jump
+    // trajectory (and its ~1.88m apex) is unchanged. A jump fires when
+    // held (auto-rejump on landing, as before) or when a buffered
+    // press is pending, provided we are grounded or inside coyote time.
+    this.vel.y -= GRAVITY * dt;
+    const canJump = this.onGround || this.coyoteTimer > 0;
+    const wantsJump = !!input.jump || this.jumpBufferTimer > 0;
+    if (wantsJump && canJump) {
+      this.vel.y = JUMP_VELOCITY;
+      this.onGround = false;
+      this.coyoteTimer = 0;
+      this.jumpBufferTimer = 0;
+      this.jumpActive = true;
+      this.jumpCutDone = false;
+      this.jumpCutApplied = false;
+    }
+    this.prevJump = !!input.jump;
+    this.prevJumpInput = this.prevJump;
 
     // Capture fall speed / airborne state BEFORE the ground clamp zeroes vel.y.
     const wasAirborne = !this.onGround;
@@ -162,6 +253,8 @@ export class Player {
         this.landDipT = 0;
       }
       this.onGround = true;
+      this.coyoteTimer = COYOTE_TIME;
+      this.jumpActive = false;
     } else if (this.onGround) {
       // Still grounded but the floor fell away (walked off an edge):
       // become airborne and let gravity take over from here.
@@ -169,6 +262,8 @@ export class Player {
     }
 
     collide(this.rig.position, this.radius, this.world.colliders, this.world.bounds, feetY);
+    this.coyoteTime = this.coyoteTimer;
+    this.jumpBuffer = this.jumpBufferTimer;
 
     // Landing-dip recovery: ease the captured dip back to 0 over ~0.18s.
     if (this.landDipT < 1) {
