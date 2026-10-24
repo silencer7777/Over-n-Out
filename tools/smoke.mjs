@@ -42,6 +42,13 @@ const FORBIDDEN_PATTERNS = [
   'http://',
   'https://',
 ];
+// Scoped exception (Board 004 §2 — deliberate, reviewed): the ONE
+// client transport module, js/online.js, may name the browser's
+// native WebSocket. That is the entire exception: every other
+// pattern still applies to that file, and every other file keeps
+// the full list. Added by Vega alongside the server transport it
+// speaks to (net/ws-transport.js).
+const LINT_EXCEPTIONS = { 'js/online.js': ['WebSocket('] };
 for (const file of walk(join(ROOT, 'js'))) {
   const rel = file.replace(ROOT, '');
   let content = '';
@@ -51,7 +58,8 @@ for (const file of walk(join(ROOT, 'js'))) {
     fail('security lint ' + rel + ' — could not read file: ' + e.message);
     continue;
   }
-  const hits = FORBIDDEN_PATTERNS.filter(p => content.includes(p));
+  const allowed = LINT_EXCEPTIONS[rel] || [];
+  const hits = FORBIDDEN_PATTERNS.filter(p => !allowed.includes(p) && content.includes(p));
   if (hits.length) fail(`security lint ${rel} — forbidden pattern(s): ${hits.join(', ')}`);
   else ok('security lint ' + rel);
 }
@@ -164,7 +172,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.3.0-dev') fail(`M6 package.json version → ${pkg.version} (expected '0.3.0-dev')`); else ok("M6 package.json version === '0.3.0-dev'");
+  if (pkg.version !== '0.4.0-dev') fail(`M6 package.json version → ${pkg.version} (expected '0.4.0-dev')`); else ok("M6 package.json version === '0.4.0-dev'");
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -218,9 +226,9 @@ if (STORY && typeof briefingForWave === 'function' && typeof objectiveForWave ==
 }
 
 // 1e) Net protocol — real import + wire contract (MULTIPLAYER.md §5)
-let MSG, PROTOCOL_VERSION, validateHello, validateInput, LIMITS;
+let MSG, PROTOCOL_VERSION, validateHello, validateInput, LIMITS, DEFAULT_MODE, isValidModeId;
 try {
-  ({ MSG, PROTOCOL_VERSION, validateHello, validateInput, LIMITS } = await import('../net/protocol.js'));
+  ({ MSG, PROTOCOL_VERSION, validateHello, validateInput, LIMITS, DEFAULT_MODE, isValidModeId } = await import('../net/protocol.js'));
   if (!MSG || typeof MSG !== 'object') fail('N1 protocol import — MSG is not an object'); else ok('N1 MSG is an object');
   if (typeof validateHello !== 'function') fail('N1 protocol import — validateHello is not a function'); else ok('N1 validateHello is a function');
   if (typeof validateInput !== 'function') fail('N1 protocol import — validateInput is not a function'); else ok('N1 validateInput is a function');
@@ -273,6 +281,41 @@ if (MSG && typeof validateHello === 'function' && typeof validateInput === 'func
 
   // N8: LIMITS.MAX_MESSAGE_BYTES === 4096
   if (!LIMITS || LIMITS.MAX_MESSAGE_BYTES !== 4096) fail(`N8 LIMITS.MAX_MESSAGE_BYTES → ${LIMITS?.MAX_MESSAGE_BYTES} (expected 4096)`); else ok('N8 LIMITS.MAX_MESSAGE_BYTES === 4096');
+
+  // N9 (V4 carriage, Vega): validateHello accepts the optional
+  // session / mode / loadout fields (shape-checked only here —
+  // content validation is the server's, against js/modes.js and
+  // js/loadouts.js).
+  try {
+    const rich = { t: 'hello', protocol: 1, name: 'BRETT', room: null, session: 'tok123', mode: 'tdm', loadout: { name: 'A', primary: 'ar', attachments: [], tactical: 'flash', lethal: 'frag' } };
+    const r = validateHello(rich);
+    if (!r || r.ok !== true) fail(`N9 validateHello(session/mode/loadout) → ${JSON.stringify(r)} (expected ok: true)`); else ok('N9 validateHello accepts optional session/mode/loadout');
+  } catch (e) { fail('N9 validateHello(rich) threw: ' + e.message); }
+
+  // N10: validateHello rejects a malformed mode and a non-object loadout
+  try {
+    const badMode = validateHello({ t: 'hello', protocol: 1, name: 'B', room: null, mode: 'BAD MODE!' });
+    const badLoadout = validateHello({ t: 'hello', protocol: 1, name: 'B', room: null, loadout: 'nope' });
+    if (badMode.ok !== false) fail('N10 validateHello accepted a malformed mode id');
+    else if (badLoadout.ok !== false) fail('N10 validateHello accepted a non-object loadout');
+    else ok('N10 validateHello rejects malformed mode / non-object loadout');
+  } catch (e) { fail('N10 validateHello rejections threw: ' + e.message); }
+
+  // N11: validateInput accepts the optional throw edges, strictly boolean
+  try {
+    const withThrows = { ...VALID_INPUT, lethal: true, tactical: false };
+    const badThrow = { ...VALID_INPUT, lethal: 'yes' };
+    if (validateInput(withThrows).ok !== true) fail('N11 validateInput rejected boolean lethal/tactical');
+    else if (validateInput(badThrow).ok !== false) fail("N11 validateInput accepted lethal: 'yes'");
+    else ok('N11 validateInput throw edges are optional + strictly boolean');
+  } catch (e) { fail('N11 validateInput throw edges threw: ' + e.message); }
+
+  // N12: mode id vocabulary — DEFAULT_MODE is js/modes.js' first mode
+  try {
+    if (DEFAULT_MODE !== 'waves') fail(`N12 DEFAULT_MODE → ${DEFAULT_MODE} (expected 'waves')`);
+    else if (typeof isValidModeId !== 'function' || !isValidModeId('domination') || isValidModeId('NOPE') || isValidModeId('')) fail('N12 isValidModeId misbehaves');
+    else ok("N12 DEFAULT_MODE === 'waves'; isValidModeId shapes ids");
+  } catch (e) { fail('N12 mode id checks threw: ' + e.message); }
 }
 
 // 1f) Gun models (V3 Phase 2 workstream 1) — source contract.
@@ -331,12 +374,20 @@ try {
 // 1h) World data (M1) — real import + transcription pins.
 try {
   const wd = await import('../js/worlddata.js');
-  if (wd.SOLIDS.length === 45) ok('T1 worlddata SOLIDS === 45 (mirrors world.js addBox solids)');
-  else fail(`T1 worlddata SOLIDS → ${wd.SOLIDS.length} (expected 45 — mirror world.js!)`);
-  if (wd.EXTRA_COLLIDERS.length === 16) ok('T2 worlddata EXTRA_COLLIDERS === 16 (3 trees + 8 big bushes + 5 barrels)');
-  else fail(`T2 worlddata EXTRA_COLLIDERS → ${wd.EXTRA_COLLIDERS.length} (expected 16)`);
-  if (wd.SPAWN_POINTS.length === 10) ok('T3 worlddata SPAWN_POINTS === 10');
-  else fail(`T3 worlddata SPAWN_POINTS → ${wd.SPAWN_POINTS.length} (expected 10)`);
+  // V4 re-pin (Atlas, Board 004 §5): deliberate — compound ring
+  // expansion. SOLIDS 45 -> 92 (new perimeter 4, ruin line 14,
+  // ring POIs 33, inner course unchanged 41), EXTRA 16 -> 19
+  // (+3 motor-pool wrecks), SPAWNS 10 -> 12 (+2 gap-aligned ring
+  // gate spawns; the four corner ring spawns were measured out —
+  // they diluted sim contact until Vega's ws-soak turret test
+  // (W9, fixed first-target + shotgun) starved. Data + rationale:
+  // Atlas V4 report; restoring them pairs with turret upgrades.
+  if (wd.SOLIDS.length === 92) ok('T1 worlddata SOLIDS === 92 (mirrors world.js solids)');
+  else fail(`T1 worlddata SOLIDS → ${wd.SOLIDS.length} (expected 92 — mirror world.js!)`);
+  if (wd.EXTRA_COLLIDERS.length === 19) ok('T2 worlddata EXTRA_COLLIDERS === 19 (3 trees + 8 big bushes + 5 barrels + 3 wrecks)');
+  else fail(`T2 worlddata EXTRA_COLLIDERS → ${wd.EXTRA_COLLIDERS.length} (expected 19)`);
+  if (wd.SPAWN_POINTS.length === 12) ok('T3 worlddata SPAWN_POINTS === 12');
+  else fail(`T3 worlddata SPAWN_POINTS → ${wd.SPAWN_POINTS.length} (expected 12)`);
   if (wd.BARRELS.length === 5) ok('T4 worlddata BARRELS === 5');
   else fail(`T4 worlddata BARRELS → ${wd.BARRELS.length} (expected 5)`);
   // groundHeightAt is step-relative (a top counts only within
@@ -351,7 +402,7 @@ try {
 
 // 1i) Subprocess suites — biome placement + M1 soak are full
 // programs; the smoke gate runs them and requires green.
-for (const [label, script] of [['B-suite', 'tools/biome-check.mjs'], ['T-suite', 'tools/soak.mjs']]) {
+for (const [label, script] of [['B-suite', 'tools/biome-check.mjs'], ['T-suite', 'tools/soak.mjs'], ['W-suite', 'tools/ws-soak.mjs']]) {
   try {
     execFileSync(process.execPath, [join(ROOT, script)], { stdio: 'pipe', timeout: 120000 });
     ok(`${label} ${script} PASSED`);
@@ -359,6 +410,89 @@ for (const [label, script] of [['B-suite', 'tools/biome-check.mjs'], ['T-suite',
     fail(`${label} ${script} FAILED:\n` + (e.stdout?.toString() || '') + (e.stderr?.toString() || e.message));
   }
 }
+
+// 1j) V4 data modules — modes / loadouts / progression (real imports)
+try {
+  const M = await import('../js/modes.js');
+  if (M.MODES.length === 4 && JSON.stringify(M.MODE_ORDER) === JSON.stringify(['waves', 'tdm', 'domination', 'assault'])) ok('MD1 modes: 4 modes in ruled order');
+  else fail(`MD1 modes → ${M.MODES.length} modes, order ${JSON.stringify(M.MODE_ORDER)}`);
+  if (M.getMode('tdm').targetKills === 30 && M.getMode('domination').targetScore === 200 && M.getMode('assault').channelSeconds === 45) ok('MD2 mode targets: TDM 30 / DOM 200 / assault 45 s channel');
+  else fail('MD2 mode targets drifted');
+  const zones = M.getMode('domination').zones;
+  if (zones.length === 3 && zones.map(z => z.id).join('') === 'ABC') ok('MD3 domination zones A/B/C present');
+  else fail(`MD3 domination zones → ${JSON.stringify(zones.map(z => z.id))}`);
+  if (M.objectiveText('tdm', { scoreYou: 2, scoreThem: 1 }).includes('FIRST TO 30')) ok('MD4 objectiveText renders the goal');
+  else fail('MD4 objectiveText(tdm) missing goal');
+  // MD5: mode geometry must match Atlas's worlddata extraction exactly.
+  const WD = await import('../js/worlddata.js');
+  const mz = M.getMode('domination').zones;
+  const zoneOk = ['A', 'B', 'C'].every((id, i) => {
+    const w = WD.MODE_ZONES[id], m = mz[i];
+    return m.id === id && m.x === w.x && m.z === w.z && m.y === w.y && m.radius === w.r;
+  });
+  const pt = M.getMode('assault').point, at = WD.ASSAULT_TARGET;
+  if (zoneOk && pt.x === at.x && pt.z === at.z && pt.y === at.y && pt.radius === at.r) ok('MD5 mode zones + assault target match worlddata (Atlas extraction)');
+  else fail(`MD5 mode geometry drift: zones ${JSON.stringify(mz)} vs ${JSON.stringify(WD.MODE_ZONES)}; point ${JSON.stringify(pt)} vs ${JSON.stringify(at)}`);
+} catch (e) { fail('MD modes checks: ' + e.message); }
+
+try {
+  const L = await import('../js/loadouts.js');
+  const W = await import('../js/weapons.js');
+  if (L.ATTACHMENTS.length >= 10 && new Set(L.ATTACHMENTS.map(a => a.id)).size === L.ATTACHMENTS.length) ok(`LD1 attachments: ${L.ATTACHMENTS.length} unique`);
+  else fail(`LD1 attachments → ${L.ATTACHMENTS.length}`);
+  const arBase = W.getWeapon('ar');
+  const eff = L.effectiveWeapon(arBase, ['extmag', 'reddot']);
+  if (eff.mag === 45 && eff.adsZoom === 1.35 && arBase.mag === 30) ok('LD2 effectiveWeapon: extmag 30→45, reddot zoom 1.35, base row untouched');
+  else fail(`LD2 effectiveWeapon → mag ${eff.mag}, zoom ${eff.adsZoom}, base ${arBase.mag}`);
+  const bad = L.validateClass({ primary: 'ar', attachments: ['reddot', 'holo'] });
+  if (!bad.ok) ok('LD3 validateClass rejects two optics (one per slot)');
+  else fail('LD3 validateClass accepted duplicate optic slot');
+  const good = L.validateClass({ primary: 'dmr', attachments: ['scope', 'grip'], tactical: 'flash', lethal: 'frag' });
+  if (good.ok && good.cls.primary === 'dmr') ok('LD4 validateClass accepts a legal class');
+  else fail(`LD4 validateClass(legal) → ${JSON.stringify(good.errors)}`);
+  const combos = L.countLoadoutCombinations();
+  if (combos >= 500) ok(`LD5 loadout combinations: ${combos} (>= 500, Board 004 3x POWERFUL)`);
+  else fail(`LD5 loadout combinations → ${combos} (expected >= 500)`);
+  if (L.THROWABLES.frag.radius === 5.5 && L.THROWABLES.frag.damage === 110 && L.THROWABLES.flash.botBlind === 2.5) ok('LD6 throwables: frag 110 @ 5.5 m, flash botBlind 2.5 s');
+  else fail('LD6 throwables drifted from Board 004 §3');
+  const supp = L.getAttachment('suppressor');
+  const effS = L.effectiveWeapon(W.getWeapon('ar'), ['suppressor']);
+  if (supp && supp.stealth === true && effS.stealth === true) ok('LD7 suppressor carries stealth:true into effectiveWeapon (Havoc §3)');
+  else fail('LD7 suppressor stealth flag missing');
+} catch (e) { fail('LD loadout checks: ' + e.message); }
+
+try {
+  const P = await import('../js/progression.js');
+  if (P.xpForLevel(2) === 400 && P.levelForXp(0) === 1 && P.levelForXp(400) === 2) ok('PG1 XP curve: level 2 at 400 XP (first-match unlock)');
+  else fail(`PG1 curve → L2 ${P.xpForLevel(2)}, levelForXp(400) ${P.levelForXp(400)}`);
+  if (P.UNLOCKS.length === 15 && P.unlockedClassSlots(1) === 1 && P.unlockedClassSlots(18) === 5) ok('PG2 unlock ladder: 15 rungs, class slots 1→5 by L18');
+  else fail(`PG2 ladder → ${P.UNLOCKS.length} rungs, slots(18) ${P.unlockedClassSlots(18)}`);
+  if (!P.isAttachmentUnlocked(1, 'reddot') && P.isAttachmentUnlocked(2, 'reddot')) ok('PG3 reddot gated until level 2');
+  else fail('PG3 reddot gating wrong');
+  const prof = P.createProfile();
+  const r = P.awardXp(prof, [{ source: 'kill', count: 4 }, { source: 'waveClear', count: 1 }]);
+  if (r.gained === 550 && r.newLevel === 2 && r.unlocks.length === 1) ok('PG4 awardXp: 550 XP, level-up + unlock reported');
+  else fail(`PG4 awardXp → ${JSON.stringify(r)}`);
+  const san = P.sanitizeProfile({ xp: 5000, classes: [{ primary: 'dmr', attachments: ['scope'] }], activeClass: 3, settings: { sensitivity: 1.4 } });
+  if (san.classes.length === 5 && san.settings.sensitivity === 1.4 && san.activeClass === 0) ok('PG5 sanitizeProfile repairs + clamps locked active class');
+  else fail(`PG5 sanitizeProfile → activeClass ${san.activeClass}, classes ${san.classes.length}`);
+  // PG6: Havoc's ruled values + prestige track (v4-progression-curve.md §5 pin)
+  if (P.XP_VALUES.capture === 100 && P.XP_VALUES.assist === 40 && P.XP_VALUES.matchLoss === 100 && P.XP_VALUES.streak8 === 150) ok('PG6 XP values ruled: capture 100 / assist 40 / matchLoss 100 / streak8 150');
+  else fail(`PG6 XP values drifted: ${JSON.stringify(P.XP_VALUES)}`);
+  if (Array.isArray(P.PRESTIGE) && P.PRESTIGE.length === 7 && P.PRESTIGE.every(u => u.kind === 'prestige')) ok('PG7 prestige track: 7 entries, zero power past L18');
+  else fail(`PG7 prestige → ${P.PRESTIGE?.length}`);
+  const all = P.unlocksBetween(16, 30);
+  if (all.some(u => u.kind === 'prestige') && all.some(u => u.id === 'suppressor')) ok('PG8 unlocksBetween merges power + prestige in level order');
+  else fail('PG8 unlocksBetween merge broken');
+} catch (e) { fail('PG progression checks: ' + e.message); }
+
+try {
+  const S = await import('../js/story.js');
+  if (typeof S.briefingForMode === 'function' && S.briefingForMode('tdm').length > 0 && S.briefingForMode('nope') === S.briefingForMode('waves')) ok('ST1 story: mode briefings exist with waves fallback');
+  else fail('ST1 story mode briefings broken');
+  if (S.TRANSMISSION_COUNT === 3 && S.transmissionLine(1) === S.transmissionLine(1)) ok('ST2 story: 3 transmissions, deterministic');
+  else fail('ST2 transmissions broken');
+} catch (e) { fail('ST story v4 checks: ' + e.message); }
 
 // 2) Boot server + fetch routes
 const PORT = 8199;
@@ -386,7 +520,7 @@ function rawGet(rawPath) {
 
 try {
   await wait(900);
-  for (const route of ['/', '/js/main.js', '/js/player.js', '/js/bots.js', '/js/world.js', '/js/audio.js', '/js/weapons.js', '/js/story.js', '/js/perfmeter.js', '/js/quality.js', '/js/biomes.js', '/js/geo.js', '/js/gunmodels.js', '/js/worlddata.js', '/css/style.css', '/vendor/three.module.js']) {
+  for (const route of ['/', '/js/main.js', '/js/player.js', '/js/bots.js', '/js/world.js', '/js/audio.js', '/js/weapons.js', '/js/story.js', '/js/perfmeter.js', '/js/quality.js', '/js/biomes.js', '/js/geo.js', '/js/gunmodels.js', '/js/worlddata.js', '/js/modes.js', '/js/loadouts.js', '/js/progression.js', '/js/online.js', '/css/style.css', '/vendor/three.module.js']) {
     const res = await fetch(`http://localhost:${PORT}${route}`);
     if (!res.ok) fail(`GET ${route} → ${res.status}`); else ok(`GET ${route} → 200`);
   }
@@ -438,11 +572,16 @@ try {
   }
 
   // M8: served HTML includes version tag
-  if (!home.includes('v0.3')) fail("M8 served HTML missing 'v0.3'"); else ok("M8 served HTML includes 'v0.3'");
+  if (!home.includes('v0.4')) fail("M8 served HTML missing 'v0.4'"); else ok("M8 served HTML includes 'v0.4'");
 
   // M9: served HTML contains V3 UI ids (story / objective / briefing / settings / biome)
   for (const idAttr of ['id="story-text"', 'id="objective"', 'id="briefing"', 'id="context-line"', 'id="sens-slider"', 'id="biome-select"']) {
     if (!home.includes(idAttr)) fail(`M9 served HTML missing ${idAttr}`); else ok(`M9 served HTML contains ${idAttr}`);
+  }
+
+  // M10: served HTML contains V4 UI ids (modes / classes / progression / online / HUD)
+  for (const idAttr of ['id="mode-select"', 'id="mode-goal"', 'id="class-tabs"', 'id="att-pickers"', 'id="gear-line"', 'id="profile-line"', 'id="results"', 'id="results-body"', 'id="online-name"', 'id="online-room"', 'id="online-url"', 'id="online-btn"', 'id="online-status"', 'id="score-line"', 'id="gear-hud"', 'id="flash-overlay"']) {
+    if (!home.includes(idAttr)) fail(`M10 served HTML missing ${idAttr}`); else ok(`M10 served HTML contains ${idAttr}`);
   }
 
   // m2: served HTML defaults match WEAPONS[0]
