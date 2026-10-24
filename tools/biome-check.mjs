@@ -31,11 +31,13 @@ try {
 }
 const { applyBiome, clearBiome, BIOMES } = biomes;
 
-const SPAWNS = [[-42, -42], [42, -42], [-42, 42], [42, 42], [0, -44], [0, 44], [13, -30], [34, -20], [-34, -20], [-5, -34]];
+const SPAWNS = [[-42, -42], [42, -42], [-42, 42], [42, 42], [0, -44], [0, 44], [13, -30], [34, -20], [-34, -20], [-5, -34], [0, -58], [0, 58]];
 const STRUCTS = [
   [-16, 16, -40, -24], [29, 39, -26, -6], [-39, -29, -26, -6],
   [-13, -9, -25.5, -18.5], [32, 37, -7, -0.5], [-37, -32, -7, -0.5],
-  [-14, 14, -12, 20], [-2.5, 2.5, -12, 47],
+  [-14, 14, -12, 20], [-2.5, 2.5, -62, 62],
+  // V4 ring POIs (Atlas) — biome dressing must never land on them.
+  [33, 47, -61, -47], [-52, -36, -61.6, -52], [-61, -51.4, -13.1, 21.1], [37, 59, 43, 60],
 ];
 function makeCtx() {
   return {
@@ -56,8 +58,10 @@ function assertClear(centers, label) {
 // ---- registry ----
 if (BIOMES.find(b => b.id === 'forest')?.status === 'live') ok('B0 forest registry status is live (full build)');
 else fail('B0 forest registry status → ' + BIOMES.find(b => b.id === 'forest')?.status);
-if (BIOMES.find(b => b.id === 'snow')?.status === 'scaffold') ok('B0 snow registry status is scaffold');
+if (BIOMES.find(b => b.id === 'snow')?.status === 'live') ok('B0 snow registry status is live (V4 full build)');
 else fail('B0 snow registry status → ' + BIOMES.find(b => b.id === 'snow')?.status);
+if (BIOMES.find(b => b.id === 'mars')?.status === 'live') ok('B0 mars registry status is live (V4 full build)');
+else fail('B0 mars registry status → ' + BIOMES.find(b => b.id === 'mars')?.status);
 
 // ---- forest ----
 {
@@ -67,14 +71,19 @@ else fail('B0 snow registry status → ' + BIOMES.find(b => b.id === 'snow')?.st
   if (!g) fail('B1 forest applyBiome returned null');
   else {
     const { treeCount, bushCount, bushColliderCount, addedColliders, addedShootables } = g.userData;
-    if (treeCount >= 40) ok(`B1 forest trees placed: ${treeCount} (>= 40 full-build floor)`);
-    else fail(`B1 forest trees placed: ${treeCount} (expected >= 40)`);
-    if (bushCount >= 45) ok(`B2 forest bushes placed: ${bushCount} (>= 45)`);
-    else fail(`B2 forest bushes placed: ${bushCount} (expected >= 45)`);
-    if (addedShootables.length === treeCount) ok(`B3 forest hit-proxies tracked: ${addedShootables.length} === treeCount`);
-    else fail(`B3 forest hit-proxies: ${addedShootables.length} !== treeCount ${treeCount}`);
-    if (addedColliders.length === treeCount + bushColliderCount) ok(`B4 forest colliders tracked: ${addedColliders.length} === trees ${treeCount} + bush ${bushColliderCount}`);
-    else fail(`B4 forest colliders: ${addedColliders.length} !== ${treeCount} + ${bushColliderCount}`);
+    const mastMeshes = g.userData.mastMeshCount || 0;
+    // V4 floors (Atlas): the ±62 forest targets 84 trees / 92 bushes.
+    if (treeCount >= 70) ok(`B1 forest trees placed: ${treeCount} (>= 70 V4 floor)`);
+    else fail(`B1 forest trees placed: ${treeCount} (expected >= 70)`);
+    if (bushCount >= 80) ok(`B2 forest bushes placed: ${bushCount} (>= 80 V4 floor)`);
+    else fail(`B2 forest bushes placed: ${bushCount} (expected >= 80)`);
+    if (addedShootables.length === treeCount + mastMeshes) ok(`B3 forest hit-proxies tracked: ${addedShootables.length} === treeCount + mast meshes`);
+    else fail(`B3 forest hit-proxies: ${addedShootables.length} !== treeCount ${treeCount} + mast ${mastMeshes}`);
+    if (addedColliders.length === treeCount + bushColliderCount + 1) ok(`B4 forest colliders tracked: ${addedColliders.length} === trees ${treeCount} + bush ${bushColliderCount} + mast 1`);
+    else fail(`B4 forest colliders: ${addedColliders.length} !== ${treeCount} + ${bushColliderCount} + 1 (mast)`);
+    if (g.userData.mastPoi && g.userData.mastPoi.x === -16 && g.userData.mastPoi.z === 56 && mastMeshes === 4) {
+      ok('B14 forest fallen-mast POI present at (-16, 56) with 4 tracked meshes + collider');
+    } else fail(`B14 forest mast POI → ${JSON.stringify(g.userData.mastPoi)} meshes=${mastMeshes}`);
     if (bushColliderCount > 0) ok(`B5 forest bush gameplay live: ${bushColliderCount} blocking bushes`);
     else fail('B5 forest bush gameplay: 0 blocking bushes (expected > 0)');
     const treeCenters = addedColliders.slice(0, treeCount).map(centerOf);
@@ -98,10 +107,15 @@ else fail('B0 snow registry status → ' + BIOMES.find(b => b.id === 'snow')?.st
   if (!g) fail('B9 snow applyBiome returned null');
   else {
     const { driftCount, rockCount, addedColliders } = g.userData;
-    if (driftCount >= 20) ok(`B9 snow drifts placed: ${driftCount} (>= 20)`);
-    else fail(`B9 snow drifts placed: ${driftCount} (expected >= 20)`);
-    if (rockCount >= 8) ok(`B10 snow ice rocks placed: ${rockCount} (>= 8)`);
-    else fail(`B10 snow ice rocks placed: ${rockCount} (expected >= 8)`);
+    // V4 floors (Atlas): full build targets 46 drifts / 16 rocks.
+    if (driftCount >= 40) ok(`B9 snow drifts placed: ${driftCount} (>= 40 V4 floor)`);
+    else fail(`B9 snow drifts placed: ${driftCount} (expected >= 40)`);
+    if (rockCount >= 14) ok(`B10 snow ice rocks placed: ${rockCount} (>= 14 V4 floor)`);
+    else fail(`B10 snow ice rocks placed: ${rockCount} (expected >= 14)`);
+    if (g.userData.snowOverlay === true && g.userData.domePoi?.x === 52 && g.userData.domePoi?.z === -52
+      && g.userData.domeMeshCount === 4 && g.userData.iceDiscs === 5) {
+      ok('B15 snow full build present: blanket overlay + buried dome POI (4 meshes) + 5 ice discs');
+    } else fail(`B15 snow full build → overlay=${g.userData.snowOverlay} dome=${JSON.stringify(g.userData.domePoi)} meshes=${g.userData.domeMeshCount} ice=${g.userData.iceDiscs}`);
     assertClear(addedColliders.map(centerOf), 'B11 snow drift collider');
     clearBiome(ctx, g);
     if (ctx.colliders.length === 0 && ctx.scene.added.length === 0) ok('B12 clearBiome(snow) restores exactly');
@@ -109,11 +123,36 @@ else fail('B0 snow registry status → ' + BIOMES.find(b => b.id === 'snow')?.st
   }
 }
 
+// ---- mars (V4 full build) ----
+{
+  const ctx = makeCtx();
+  const g = applyBiome('mars', ctx);
+  if (!g) fail('B16 mars applyBiome returned null');
+  else {
+    const { rockCount, addedColliders } = g.userData;
+    if (rockCount >= 36) ok(`B16 mars rust rocks placed: ${rockCount} (>= 36)`);
+    else fail(`B16 mars rust rocks placed: ${rockCount} (expected >= 36)`);
+    if (g.userData.regolithOverlay === true && g.userData.craterPoi?.x === -30 && g.userData.craterPoi?.z === 52
+      && g.userData.craterRocks === 9 && g.userData.mesaCount === 3
+      && g.userData.spirePoi?.x === 50 && g.userData.spirePoi?.z === -52 && g.userData.spireMeshCount === 6) {
+      ok('B17 mars POIs present: regolith blanket + crater (9 rim rocks) + 3 mesas + uplink spire (6 meshes)');
+    } else fail(`B17 mars POIs → overlay=${g.userData.regolithOverlay} crater=${JSON.stringify(g.userData.craterPoi)}/${g.userData.craterRocks} mesas=${g.userData.mesaCount} spire=${JSON.stringify(g.userData.spirePoi)}/${g.userData.spireMeshCount}`);
+    if (typeof g.userData.dressingApplied === 'boolean') {
+      ok(`B18 mars sky/fog dressing guarded (applied=${g.userData.dressingApplied} in headless context — must be false here)`);
+      if (g.userData.dressingApplied !== false) fail('B18 mars dressing applied in a headless context — guards are wrong');
+    } else fail('B18 mars dressingApplied flag missing');
+    assertClear(addedColliders.map(centerOf), 'B19 mars collider');
+    clearBiome(ctx, g);
+    if (ctx.colliders.length === 0 && ctx.shootables.length === 0 && ctx.scene.added.length === 0) ok('B20 clearBiome(mars) restores arrays + scene exactly');
+    else fail(`B20 clearBiome(mars): colliders ${ctx.colliders.length}, shootables ${ctx.shootables.length}, scene ${ctx.scene.added.length}`);
+  }
+}
+
 // ---- inert ids ----
 {
   const ctx = makeCtx();
-  if (applyBiome('compound', ctx) === null && applyBiome('mars', ctx) === null && applyBiome('nope', ctx) === null) {
-    ok('B13 compound/mars/unknown biomes are inert (null, nothing added)');
+  if (applyBiome('compound', ctx) === null && applyBiome('nope', ctx) === null) {
+    ok('B13 compound/unknown biomes are inert (null, nothing added)');
   } else fail('B13 inert biome ids changed the world');
 }
 
