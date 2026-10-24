@@ -185,6 +185,45 @@ export class Sfx {
     this._tone(660, 0.07, 'sine', 0.32);
     setTimeout(() => this._tone(990, 0.09, 'sine', 0.32), 60);
   }
+  // Flashbang (V4): a hard bright crack + a long high ring — the
+  // ring is the tinnitus tail, kept quiet so it reads as effect,
+  // not punishment. Called for any flash detonation the player can
+  // hear; the white-out itself is visual (main.js flash overlay).
+  // Tinnitus duck (Havoc pack §7 feel item): the master dips for
+  // ~1.2 s under a flash detonation — the flash you hear sells
+  // the one you see.
+  duck() {
+    if (!this.ctx || !this.master) return;
+    try {
+      const t = this.ctx.currentTime;
+      this.master.gain.cancelScheduledValues(t);
+      this.master.gain.setValueAtTime(0.10, t);
+      this.master.gain.linearRampToValueAtTime(0.35, t + 1.2);
+    } catch (e) { /* never throw from a feel item */ }
+  }
+  flashBang() {
+    if (!this.ctx) return;
+    this.duck();
+    const c = this.ctx, t0 = c.currentTime;
+    const n = this._noise(0.08), f = c.createBiquadFilter(), g = c.createGain();
+    f.type = 'highpass'; f.frequency.value = 1200;
+    g.gain.value = 0.85; n.connect(f); f.connect(g); g.connect(this.master); n.start();
+    const ring = c.createOscillator(), rg = c.createGain();
+    ring.type = 'sine'; ring.frequency.value = 3600;
+    rg.gain.setValueAtTime(0.10, t0);
+    rg.gain.exponentialRampToValueAtTime(0.001, t0 + 1.4);
+    ring.connect(rg); rg.connect(this.master); ring.start(); ring.stop(t0 + 1.4);
+  }
+  // Throwable release (V4): a short soft whoosh so the throw has a
+  // sound before the bang.
+  throwWhoosh() {
+    if (!this.ctx) return;
+    const c = this.ctx;
+    const n = this._noise(0.14), f = c.createBiquadFilter(), g = c.createGain();
+    f.type = 'bandpass'; f.frequency.setValueAtTime(500, c.currentTime);
+    f.frequency.exponentialRampToValueAtTime(1600, c.currentTime + 0.14);
+    g.gain.value = 0.18; n.connect(f); f.connect(g); g.connect(this.master); n.start();
+  }
   hit()  { this._tone(1250, 0.04, 'square', 0.35); }
   // Distinct, higher confirmation ping for headshots (sine ~1500 Hz plus
   // its 3000 Hz harmonic) — clearly different from hit()'s square blip.
