@@ -7,8 +7,9 @@
 // canvas, no DOM — so the headless server sim (net/sim.js) and the
 // browser client can never disagree about where the walls are.
 // Every entry is a world-space AABB { min: [x,y,z], max: [x,y,z] }
-// transcribed from js/world.js's addBox()/solid()/elevated() calls
-// and its hand-placed tree/bush/barrel colliders.
+// transcribed from js/world.js's addBox()/solid()/elevated() calls,
+// its mergedBoxes() ring geometry, and its hand-placed
+// tree/bush/barrel colliders.
 //
 // HONEST STATUS: this is a transcription, not yet a single source —
 // buildWorld() does not consume this module yet (that refactor is
@@ -19,21 +20,40 @@
 // SOLIDS are the addBox solids: movement colliders AND walkable
 // tops (groundHeightAt reads them). EXTRA_COLLIDERS block movement
 // and shots but are not standable (trees, big bushes, barrels).
+//
+// V4 (Atlas, Board 004 §5): playable bounds ±47 -> ±62, ring POIs
+// added, mode-ready data exported at the bottom. The inner course
+// (all V3 solids inside the old ±50 wall line) is unchanged.
 
-export const BOUNDS = 47;
+// V4: playable to ±62 (new outer walls at ±63, inner face 62).
+export const BOUNDS = 62;
 
 export const SPAWN_POINTS = [
   [-42, 0, -42], [42, 0, -42], [-42, 0, 42], [42, 0, 42],
   [0, 0, -44], [0, 0, 44],
   [13, 2.3, -30], [34, 2.3, -20], [-34, 2.3, -20], [-5, 4.6, -34],
+  // V4 ring spawns (gap-aligned — see world.js spawnPoints note)
+  [0, 0, -58], [0, 0, 58],
 ];
 
 const B = (x0, y0, z0, x1, y1, z1) => ({ min: [x0, y0, z0], max: [x1, y1, z1] });
 
 export const SOLIDS = [
-  // Perimeter walls (tops at 7)
-  B(-51, 0, -51, 51, 7, -49), B(-51, 0, 49, 51, 7, 51),
-  B(-51, 0, -51, -49, 7, 51), B(49, 0, -51, 51, 7, 51),
+  // V4 outer perimeter walls (tops at 7; inner face = ±62)
+  B(-64, 0, -64, 64, 7, -62), B(-64, 0, 62, 64, 7, 64),
+  B(-64, 0, -64, -62, 7, 64), B(62, 0, -64, 64, 7, 64),
+  // V4 ruin line — the V3 wall line at ±50, now interior segments
+  // with 10 gaps (the ring's doors). Two segments drop to 5.4.
+  // north (z=-50): gaps [-30,-24], [-3,3], [21,27]
+  B(-51, 0, -51, -30, 7, -49), B(-24, 0, -51, -3, 7, -49),
+  B(3, 0, -51, 21, 7, -49), B(27, 0, -51, 51, 5.4, -49),
+  // south (z=50): gaps [-27,-21], [-3,3], [24,30]
+  B(-51, 0, 49, -27, 7, 51), B(-21, 0, 49, -3, 7, 51),
+  B(3, 0, 49, 24, 7, 51), B(30, 0, 49, 51, 7, 51),
+  // east (x=50): gaps z [-33,-27], [15,21]
+  B(49, 0, -51, 51, 7, -33), B(49, 0, -27, 51, 7, 15), B(49, 0, 21, 51, 7, 51),
+  // west (x=-50): gaps z [-21,-15], [21,27]
+  B(-51, 0, -51, -49, 5.4, -21), B(-51, 0, -15, -49, 7, 21), B(-51, 0, 27, -49, 7, 51),
   // Decks (top 2.3): north, east, west (Phase 2)
   B(-16, 0, -40, 16, 2.3, -24),
   B(29, 0, -26, 39, 2.3, -6),
@@ -72,6 +92,33 @@ export const SOLIDS = [
   B(-16, 0, -12, -12, 2.2, -8), B(19.5, 0, 8.8, 24.5, 2.2, 11.2),
   B(-3, 0, 24.5, 3, 2.2, 27.5), B(-36, 0, -28, -32, 4.4, -24),
   B(32, 0, 26, 36, 4.4, 30), B(-1.6, 0, -1.6, 1.6, 3.2, 1.6),
+  // ============ V4 RING SOLIDS (Atlas) ============
+  // Relay Tower: L1, ground stairs (tops 2.3/1.725/1.15/0.575),
+  // L2, L2 stair run (tops 4.025/3.45/2.875, base 2.3), parapets,
+  // mast (base 4.6, top 13.6), relay console (Assault target).
+  B(33, 0, -61, 47, 2.3, -47),
+  B(38.5, 0, -47, 41.5, 2.3, -45.9), B(38.5, 0, -45.9, 41.5, 1.725, -44.8),
+  B(38.5, 0, -44.8, 41.5, 1.15, -43.7), B(38.5, 0, -43.7, 41.5, 0.575, -42.6),
+  B(36.75, 2.3, -61, 43.25, 4.6, -54.5),
+  B(38.5, 2.3, -54.5, 41.5, 4.025, -53.4), B(38.5, 2.3, -53.4, 41.5, 3.45, -52.3),
+  B(38.5, 2.3, -52.3, 41.5, 2.875, -51.2),
+  B(36.75, 4.6, -61, 43.25, 5.15, -60.5), B(36.85, 4.6, -61, 37.35, 5.15, -54.5),
+  B(39.3, 4.6, -58.45, 40.7, 13.6, -57.05),
+  B(38.2, 4.6, -56.4, 39.4, 5.6, -55.6),
+  // North Ridge terraces (tops 0.575/1.15/1.725/2.3, climbing north)
+  B(-52, 0, -54.4, -36, 0.575, -52), B(-52, 0, -56.8, -36, 1.15, -54.4),
+  B(-52, 0, -59.2, -36, 1.725, -56.8), B(-52, 0, -61.6, -36, 2.3, -59.2),
+  // Depot Row crates (2.2 footprint; 4.4 = two stacked)
+  B(-61, 0, -13.1, -58.8, 2.2, -10.9), B(-61, 0, -3.1, -58.8, 4.4, -0.9),
+  B(-61, 0, 6.9, -58.8, 2.2, 9.1), B(-61, 0, 16.9, -58.8, 2.2, 19.1),
+  B(-57.5, 0, -8.1, -55.3, 2.2, -5.9), B(-57.5, 0, 1.9, -55.3, 4.4, 4.1),
+  B(-57.5, 0, 12.9, -55.3, 2.2, 15.1),
+  B(-54, 0, -13.1, -51.8, 2.2, -10.9), B(-54, 0, 4.9, -51.8, 2.2, 7.1),
+  B(-54, 0, 18.9, -51.8, 4.4, 21.1),
+  // Ring cover crates + motor-pool cover crates
+  B(16.9, 0, -58.1, 19.1, 2.2, -55.9), B(-19.1, 0, 55.9, -16.9, 2.2, 58.1),
+  B(55.9, 0, 8.9, 58.1, 2.2, 11.1), B(-58.1, 0, -35.1, -55.9, 2.2, -32.9),
+  B(36.9, 0, 50.9, 39.1, 2.2, 53.1), B(52.9, 0, 58.9, 55.1, 2.2, 61.1),
 ];
 
 export const EXTRA_COLLIDERS = [
@@ -88,6 +135,10 @@ export const EXTRA_COLLIDERS = [
   B(17.55, 0, 1.55, 18.45, 1.12, 2.45), B(-22.45, 0, 17.55, -21.55, 1.12, 18.45),
   B(7.55, 0, -14.45, 8.45, 1.12, -13.55), B(-30.45, 0, -2.45, -29.55, 1.12, -1.55),
   B(23.55, 0, 33.55, 24.45, 1.12, 34.45),
+  // V4 motor-pool wrecks (rotated-AABB approximations of world.js wreck())
+  B(39.5, 0, 53.2, 44.5, 2.0, 56.8),
+  B(49.8, 0, 44.6, 54.2, 2.0, 49.4),
+  B(53.9, 0, 54.6, 58.1, 2.0, 59.4),
 ];
 
 // Explosive barrel gameplay data (mirrors world.js userData spec).
@@ -97,6 +148,31 @@ export const BARRELS = [
   { x: 8, z: -14, radius: 6.5, damage: 95 },
   { x: -30, z: -2, radius: 6.5, damage: 95 },
   { x: 24, z: 34, radius: 6.5, damage: 95 },
+];
+
+// ============ V4 MODE-READY DATA (Atlas — Board 004 §7) ============
+// Data only: the Coordinator's js/modes.js wires logic; story text
+// for TRANSMISSIONS is drafted in the Atlas V4 report. Capture
+// radius r is in metres; y is the floor the zone is stood on.
+export const MODE_ZONES = {
+  // A: north deck (mid floor), B: rooftop (top floor), C: relay tower base.
+  A: { x: 0, y: 2.3, z: -32, r: 6 },
+  B: { x: -5, y: 4.6, z: -34, r: 5 },
+  C: { x: 40, y: 0, z: -54, r: 7 },
+};
+// Relay Assault: reach the tower console (L2 top) and hold the channel.
+export const ASSAULT_TARGET = { x: 38.8, y: 4.6, z: -56, r: 3 };
+// Off-lane pickup caches (health/ammo placement points for modes).
+export const PICKUP_CACHES = [
+  { x: -56.5, z: 3 },   // depot row heart
+  { x: 58, z: 58 },     // motor-pool corner
+];
+// Relay story transmissions (solo collectibles; y = the surface
+// the player stands on to read them).
+export const TRANSMISSIONS = [
+  { id: 'tower-relay', x: 42, y: 4.6, z: -55.5 }, // relay tower L2
+  { id: 'ridge-top', x: -44, y: 2.3, z: -60.4 },  // north ridge top terrace
+  { id: 'motor-pool', x: 47, y: 0, z: 52 },       // motor pool, between wrecks
 ];
 
 export function allColliders() {
