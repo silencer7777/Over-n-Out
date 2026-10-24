@@ -188,7 +188,97 @@ function displacedSphere(r, seedOff, amp, wSeg = 7, hSeg = 6) {
   return g;
 }
 
-const barkMatShared = () => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true });
+// --- V6 (Atlas, Update 1): procedural bark + foliage -------
+// biomes.js stays self-contained (tools/biome-check.mjs copies
+// this file against the three stub), so the painters are local
+// copies of the js/proctex.js recipes. Guarded exactly like the
+// Mars sky dressing: no document -> null -> untextured material.
+function procTexture(size, seed, painter) {
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function') return null;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  const c = cv.getContext('2d');
+  if (!c) return null;
+  let s = seed >>> 0;
+  const rng = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  painter(c, size, rng);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  if ('colorSpace' in tex && THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+function makeBarkTextureLocal() {
+  return procTexture(256, 771177, (c, S, rng) => {
+    c.fillStyle = '#d3c7b2'; c.fillRect(0, 0, S, S);
+    for (let x = 0; x < S; x += 10 + rng() * 14) {
+      const w = 4 + rng() * 8;
+      c.fillStyle = rng() > 0.35 ? `rgba(70,52,34,${0.16 + rng() * 0.22})` : `rgba(255,246,230,${0.10 + rng() * 0.12})`;
+      c.fillRect(x, 0, w, S);
+    }
+    c.strokeStyle = 'rgba(46,32,20,0.55)'; c.lineWidth = 2;
+    for (let i = 0; i < 16; i++) {
+      let x = rng() * S; c.beginPath(); c.moveTo(x, -6);
+      for (let y = 0; y <= S + 12; y += 24) { x += (rng() - 0.5) * 9; c.lineTo(x, y); }
+      c.stroke();
+    }
+    for (let i = 0; i < 42; i++) {
+      c.fillStyle = `rgba(40,28,16,${0.18 + rng() * 0.25})`;
+      c.fillRect(rng() * S, rng() * S, 5 + rng() * 16, 1.6);
+    }
+    for (let i = 0; i < 900; i++) {
+      c.fillStyle = rng() > 0.5 ? `rgba(0,0,0,${0.03 + rng() * 0.05})` : `rgba(255,255,255,${0.02 + rng() * 0.04})`;
+      c.fillRect(rng() * S, rng() * S, 1 + rng() * 2, 1 + rng() * 2);
+    }
+  });
+}
+function makeFoliageTextureLocal() {
+  return procTexture(256, 331133, (c, S, rng) => {
+    c.clearRect(0, 0, S, S);
+    for (let i = 0; i < 26; i++) {
+      c.fillStyle = `rgba(168,178,160,${0.30 + rng() * 0.25})`;
+      c.beginPath();
+      c.ellipse(rng() * S, rng() * S, 22 + rng() * 34, 16 + rng() * 24, rng() * Math.PI, 0, Math.PI * 2);
+      c.fill();
+    }
+    for (let i = 0; i < 950; i++) {
+      const v = 205 + Math.floor(rng() * 50);
+      c.fillStyle = `rgba(${v},${v + 4},${v - 6},${0.82 + rng() * 0.18})`;
+      c.save();
+      c.translate(rng() * S, rng() * S);
+      c.rotate(rng() * Math.PI);
+      c.beginPath();
+      c.ellipse(0, 0, 3.2 + rng() * 3.6, 1.7 + rng() * 1.9, 0, 0, Math.PI * 2);
+      c.fill();
+      c.restore();
+    }
+  });
+}
+// Smooth canopy masses use displacedSphere() at 10x8 segments
+// with smooth-shaded materials (below) — the V3-V5 7x6 flat-
+// shaded blobs were the "blocky" read.
+// Tapered trunk: radius profile baked in (root flare + wobble
+// + gentle lean), smooth normals. Stub-safe: the stub's
+// attribute writes are no-ops, so this degrades to the plain
+// cylinder shape in headless checks.
+function taperedTrunkGeo(rTop, rBottom, h, seed) {
+  const g = new THREE.CylinderGeometry(rTop, rBottom, h, 10, 4);
+  const p = g.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    const y01 = (v.y + h / 2) / h;
+    const ang = Math.atan2(v.z, v.x);
+    const flare = 1 + 0.15 * Math.pow(1 - y01, 6);
+    const wobble = 1 + 0.045 * Math.sin(ang * 3 + seed) + 0.03 * Math.sin(ang * 5 - seed * 1.7 + y01 * 3);
+    v.x *= flare * wobble; v.z *= flare * wobble;
+    v.x += 0.09 * y01 * y01 * Math.cos(seed);
+    v.z += 0.09 * y01 * y01 * Math.sin(seed);
+    p.setXYZ(i, v.x, v.y, v.z);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+const barkMatShared = () => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, map: makeBarkTextureLocal() });
 
 function buildForest(ctx) {
   const rng = makeRng(FOREST_SEED);
@@ -209,6 +299,34 @@ function buildForest(ctx) {
   const bushSpots = scatterInBands(rng, FOREST_BUSH_COUNT, 0.4, trees, 2.0, () => 1.8);
   const bushes = bushSpots.map((p) => ({ x: p.x, z: p.z, size: 0.8 + rng() * 0.65 }));
 
+  // V6 SUPPLEMENT (Board 006 §2.1: rendered Forest >= 110
+  // trees): the shipped scatter above is BYTE-IDENTICAL — seed,
+  // stream, tree and bush placements untouched. A second stand
+  // is planted AFTER it from its OWN rng stream (separately
+  // seeded, so nothing upstream can re-roll), held to the same
+  // clearances plus >= 3.2 m from every existing trunk (the
+  // B7 separation floor) and >= 1.8 m from every bush. The new
+  // trunks take the same collider + hit-proxy wiring as the
+  // originals — the per-tree rule biome-check B3/B4 enforces;
+  // no other dressing in this update adds any collider.
+  {
+    const rng2 = makeRng(FOREST_SEED + 4242);
+    const extra = [];
+    for (let tries = 0; extra.length < 32 && tries < 32 * 120; tries++) {
+      const band = BANDS[tries % BANDS.length];
+      const x = band.x0 + rng2() * (band.x1 - band.x0);
+      const z = band.z0 + rng2() * (band.z1 - band.z0);
+      if (!isClear(x, z, 0.6)) continue;
+      let ok = true;
+      for (const t of trees) if (Math.hypot(x - t.x, z - t.z) < 3.2) { ok = false; break; }
+      if (ok) for (const t of extra) if (Math.hypot(x - t.x, z - t.z) < 3.2) { ok = false; break; }
+      if (ok) for (const b of bushes) if (Math.hypot(x - b.x, z - b.z) < 1.8) { ok = false; break; }
+      if (!ok) continue;
+      extra.push({ x, z, s: 0.9 + rng2() * 0.4, sy: 0.95 + rng2() * 0.4, rot: rng2() * Math.PI * 2 });
+    }
+    for (const t of extra) trees.push(t);
+  }
+
   const group = new THREE.Group();
   group.name = 'biome-forest';
   const addedColliders = [];
@@ -221,9 +339,13 @@ function buildForest(ctx) {
 
   const deepGreen = new THREE.Color(0x2f4d20), tipGreen = new THREE.Color(0x7d9c3c);
   const barkMat = barkMatShared();
+  // V6: foliage material — leaf texture with alpha-cut holes,
+  // smooth shading, double-sided so crowns read from below.
+  const foliageMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, map: makeFoliageTextureLocal(), alphaTest: 0.42, side: THREE.DoubleSide });
 
-  // Trunks — tapered cylinders, per-instance bark-brown variation.
-  const trunkIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.36, 3.2, 7), barkMat, trees.length);
+  // Trunks — V6 tapered profile (flare + wobble + lean, bark
+  // texture), per-instance bark-brown variation.
+  const trunkIM = new THREE.InstancedMesh(taperedTrunkGeo(0.20, 0.44, 3.2, 1.7), barkMat, trees.length);
   trunkIM.castShadow = true; trunkIM.receiveShadow = true; trunkIM.frustumCulled = false;
   trees.forEach((t, i) => {
     dummy.position.set(t.x, 1.6 * t.sy, t.z);
@@ -237,7 +359,7 @@ function buildForest(ctx) {
   // Root flares — 3 flattened cones per tree, gripping the soil
   // (the world.js language, at forest density).
   const UP = new THREE.Vector3(0, 1, 0);
-  const rootIM = new THREE.InstancedMesh(new THREE.ConeGeometry(0.17, 1.15, 5), barkMat, trees.length * 3);
+  const rootIM = new THREE.InstancedMesh(new THREE.ConeGeometry(0.17, 1.15, 6), barkMat, trees.length * 3);
   rootIM.frustumCulled = false;
   trees.forEach((t, i) => {
     for (let k = 0; k < 3; k++) {
@@ -247,13 +369,15 @@ function buildForest(ctx) {
       dummy.position.set(t.x + dir.x * 0.5 * t.s, 0.27 * t.sy, t.z + dir.z * 0.5 * t.s);
       dummy.scale.set(t.s * 1.1, t.s, t.s * 0.55);
       dummy.updateMatrix(); rootIM.setMatrixAt(i * 3 + k, dummy.matrix);
+      rootIM.setColorAt(i * 3 + k, new THREE.Color(0x5b4632).offsetHSL(0, (rng() - 0.5) * 0.05, (rng() - 0.5) * 0.07));
     }
   });
+  if (rootIM.instanceColor) rootIM.instanceColor.needsUpdate = true;
   dummy.quaternion.identity();
   group.add(rootIM);
 
   // Branches — 3 angled cylinders per tree, reaching into the canopy.
-  const branchIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.045, 0.09, 1.7, 5), barkMat, trees.length * 3);
+  const branchIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.03, 0.09, 1.7, 6), barkMat, trees.length * 3);
   branchIM.frustumCulled = false;
   trees.forEach((t, i) => {
     const trunkH = 3.2 * t.sy;
@@ -264,35 +388,31 @@ function buildForest(ctx) {
       dummy.position.set(t.x + dir.x * 0.85 * t.s, trunkH * 0.72 + dir.y * 0.85 * t.s, t.z + dir.z * 0.85 * t.s);
       dummy.scale.set(t.s, t.s * (0.85 + rng() * 0.35), t.s);
       dummy.updateMatrix(); branchIM.setMatrixAt(i * 3 + k, dummy.matrix);
+      branchIM.setColorAt(i * 3 + k, new THREE.Color(0x5b4632).offsetHSL(0, (rng() - 0.5) * 0.05, (rng() - 0.5) * 0.07));
     }
   });
+  if (branchIM.instanceColor) branchIM.instanceColor.needsUpdate = true;
   dummy.quaternion.identity();
   group.add(branchIM);
 
-  // Canopy — LAYERED, two tiers, 6 blobs per tree: a wide lower
-  // tier (3 blobs at ~92% trunk height, deeper green) under an
-  // upper tier (3 blobs, sunlit tips). This is the Phase 2 density
-  // the scaffold promised: crowns overlap, sightlines close in.
-  const BLOBS_PER_TREE = 6;
-  const canopyIM = new THREE.InstancedMesh(
-    displacedSphere(1, 3.1, 0.2),
-    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true }),
-    trees.length * BLOBS_PER_TREE
-  );
+  // Canopy — V6: SEVEN smooth foliage masses per tree in three
+  // irregular tiers (crown, mid ring, wide lower skirt), each
+  // jittered in offset/scale/squash — no two trees are clones.
+  const BLOBS_PER_TREE = 7;
+  const canopyIM = new THREE.InstancedMesh(displacedSphere(1, 3.1, 0.30, 10, 8), foliageMat, trees.length * BLOBS_PER_TREE);
   canopyIM.castShadow = true; canopyIM.frustumCulled = false;
   trees.forEach((t, i) => {
     const trunkH = 3.2 * t.sy;
     for (let k = 0; k < BLOBS_PER_TREE; k++) {
-      const lower = k < 3;
-      const a = t.rot + k * 2.1 + 0.4;
-      const isTop = k === 3;
-      const rOff = isTop ? 0 : (lower ? 1.0 : 0.7) * t.s;
+      const isTop = k === 0, lower = k >= 4;
+      const a = t.rot + k * 2.1 + 0.4 + rng() * 0.5;
+      const rOff = isTop ? 0 : (lower ? 1.0 : 0.62) * t.s;
       dummy.rotation.set(rng() * 0.6, t.rot + k * 2.1, rng() * 0.6);
       dummy.position.set(
         t.x + Math.cos(a) * rOff,
-        trunkH + (lower ? -0.15 : isTop ? 0.75 : 0.35) * t.sy,
+        trunkH + (isTop ? 0.8 : lower ? -0.1 : 0.38) * t.sy,
         t.z + Math.sin(a) * rOff);
-      const bs = t.s * (isTop ? 1.5 : lower ? 1.2 + rng() * 0.25 : 1.0 + rng() * 0.25);
+      const bs = t.s * (isTop ? 1.5 : lower ? 1.2 + rng() * 0.3 : 1.05 + rng() * 0.25);
       dummy.scale.set(bs, bs * 0.72, bs * (0.85 + rng() * 0.3));
       dummy.updateMatrix(); canopyIM.setMatrixAt(i * BLOBS_PER_TREE + k, dummy.matrix);
       canopyIM.setColorAt(i * BLOBS_PER_TREE + k, deepGreen.clone().lerp(tipGreen, isTop ? 0.8 + rng() * 0.2 : lower ? rng() * 0.35 : 0.3 + rng() * 0.35));
@@ -321,19 +441,24 @@ function buildForest(ctx) {
   // GAMEPLAY (Phase 2): bushes >= 1.1 m block movement with the
   // world.js bush-rule box (±0.75·size, top 0.72·size); shots pass
   // through all foliage, exactly as in the compound.
-  const bushIM = new THREE.InstancedMesh(
-    displacedSphere(1, 7.7, 0.24),
-    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true }),
-    bushes.length
-  );
+  // V6: two overlapping smooth masses per bush in the SAME
+  // InstancedMesh (organic clumps, no extra call). The collider
+  // rule below still keys on the main mass, unchanged.
+  const bushIM = new THREE.InstancedMesh(displacedSphere(1, 7.7, 0.34, 10, 8), foliageMat, bushes.length * 2);
   bushIM.castShadow = true; bushIM.receiveShadow = true; bushIM.frustumCulled = false;
   let bushColliders = 0;
   bushes.forEach((b, i) => {
     dummy.rotation.set(0, rng() * Math.PI * 2, 0);
     dummy.position.set(b.x, b.size * 0.34, b.z);
     dummy.scale.set(b.size, b.size * 0.72, b.size * (0.85 + rng() * 0.3));
-    dummy.updateMatrix(); bushIM.setMatrixAt(i, dummy.matrix);
-    bushIM.setColorAt(i, deepGreen.clone().lerp(tipGreen, rng() * 0.55));
+    dummy.updateMatrix(); bushIM.setMatrixAt(i * 2, dummy.matrix);
+    bushIM.setColorAt(i * 2, deepGreen.clone().lerp(tipGreen, rng() * 0.55));
+    const oa = rng() * Math.PI * 2, os = b.size * (0.5 + rng() * 0.2);
+    dummy.rotation.set(0, rng() * Math.PI * 2, 0);
+    dummy.position.set(b.x + Math.cos(oa) * b.size * 0.45, os * 0.36, b.z + Math.sin(oa) * b.size * 0.45);
+    dummy.scale.set(os, os * 0.7, os * (0.85 + rng() * 0.3));
+    dummy.updateMatrix(); bushIM.setMatrixAt(i * 2 + 1, dummy.matrix);
+    bushIM.setColorAt(i * 2 + 1, deepGreen.clone().lerp(tipGreen, 0.15 + rng() * 0.5));
     if (b.size >= 1.1) {
       const collider = new THREE.Box3(
         new THREE.Vector3(b.x - b.size * 0.75, 0, b.z - b.size * 0.75),
