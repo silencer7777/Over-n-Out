@@ -167,6 +167,24 @@ export class Sfx {
       b.connect(f); b.start(); b.stop(c.currentTime + desc.dur);
     }
   }
+  // Barrel explosion (V3 Phase 2): a long low noise burst through a
+  // falling lowpass + a deep sine thump. Heavier than 'boom' because
+  // it is an event, not a shot — but gain stays under the master cap.
+  explosion() {
+    if (!this.ctx) return;
+    const c = this.ctx, t0 = c.currentTime;
+    const n = this._noise(0.55), f = c.createBiquadFilter(), g = c.createGain();
+    f.type = 'lowpass'; f.frequency.setValueAtTime(900, t0);
+    f.frequency.exponentialRampToValueAtTime(60, t0 + 0.55);
+    g.gain.value = 0.9; n.connect(f); f.connect(g); g.connect(this.master); n.start();
+    this._tone(70, 0.5, 'sine', 0.55, 34);
+  }
+  // Pickup confirmation (V3 Phase 2): two rising sine blips.
+  pickup() {
+    if (!this.ctx) return;
+    this._tone(660, 0.07, 'sine', 0.32);
+    setTimeout(() => this._tone(990, 0.09, 'sine', 0.32), 60);
+  }
   hit()  { this._tone(1250, 0.04, 'square', 0.35); }
   // Distinct, higher confirmation ping for headshots (sine ~1500 Hz plus
   // its 3000 Hz harmonic) — clearly different from hit()'s square blip.
