@@ -3,20 +3,40 @@ import * as THREE from 'three';
 // Builds the arena: dusk-lit compound, perimeter walls, cover crates.
 // Returns collision data + lists used by shooting / bot line-of-sight.
 export function buildWorld(scene) {
-  scene.background = new THREE.Color(0x241a36);
-  // Dusk fog: dusky mauve that blends with the sky's horizon band. 45->150
-  // keeps the far wall / corners softened without fogging out the long
-  // sightlines across the 100-unit arena (Verity Minor #9).
-  scene.fog = new THREE.Fog(0x4a3448, 45, 150);
+  // ============================================================
+  // LIGHTING REWORK — V3 Fix 1 (2026-10-24)
+  // Owners: Mira "Golden Hour" Castellanos (Lighting Director,
+  // Team Lumen), Petra "Photon" Ilves, Ezra "Emissive" Vance.
+  // Sign-off floor (Elena "Verity" Marsh, Chief Realism
+  // Director): hostiles and cover stay readable at 40m+.
+  // Before -> After summary:
+  //   background 0x241a36 -> 0x352130 (= new fog colour)
+  //   fog 0x4a3448, 45-150 -> 0x352130, 42-138
+  //   hemi 0x8a6fc0 / 0x33221a, 0.85 -> 0x6f83b0 / 0x2e231c, 0.60
+  //   sun 0xffa860, 2.0 at (-47.16, 12, -28.3), ~12.3 deg
+  //     -> 0xff8f3c, 1.75 at (-47.16, 9.7, -28.3), ~10.0 deg
+  //   sun disc 0xffdca8 -> 0xffbf6e; glow amber deepened
+  //   sky gradient: deeper zenith, tighter richer amber band,
+  //     darker below-horizon (stops below)
+  //   renderer exposure 1.1 -> 0.95 (specified for main.js,
+  //     which owns that value; not set in this file)
+  // One shared SUN_POS drives the light, disc and glow so the
+  // light and the picture always agree.
+  // ============================================================
+  const SUN_POS = new THREE.Vector3(-47.16, 9.7, -28.3);
+  scene.background = new THREE.Color(0x352130);
+  // Deeper dusk fog, matched to the background. 42->138 keeps
+  // the 40m readability floor essentially unfogged (fog only
+  // begins at 42) while pulling the far plane in from 150 so
+  // cross-arena sightlines (far >= 130) still survive.
+  scene.fog = new THREE.Fog(0x352130, 42, 138);
 
-  // Warmed dusk lighting (values only): purple sky bounce, warm ground bounce.
-  // Hemisphere unchanged — it carries the purple dusk fill now that the sun
-  // sits low. Sun nudged warmer/stronger (0xffbe78/1.75 -> 0xffa860/2.0) so
-  // the ~12-degree angle doesn't read dim/night on sun-facing faces; the
-  // ground still gets far less direct light than at the old midday angle.
-  scene.add(new THREE.HemisphereLight(0x8a6fc0, 0x33221a, 0.85));
-  const sun = new THREE.DirectionalLight(0xffa860, 2.0);
-  sun.position.set(-47.16, 12, -28.3);
+  // Cooler, dimmer hemisphere fill: slate-blue sky bounce and
+  // a darker, less warm ground bounce replace the purple wash,
+  // so shadowed cover reads neutral rather than violet.
+  scene.add(new THREE.HemisphereLight(0x6f83b0, 0x2e231c, 0.60));
+  const sun = new THREE.DirectionalLight(0xff8f3c, 1.75);
+  sun.position.copy(SUN_POS);
   scene.add(sun);
 
   // Dusk sky dome — procedural vertical gradient on a large BackSide sphere.
@@ -26,14 +46,14 @@ export function buildWorld(scene) {
     const cv = document.createElement('canvas'); cv.width = 4; cv.height = 512;
     const c = cv.getContext('2d');
     const grad = c.createLinearGradient(0, 0, 0, 512);
-    grad.addColorStop(0.00, '#130f33'); // deep blue-purple zenith
-    grad.addColorStop(0.28, '#2c1e52');
-    grad.addColorStop(0.42, '#63386a');
-    grad.addColorStop(0.46, '#a34e4a');
-    grad.addColorStop(0.495, '#f7b267'); // amber horizon band
-    grad.addColorStop(0.52, '#7a4248');
-    grad.addColorStop(0.65, '#1c1424');
-    grad.addColorStop(1.00, '#120d1a');
+    grad.addColorStop(0.00, '#0a0d26'); // deeper zenith
+    grad.addColorStop(0.28, '#1c183f');
+    grad.addColorStop(0.40, '#4a2c55');
+    grad.addColorStop(0.47, '#c65a32');
+    grad.addColorStop(0.495, '#ffb056'); // tighter, richer amber horizon band
+    grad.addColorStop(0.51, '#6e363c');
+    grad.addColorStop(0.62, '#140f1c');
+    grad.addColorStop(1.00, '#09070f'); // darker below-horizon
     c.fillStyle = grad; c.fillRect(0, 0, 4, 512);
     const tex = new THREE.CanvasTexture(cv);
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -45,15 +65,15 @@ export function buildWorld(scene) {
     scene.add(sky);
   }
 
-  // Visible sun — bright disc + soft radial glow, placed exactly on the
-  // directional light's axis (-47.16, 12, -28.3) so light and picture agree.
-  // Same azimuth as the original (-30, -18) horizontal direction, lowered
-  // to ~12 degrees elevation to match the dusk sky (Verity Major #8).
+  // Visible sun — bright disc + soft radial glow, derived from
+  // the same SUN_POS as the directional light (see the lighting
+  // rework block above) so light and picture agree. Same azimuth
+  // as before, lowered to ~10 degrees elevation.
   {
-    const sunPos = new THREE.Vector3(-47.16, 12, -28.3).normalize().multiplyScalar(255);
+    const sunPos = SUN_POS.clone().normalize().multiplyScalar(255);
     const disc = new THREE.Mesh(
       new THREE.SphereGeometry(11, 20, 20),
-      new THREE.MeshBasicMaterial({ color: 0xffdca8, fog: false })
+      new THREE.MeshBasicMaterial({ color: 0xffbf6e, fog: false })
     );
     disc.position.copy(sunPos);
     scene.add(disc);
@@ -61,9 +81,9 @@ export function buildWorld(scene) {
     const cv = document.createElement('canvas'); cv.width = cv.height = 128;
     const c = cv.getContext('2d');
     const glowGrad = c.createRadialGradient(64, 64, 0, 64, 64, 64);
-    glowGrad.addColorStop(0, 'rgba(255,196,120,0.85)');
-    glowGrad.addColorStop(0.35, 'rgba(255,150,70,0.32)');
-    glowGrad.addColorStop(1, 'rgba(255,130,60,0)');
+    glowGrad.addColorStop(0, 'rgba(255,170,85,0.80)');
+    glowGrad.addColorStop(0.35, 'rgba(255,120,45,0.28)');
+    glowGrad.addColorStop(1, 'rgba(230,90,35,0)');
     c.fillStyle = glowGrad; c.fillRect(0, 0, 128, 128);
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({
       map: new THREE.CanvasTexture(cv), transparent: true, fog: false,
@@ -135,16 +155,96 @@ export function buildWorld(scene) {
     c.strokeStyle = 'rgba(0,0,0,0.08)'; c.lineWidth = 40; c.strokeRect(20, 20, 472, 472);
     const tex = new THREE.CanvasTexture(cv);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(8, 8);
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(110, 110), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 }));
+    // Frame cost: bumpMap reuses the same texture instance as map (no duplicate canvas / no extra GPU upload); per-frame cost is one extra texture sample in the ground shader.
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(110, 110), new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 0.04, roughness: 0.95 }));
     ground.rotation.x = -Math.PI / 2;
     ground.name = 'ground';
     ground.receiveShadow = true;
     scene.add(ground); shootables.push(ground);
   }
 
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x55606c, roughness: 0.85 });
-  const crateMat = new THREE.MeshStandardMaterial({ color: 0x6d5a33, roughness: 0.9 });
-  const crateMat2 = new THREE.MeshStandardMaterial({ color: 0x44586b, roughness: 0.9 });
+  // --- Procedural crate + wall textures (V3 Graphics Batch 1) ---
+  // Frame cost: canvas textures are one-time uploads (see sizes below); no per-frame canvas work, only the usual map sample in the standard shader.
+  // Textures are drawn in light neutral tones on purpose: material.color multiplies the map, so the existing wall/crate tints below are preserved.
+  function makeCrateTexture() {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+    const c = cv.getContext('2d');
+    let seed = 987654321;
+    const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    c.fillStyle = '#ded8cc'; c.fillRect(0, 0, 256, 256);
+    // Horizontal planks: 4 rows with slight per-plank luminance variation.
+    for (let p = 0; p < 4; p++) {
+      const v = 205 + Math.floor(rand() * 28);
+      c.fillStyle = `rgb(${v},${v - 6},${v - 22})`;
+      c.fillRect(0, p * 64, 256, 64);
+      // Wood grain streaks.
+      for (let i = 0; i < 9; i++) {
+        c.fillStyle = `rgba(90,70,40,${0.04 + rand() * 0.05})`;
+        c.fillRect(8 + rand() * 20, p * 64 + 6 + rand() * 50, 90 + rand() * 120, 1 + rand() * 2);
+      }
+      c.fillStyle = 'rgba(40,30,18,0.55)'; c.fillRect(0, p * 64, 256, 3);
+      c.fillStyle = 'rgba(255,255,255,0.10)'; c.fillRect(0, p * 64 + 3, 256, 2);
+    }
+    // Frame edges: thick border over the planks.
+    c.strokeStyle = 'rgba(72,56,32,0.85)'; c.lineWidth = 28; c.strokeRect(14, 14, 228, 228);
+    c.strokeStyle = 'rgba(255,255,255,0.12)'; c.lineWidth = 2; c.strokeRect(29, 29, 198, 198);
+    c.strokeStyle = 'rgba(30,22,12,0.35)'; c.lineWidth = 2; c.strokeRect(2, 2, 252, 252);
+    // Corner nails.
+    c.fillStyle = 'rgba(35,30,25,0.8)';
+    for (const [nx, ny] of [[14, 14], [242, 14], [14, 242], [242, 242]]) { c.beginPath(); c.arc(nx, ny, 4, 0, Math.PI * 2); c.fill(); }
+    // Subtle wear: scuffs + speckle.
+    for (let i = 0; i < 14; i++) {
+      c.fillStyle = rand() > 0.5 ? `rgba(0,0,0,${0.03 + rand() * 0.05})` : `rgba(255,255,255,${0.03 + rand() * 0.04})`;
+      c.beginPath(); c.ellipse(rand() * 256, rand() * 256, 6 + rand() * 28, 3 + rand() * 10, rand() * Math.PI, 0, Math.PI * 2); c.fill();
+    }
+    for (let i = 0; i < 700; i++) { c.fillStyle = `rgba(0,0,0,${0.02 + rand() * 0.05})`; c.fillRect(rand() * 256, rand() * 256, 1 + rand() * 2, 1); }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+  function makeWallTexture() {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+    const c = cv.getContext('2d');
+    let seed = 20241024;
+    const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    c.fillStyle = '#d6d9dc'; c.fillRect(0, 0, 256, 256);
+    // Concrete panels: 2x2 grid, per-panel tone shift.
+    for (let py = 0; py < 2; py++) for (let px = 0; px < 2; px++) {
+      const v = 200 + Math.floor(rand() * 24);
+      c.fillStyle = `rgb(${v},${v + 2},${v + 5})`;
+      c.fillRect(px * 128, py * 128, 128, 128);
+    }
+    // Fine speckle + stains.
+    for (let i = 0; i < 1100; i++) {
+      c.fillStyle = rand() > 0.5 ? `rgba(0,0,0,${0.02 + rand() * 0.05})` : `rgba(255,255,255,${0.02 + rand() * 0.04})`;
+      c.fillRect(rand() * 256, rand() * 256, 1 + rand() * 2, 1 + rand() * 2);
+    }
+    for (let i = 0; i < 10; i++) {
+      c.fillStyle = `rgba(28,24,18,${0.04 + rand() * 0.06})`;
+      c.beginPath(); c.ellipse(rand() * 256, 150 + rand() * 106, 10 + rand() * 36, 4 + rand() * 14, 0, 0, Math.PI * 2); c.fill();
+    }
+    // Grime streaks running down from the seams.
+    for (let i = 0; i < 12; i++) {
+      c.fillStyle = `rgba(20,18,14,${0.03 + rand() * 0.05})`;
+      const x = rand() * 256; c.fillRect(x, rand() * 128, 2 + rand() * 4, 40 + rand() * 90);
+    }
+    // Panel seams + bevel highlight.
+    c.fillStyle = 'rgba(25,28,32,0.65)'; c.fillRect(126, 0, 4, 256); c.fillRect(0, 126, 256, 4);
+    c.fillStyle = 'rgba(255,255,255,0.12)'; c.fillRect(130, 0, 2, 256); c.fillRect(0, 130, 256, 2);
+    c.strokeStyle = 'rgba(25,28,32,0.5)'; c.lineWidth = 4; c.strokeRect(2, 2, 252, 252);
+    // Panel corner bolts.
+    c.fillStyle = 'rgba(40,44,48,0.75)';
+    for (const [bx, by] of [[16, 16], [112, 16], [144, 16], [240, 16], [16, 112], [240, 112], [16, 144], [240, 144], [16, 240], [112, 240], [144, 240], [240, 240]]) { c.beginPath(); c.arc(bx, by, 3, 0, Math.PI * 2); c.fill(); }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+  const crateTex = makeCrateTexture();
+  const wallTex = makeWallTexture();
+  // Frame cost: shared crateTex serves both crate materials (one upload, two tints); wallTex is one upload. Colour tints are the original values, multiplied by the light map.
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x55606c, map: wallTex, roughness: 0.85 });
+  const crateMat = new THREE.MeshStandardMaterial({ color: 0x6d5a33, map: crateTex, roughness: 0.9 });
+  const crateMat2 = new THREE.MeshStandardMaterial({ color: 0x44586b, map: crateTex, roughness: 0.9 });
   const pillarMat = new THREE.MeshStandardMaterial({ color: 0x707a86, roughness: 0.8, emissive: 0x0d2b16 });
 
   const deckMat = new THREE.MeshStandardMaterial({ color: 0x4b5158, roughness: 0.9 });
@@ -162,6 +262,8 @@ export function buildWorld(scene) {
   function addBox(x, yBase, z, w, h, d, mat) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     m.position.set(x, yBase + h / 2, z);
+    // Frame cost: solids never move, so freeze the local matrix — saves per-frame matrix composition for ~40 static meshes (updateMatrix once here instead).
+    m.matrixAutoUpdate = false; m.updateMatrix();
     m.castShadow = true;    // inert until the renderer/shadow camera are enabled
     m.receiveShadow = true;
     scene.add(m); shootables.push(m);
