@@ -18,6 +18,7 @@
 //     model: 95 dmg @ 6.5 m radius -> frag 110 @ 5.5 m).
 
 import { WEAPON_ORDER, getWeapon } from './weapons.js';
+import { CAMO_IDS, DEFAULT_CAMO } from './camo.js';
 
 export const SLOTS = ['optic', 'underbarrel', 'magazine', 'barrel', 'stock'];
 export const MAX_CLASSES = 5;
@@ -62,6 +63,17 @@ export const ATTACHMENTS = [
   { id: 'stock', name: 'TACTICAL STOCK', slot: 'stock', weapons: ['ar', 'smg', 'dmr'],
     benefit: 'Aim movement ×1.15, recoil ×0.92', tradeoff: 'Hip spread ×1.10',
     mods: { moveAds: 1.15, recoil: 0.92, spread: 1.10 } },
+  // V5 (Board 005 §10, Havoc guardrail: no damage mods, stated
+  // cost on every benefit — numbers are Havoc-ratified proposals).
+  { id: 'angledgrip', name: 'ANGLED GRIP', slot: 'underbarrel', weapons: ['ar', 'smg', 'dmr'],
+    benefit: 'Aim movement ×1.10 — strafe while aimed', tradeoff: 'Recoil ×1.05',
+    mods: { moveAds: 1.10, recoil: 1.05 } },
+  { id: 'compensator', name: 'COMPENSATOR', slot: 'barrel', weapons: 'all',
+    benefit: 'Recoil ×0.88 — flatter climb', tradeoff: 'Bloom ×1.08, louder signature',
+    mods: { recoil: 0.88, bloomRate: 1.08 } },
+  { id: 'cqbstock', name: 'CQB STOCK', slot: 'stock', weapons: 'all',
+    benefit: 'Hip spread ×0.90 — tight from the shoulder', tradeoff: 'Aim movement ×0.92',
+    mods: { spread: 0.90, moveAds: 0.92 } },
 ];
 
 export function getAttachment(id) {
@@ -137,9 +149,74 @@ export const THROWABLES = {
     throwSpeed: 17, arcLift: 4.5, gravity: 14,
     blurb: 'Blinds anyone looking at it. Bots lose 2.5 s of aim.',
   },
+  // V5 smoke (owner Directive 8; numbers RATIFIED by Havoc,
+  // v5-equipment-and-streaks-ruling §1 + Board 005 Addendum 3).
+  // Deploys ON LANDING (no airburst), blooms 1.2 s to full
+  // density, holds 12 s, dissipates over a 3 s tail. The LOS
+  // chord rule lives in js/equipment.js (losSmokeState).
+  smoke: {
+    id: 'smoke', name: 'SMOKE GRENADE', kind: 'tactical',
+    bloom: 1.2, duration: 12, tail: 3,
+    radius: 4.5, height: 3.5,
+    throwSpeed: 16, arcLift: 4.5, gravity: 14,   // frag's arc — one muscle memory
+    blurb: 'A real smoke volume: blocks line-of-sight (bots and players) while it lasts.',
+  },
 };
-export const LETHALS = ['frag'];
-export const TACTICALS = ['flash'];
+export const LETHALS = ['frag', 'claymore', 'tripmine'];
+export const TACTICALS = ['flash', 'smoke'];
+
+// ----------------------------------------------------------------
+// Perks (V5, owner Directive 11) — TIERED 3: one perk per
+// CATEGORY per class (Board 005 Addendum 3, ratifying Havoc's
+// ruling §5: orthogonal axes — movement / intake / perception —
+// category locks are the stack-safety; perks NEVER modify
+// damage dealt). Effects are SIM-TRUE: the authoritative sim
+// computes them from the validated class; the client mirrors.
+// Unlock rungs live in js/progression.js (L3–L17).
+// ----------------------------------------------------------------
+export const PERK_CATEGORIES = ['movement', 'defense', 'utility'];
+export const PERKS = [
+  { id: 'lightweight', name: 'LIGHTWEIGHT', category: 'movement',
+    sprintMult: 1.07, walkMult: 1.03,
+    blurb: 'Sprint ×1.07, walk ×1.03.' },
+  { id: 'stalker', name: 'STALKER', category: 'movement',
+    adsMoveAdd: 0.15, adsMoveCap: 1.0,
+    blurb: 'Aim-walk speed +0.15 (capped at full speed); composes with optic moveAds.' },
+  { id: 'flak', name: 'FLAK JACKET', category: 'defense',
+    explosiveMult: 0.55,
+    blurb: 'Explosive damage taken ×0.55, after the ×0.45 player rule.' },
+  { id: 'shade', name: 'SHADE', category: 'defense',
+    flashTakenMult: 0.5,
+    blurb: 'Flash blind duration taken ×0.5.' },
+  { id: 'ghost', name: 'GHOST', category: 'utility',
+    pingSkip: 2, lingerMult: 0.5,
+    blurb: 'UAV sweeps show you on alternate pings only, markers linger half as long.' },
+  { id: 'coldblooded', name: 'COLD-BLOODED', category: 'utility',
+    perceptionMult: 0.6,
+    blurb: 'Bot + sentry aim-up (visibleTime) accumulates ×0.6 against you.' },
+  { id: 'engineer', name: 'ENGINEER', category: 'utility',
+    revealRadius: 15, beamVisible: true,
+    blurb: 'Enemy equipment revealed within 15 m; trip beams fully visible.' },
+  { id: 'scavenger', name: 'SCAVENGER', category: 'utility',
+    scavenger: true,
+    blurb: 'Your kills drop a personal ammo pack (one magazine, ammo only — never throwables).' },
+];
+export function getPerk(id) {
+  return PERKS.find(p => p.id === id) || null;
+}
+
+// Scorestreak vocabulary for class validation. The streak
+// DEFINITIONS (thresholds, effects) live in js/streaks.js;
+// this list is the id vocabulary only, and smoke asserts the
+// two never drift (Board 005 Addendum 3).
+export const STREAK_IDS = ['uav', 'cuav', 'package', 'sentry', 'precision'];
+
+// Camo (V5 customization) — cosmetic identity only; the sim
+// attaches no stats (Havoc §7: cosmetics never enter the stats
+// pipeline). The vocabulary is js/camo.js's CAMO_IDS — ONE
+// source, so Atlas's variants self-enroll here.
+export const CAMOS = CAMO_IDS;
+export { DEFAULT_CAMO };
 
 // ----------------------------------------------------------------
 // Classes. Shape: { name, primary, attachments: [ids], tactical,
@@ -153,6 +230,9 @@ export function defaultClass(i = 0) {
     attachments: [],
     tactical: 'flash',
     lethal: 'frag',
+    perks: { movement: null, defense: null, utility: null },
+    streaks: ['uav', 'cuav', 'package'],
+    camo: DEFAULT_CAMO,
   };
 }
 
@@ -188,13 +268,54 @@ export function validateClass(c) {
   if (c.tactical !== undefined && !TACTICALS.includes(c.tactical)) errors.push('tactical: unknown id');
   cls.lethal = LETHALS.includes(c.lethal) ? c.lethal : 'frag';
   if (c.lethal !== undefined && !LETHALS.includes(c.lethal)) errors.push('lethal: unknown id');
+  // Perks: tiered-3 object, one id per category; an id filed
+  // under the wrong category is an error, not a silent move.
+  cls.perks = { movement: null, defense: null, utility: null };
+  if (c.perks !== undefined && c.perks !== null) {
+    if (typeof c.perks !== 'object' || Array.isArray(c.perks)) errors.push('perks must be an object');
+    else {
+      for (const cat of PERK_CATEGORIES) {
+        const pid = c.perks[cat];
+        if (pid === undefined || pid === null) continue;
+        const perk = getPerk(pid);
+        if (!perk) { errors.push('perk: unknown id ' + String(pid)); continue; }
+        if (perk.category !== cat) { errors.push(`perk ${pid} is not a ${cat} perk`); continue; }
+        cls.perks[cat] = pid;
+      }
+    }
+  }
+  // Scorestreak selection: up to 3 distinct ids from the ladder
+  // vocabulary (js/streaks.js STREAKS — cross-checked by smoke).
+  cls.streaks = ['uav', 'cuav', 'package'];
+  if (c.streaks !== undefined) {
+    if (!Array.isArray(c.streaks)) errors.push('streaks must be an array');
+    else {
+      const seen = new Set();
+      const list = [];
+      for (const sid of c.streaks) {
+        if (!STREAK_IDS.includes(sid)) { errors.push('streak: unknown id ' + String(sid)); continue; }
+        if (seen.has(sid)) { errors.push('streak: duplicate ' + String(sid)); continue; }
+        seen.add(sid);
+        list.push(sid);
+      }
+      if (list.length !== 3) errors.push('streaks: exactly 3 required (Havoc §6)');
+      else cls.streaks = list;
+    }
+  }
+  cls.camo = DEFAULT_CAMO;
+  if (c.camo !== undefined) {
+    if (CAMOS.includes(c.camo)) cls.camo = c.camo;
+    else errors.push('camo: unknown id');
+  }
   return { ok: errors.length === 0, errors, cls };
 }
 
-// Distinct single-class builds across the arsenal (the 3x POWERFUL
+// Distinct single-class builds across the arsenal (the POWERFUL
 // metric, computed from the shipped tables — never hand-waved):
 // for each weapon, the product over slots of (fitting options + 1
-// for "none"), summed.
+// for "none"), summed — then multiplied by the class-level axes:
+// tactical choice × lethal choice × perk picks (options + 1 per
+// category) × streak selections (C(5,3) — exactly 3 of 5) × camo.
 export function countLoadoutCombinations() {
   let total = 0;
   for (const wid of WEAPON_ORDER) {
@@ -202,5 +323,10 @@ export function countLoadoutCombinations() {
     for (const slot of SLOTS) per *= attachmentsFor(wid, slot).length + 1;
     total += per;
   }
-  return total;
+  let perkWays = 1;
+  for (const cat of PERK_CATEGORIES) {
+    perkWays *= PERKS.filter(p => p.category === cat).length + 1;
+  }
+  const streakWays = 10;   // C(5,3): exactly 3 distinct of the 5-streak ladder
+  return total * TACTICALS.length * LETHALS.length * perkWays * streakWays * CAMOS.length;
 }
