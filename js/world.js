@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeColoredParts, mergePartsByMaterial } from './geo.js';
 import { LIGHTING_PROFILES, sunVector, makeSkyTexture } from './lighting.js';
+import { makeBarkTexture, makeFoliageTexture, makeConcreteTexture, makeMetalPanelTexture, makeRoofTexture, taperedTrunkGeometry, canopyGeometry } from './proctex.js';
 
 // Builds the arena: dusk-lit compound, perimeter walls, cover crates.
 // Returns collision data + lists used by shooting / bot line-of-sight.
@@ -258,6 +259,9 @@ export function buildWorld(scene) {
 
   const deckMat = new THREE.MeshStandardMaterial({ color: 0x4b5158, roughness: 0.9 });
   const slabMat = new THREE.MeshStandardMaterial({ color: 0x5d666f, roughness: 0.85 });
+  // V6 (Atlas): standing-seam roofing for the two built roofs
+  // (Ops Building + Comms Shed) — same solids, textured skin.
+  const roofTexMat = new THREE.MeshStandardMaterial({ color: 0x707880, map: makeRoofTexture(), roughness: 0.9 });
 
   // walkables: {minX,maxX,minZ,maxZ,top} for EVERY solid (perimeter walls
   // included) — backing store for groundHeightAt(), the height contract
@@ -517,6 +521,19 @@ export function buildWorld(scene) {
       { geo: new THREE.BoxGeometry(4.6, 1.05, 1.9), color: tone, x: 0, y: 0.78, z: 0 },
       { geo: new THREE.BoxGeometry(2.1, 0.78, 1.8), color: tone, x: -0.9, y: 1.68, z: 0 },
       { geo: new THREE.BoxGeometry(4.7, 0.22, 2.0), color: 0x2c2c30, x: 0, y: 0.22, z: 0 },
+      // V6 (Atlas): cab glass, door panel, grille + lights —
+      // same merged mesh, zero new draw calls; a wreck reads as
+      // a vehicle, not a crate with wheels.
+      { geo: new THREE.BoxGeometry(0.07, 0.58, 1.45), color: 0x12181f, x: 0.17, y: 1.74, z: 0, rz: -0.32 }, // windshield
+      { geo: new THREE.BoxGeometry(1.65, 0.46, 0.05), color: 0x12181f, x: -0.95, y: 1.80, z: 0.92 },      // side glass R
+      { geo: new THREE.BoxGeometry(1.65, 0.46, 0.05), color: 0x12181f, x: -0.95, y: 1.80, z: -0.92 },     // side glass L
+      { geo: new THREE.BoxGeometry(2.5, 0.68, 0.04), color: 0x2e2a26, x: 0.55, y: 0.82, z: 0.96 },        // door/panel inset R
+      { geo: new THREE.BoxGeometry(2.5, 0.68, 0.04), color: 0x2e2a26, x: 0.55, y: 0.82, z: -0.96 },       // door/panel inset L
+      { geo: new THREE.BoxGeometry(0.06, 0.38, 1.15), color: 0x1c1c20, x: 2.32, y: 0.60, z: 0 },          // grille
+      { geo: new THREE.BoxGeometry(0.07, 0.17, 0.34), color: 0xd8e2b0, x: 2.32, y: 0.88, z: 0.62 },       // headlight R
+      { geo: new THREE.BoxGeometry(0.07, 0.17, 0.34), color: 0xd8e2b0, x: 2.32, y: 0.88, z: -0.62 },      // headlight L
+      { geo: new THREE.BoxGeometry(0.09, 0.15, 0.09), color: 0x17181a, x: 0.02, y: 1.86, z: 1.0 },        // mirror R
+      { geo: new THREE.BoxGeometry(0.09, 0.15, 0.09), color: 0x17181a, x: 0.02, y: 1.86, z: -1.0 },       // mirror L
     ];
     for (const wx of [-1.55, 1.55]) for (const wz of [-0.95, 0.95]) {
       parts.push({ geo: new THREE.CylinderGeometry(0.42, 0.42, 0.24, 10), color: 0x17181a, x: wx, y: 0.42, z: wz, rx: Math.PI / 2 });
@@ -559,7 +576,7 @@ export function buildWorld(scene) {
   solid(-36.85, 44, 0.3, 3.2, 7.4, wallMat);           // west wall
   solid(-27.15, 41.65, 0.3, 3.2, 2.7, wallMat);        // east wall S
   solid(-27.15, 46.35, 0.3, 3.2, 2.7, wallMat);        // east wall N
-  elevated(-32, 3.2, 44, 10.4, 0.25, 8.4, slabMat);    // roof slab (top 3.45)
+  elevated(-32, 3.2, 44, 10.4, 0.25, 8.4, roofTexMat); // roof slab (top 3.45)
   solid(-35, 42, 2.2, 1.15, 2.2, crateMat);            // interior hop crate
   solid(-29, 46, 2.2, 2.2, 2.2, crateMat2);            // interior stack
   solid(-25.6, 44, 2.2, 1.15, 2.2, crateMat);          // exterior stack 1
@@ -570,7 +587,7 @@ export function buildWorld(scene) {
   solid(24, 53.65, 6, 2.4, 0.3, wallMat);              // north wall
   solid(21.15, 56, 0.3, 2.4, 4.4, wallMat);            // west wall
   solid(26.85, 56, 0.3, 2.4, 4.4, wallMat);            // east wall
-  elevated(24, 2.4, 56, 6.4, 0.2, 5.4, slabMat);       // roof (top 2.6)
+  elevated(24, 2.4, 56, 6.4, 0.2, 5.4, roofTexMat);   // roof (top 2.6)
   solid(21.5, 59.5, 0.18, 2.2, 0.18, deckMat);         // awning post W
   solid(26.5, 59.5, 0.18, 2.2, 0.18, deckMat);         // awning post E
   elevated(24, 2.2, 59.3, 6, 0.12, 1.8, slabMat);      // awning slab (top 2.32)
@@ -616,6 +633,140 @@ export function buildWorld(scene) {
       p.receiveShadow = true;
       scene.add(p);
     }
+  }
+
+  // ================= V6 BUILDING FACADES (Atlas, Update 1) =================
+  // Real architecture cues for the Compound's built structures
+  // — Ops Building, Comms Shed, Relay Tower, decks, perimeter.
+  // RULE: every part is flat against an existing wall face,
+  // sits on a roofline, or trims an edge — VISUAL ONLY, merged
+  // into five meshes, added to shootables (bullets meet the
+  // trim they see) but NEVER to colliders/walkables: the V5
+  // solids stay byte-identical underneath. Window glass ships
+  // in three merged buckets — warm-lit, cool-lit, dark — so
+  // each window's emissive reads individually.
+  {
+    const P = [];   // trim / concrete (parapets, frames, bands, fascia, coping)
+    const GW = [];  // warm-lit glass
+    const GC = [];  // cool-lit glass
+    const GD = [];  // dark glass
+    const PM = [];  // flat metal panels (junction / electrical boxes)
+    const trimA = 0xd8dde2, trimB = 0xc3c9d0, trimC = 0xaeb5bd;
+    const t_ = (geo, color, x, y, z, rx = 0, ry = 0, rz = 0) => P.push({ geo, color, x, y, z, rx, ry, rz });
+    // Window unit: frame + sill into trim, pane into a glass bucket.
+    // face: 'N'|'S' (pane plane ⊥ z) or 'W' (pane plane ⊥ x).
+    function win(cx, cy, cz, face, bucket) {
+      if (face === 'W') {
+        t_(new THREE.BoxGeometry(0.10, 1.04, 1.14), trimB, cx, cy, cz);
+        t_(new THREE.BoxGeometry(0.20, 0.12, 1.30), trimC, cx, cy - 0.58, cz);
+        bucket.push({ geo: new THREE.BoxGeometry(0.06, 0.84, 0.94), color: 0xffffff, x: cx, y: cy, z: cz });
+        // Mullion cross.
+        bucket.push({ geo: new THREE.BoxGeometry(0.065, 0.84, 0.07), color: 0x3a4046, x: cx, y: cy, z: cz });
+      } else {
+        t_(new THREE.BoxGeometry(1.14, 1.04, 0.10), trimB, cx, cy, cz);
+        t_(new THREE.BoxGeometry(1.30, 0.12, 0.20), trimC, cx, cy - 0.58, cz);
+        bucket.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.06), color: 0xffffff, x: cx, y: cy, z: cz });
+        bucket.push({ geo: new THREE.BoxGeometry(0.07, 0.84, 0.065), color: 0x3a4046, x: cx, y: cy, z: cz });
+      }
+    }
+    // ---- Ops Building (centre -32, 44; walls y 0..3.2, roof top 3.45) ----
+    // Parapet caps on the roof edge.
+    t_(new THREE.BoxGeometry(10.4, 0.28, 0.30), trimA, -32, 3.59, 39.95);
+    t_(new THREE.BoxGeometry(10.4, 0.28, 0.30), trimA, -32, 3.59, 48.05);
+    t_(new THREE.BoxGeometry(0.30, 0.28, 8.4), trimA, -37.05, 3.59, 44);
+    t_(new THREE.BoxGeometry(0.30, 0.28, 8.4), trimA, -26.95, 3.59, 44);
+    // Corner boards.
+    for (const [cx, cz] of [[-37.0, 40.15], [-27.0, 40.15], [-37.0, 47.85], [-27.0, 47.85]]) {
+      t_(new THREE.BoxGeometry(0.34, 3.2, 0.34), trimC, cx, 1.6, cz);
+    }
+    // Chamfer strips (Board 006 §2.2 beveled edges): a 45°
+    // panel across every primary corner kills the razor edge.
+    for (const [cx, cz] of [[-37.0, 40.15], [-27.0, 40.15], [-37.0, 47.85], [-27.0, 47.85]]) {
+      t_(new THREE.BoxGeometry(0.46, 3.2, 0.08), trimB, cx, 1.6, cz, 0, Math.PI / 4);
+    }
+    for (const [cx, cz] of [[33, -47], [47, -47], [33, -61], [47, -61]]) {
+      t_(new THREE.BoxGeometry(0.44, 2.3, 0.08), trimB, cx, 1.15, cz, 0, Math.PI / 4);
+    }
+    // Base skirt (segmented so the door gaps stay honest thresholds).
+    t_(new THREE.BoxGeometry(10.3, 0.28, 0.10), trimC, -32, 0.14, 39.97);          // north
+    t_(new THREE.BoxGeometry(6, 0.28, 0.10), trimC, -34, 0.14, 48.02);             // south L
+    t_(new THREE.BoxGeometry(2.4, 0.28, 0.10), trimC, -28.2, 0.14, 48.02);         // south R
+    t_(new THREE.BoxGeometry(0.10, 0.28, 7.4), trimC, -37.02, 0.14, 44);           // west
+    t_(new THREE.BoxGeometry(0.10, 0.28, 2.7), trimC, -26.98, 0.14, 41.65);       // east S
+    t_(new THREE.BoxGeometry(0.10, 0.28, 2.7), trimC, -26.98, 0.14, 46.35);       // east N
+    // Header band under the roofline.
+    t_(new THREE.BoxGeometry(10.2, 0.22, 0.08), trimB, -32, 2.95, 39.96);
+    t_(new THREE.BoxGeometry(6, 0.22, 0.08), trimB, -34, 2.95, 48.01);
+    t_(new THREE.BoxGeometry(2.4, 0.22, 0.08), trimB, -28.2, 2.95, 48.01);
+    t_(new THREE.BoxGeometry(0.08, 0.22, 7.4), trimB, -37.01, 2.95, 44);
+    // Door frames: south gap (x -31..-29.4) + east gap (z 43..45).
+    t_(new THREE.BoxGeometry(0.18, 2.3, 0.24), trimA, -31.05, 1.15, 47.85);
+    t_(new THREE.BoxGeometry(0.18, 2.3, 0.24), trimA, -29.35, 1.15, 47.85);
+    t_(new THREE.BoxGeometry(1.9, 0.24, 0.24), trimA, -30.2, 2.42, 47.85);
+    t_(new THREE.BoxGeometry(0.24, 2.3, 0.18), trimA, -27.15, 1.15, 42.95);
+    t_(new THREE.BoxGeometry(0.24, 2.3, 0.18), trimA, -27.15, 1.15, 45.05);
+    t_(new THREE.BoxGeometry(0.24, 0.24, 2.3), trimA, -27.15, 2.42, 44);
+    // Windows: north face ×3, west face ×2, south face ×2 — mixed buckets.
+    win(-35, 1.7, 39.97, 'N', GW); win(-32, 1.7, 39.97, 'N', GD); win(-29, 1.7, 39.97, 'N', GC);
+    win(-37.04, 1.7, 42, 'W', GD); win(-37.04, 1.7, 46, 'W', GW);
+    win(-34.5, 1.7, 48.04, 'S', GC); win(-28.4, 1.7, 48.04, 'S', GD);
+    // Flat junction boxes (metal bucket).
+    PM.push({ geo: new THREE.BoxGeometry(0.5, 0.7, 0.07), color: 0xb9c0c7, x: -27.6, y: 1.3, z: 39.96 });
+    PM.push({ geo: new THREE.BoxGeometry(0.07, 0.5, 0.4), color: 0x9aa1a9, x: -37.03, y: 1.1, z: 44 });
+    // ---- Comms Shed (centre 24, 56; walls y 0..2.4, roof top 2.6) ----
+    // Roof fascia on all four edges.
+    t_(new THREE.BoxGeometry(6.5, 0.18, 0.16), trimB, 24, 2.52, 53.22);
+    t_(new THREE.BoxGeometry(6.5, 0.18, 0.16), trimB, 24, 2.52, 58.78);
+    t_(new THREE.BoxGeometry(0.16, 0.18, 5.5), trimB, 20.72, 2.52, 56);
+    t_(new THREE.BoxGeometry(0.16, 0.18, 5.5), trimB, 27.28, 2.52, 56);
+    // Corner boards + header band on the north wall.
+    for (const [cx, cz] of [[21.15, 53.65], [26.85, 53.65], [21.15, 58.35], [26.85, 58.35]]) {
+      t_(new THREE.BoxGeometry(0.26, 2.4, 0.26), trimC, cx, 1.2, cz);
+      t_(new THREE.BoxGeometry(0.38, 2.4, 0.07), trimB, cx, 1.2, cz, 0, Math.PI / 4);
+    }
+    t_(new THREE.BoxGeometry(6.1, 0.2, 0.08), trimB, 24, 2.2, 53.47);
+    // Two windows in the north wall + a wall panel inside the open south.
+    win(22.6, 1.5, 53.47, 'N', GW); win(25.4, 1.5, 53.47, 'N', GD);
+    PM.push({ geo: new THREE.BoxGeometry(0.9, 0.6, 0.06), color: 0x8f979e, x: 24, y: 1.4, z: 53.82 });
+    GC.push({ geo: new THREE.BoxGeometry(0.6, 0.34, 0.05), color: 0xffffff, x: 24, y: 1.45, z: 53.86 }); // interior console screen
+    // ---- Relay Tower + decks: fascia strips on the slab edges ----
+    t_(new THREE.BoxGeometry(14.1, 0.24, 0.14), trimB, 40, 2.18, -46.95);   // tower L1 south
+    t_(new THREE.BoxGeometry(0.14, 0.24, 14.1), trimB, 47.05, 2.18, -54);   // tower L1 east
+    t_(new THREE.BoxGeometry(6.6, 0.24, 0.14), trimB, 40, 4.48, -54.42);    // tower L2 south
+    t_(new THREE.BoxGeometry(0.14, 0.24, 6.6), trimB, 43.3, 4.48, -57.75);  // tower L2 east
+    t_(new THREE.BoxGeometry(32, 0.24, 0.12), trimB, 0, 2.18, -23.95);      // north deck south
+    t_(new THREE.BoxGeometry(10, 0.24, 0.12), trimB, 34, 2.18, -5.95);      // east deck south
+    t_(new THREE.BoxGeometry(10, 0.24, 0.12), trimB, -34, 2.18, -5.95);     // west deck south
+    // Mast crossarms (visual, 12 m up — the dish precedent).
+    t_(new THREE.BoxGeometry(2.2, 0.12, 0.12), trimC, 40, 12.8, -57.75);
+    t_(new THREE.BoxGeometry(0.12, 0.12, 1.6), trimC, 40, 11.9, -57.75);
+    // Relay console screen (on the shipped console box, L2).
+    GC.push({ geo: new THREE.BoxGeometry(0.8, 0.5, 0.05), color: 0xffffff, x: 38.8, y: 5.2, z: -55.57 });
+    // ---- Perimeter coping: a cap strip along every wall top ----
+    t_(new THREE.BoxGeometry(128, 0.22, 2.3), trimC, 0, 7.11, -63);
+    t_(new THREE.BoxGeometry(128, 0.22, 2.3), trimC, 0, 7.11, 63);
+    t_(new THREE.BoxGeometry(2.3, 0.22, 128), trimC, -63, 7.11, 0);
+    t_(new THREE.BoxGeometry(2.3, 0.22, 128), trimC, 63, 7.11, 0);
+
+    const trimMesh = new THREE.Mesh(mergeColoredParts(P),
+      new THREE.MeshStandardMaterial({ vertexColors: true, map: makeConcreteTexture(), roughness: 0.85 }));
+    trimMesh.castShadow = true; trimMesh.receiveShadow = true;
+    scene.add(trimMesh); shootables.push(trimMesh);
+    const glassMats = [
+      [GW, new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x554422, emissive: 0xffb45e, emissiveIntensity: 1.15, roughness: 0.35 })],
+      [GC, new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x2a3844, emissive: 0x86c5e8, emissiveIntensity: 0.55, roughness: 0.3, metalness: 0.3 })],
+      [GD, new THREE.MeshStandardMaterial({ vertexColors: true, color: 0x394048, roughness: 0.18, metalness: 0.55 })],
+    ];
+    for (const [parts, mat] of glassMats) {
+      if (!parts.length) continue;
+      const m = new THREE.Mesh(mergeColoredParts(parts), mat);
+      m.receiveShadow = true;
+      scene.add(m); shootables.push(m);
+    }
+    const panelMesh = new THREE.Mesh(mergeColoredParts(PM),
+      new THREE.MeshStandardMaterial({ vertexColors: true, map: makeMetalPanelTexture(), roughness: 0.5, metalness: 0.55 }));
+    panelMesh.castShadow = true; panelMesh.receiveShadow = true;
+    scene.add(panelMesh); shootables.push(panelMesh);
   }
 
   // ---- Horizon dressing (visual only: NOT in colliders or shootables) ----
@@ -673,21 +824,9 @@ export function buildWorld(scene) {
     const dummy = new THREE.Object3D();
     const UP = new THREE.Vector3(0, 1, 0);
 
-    // Sphere with seeded vertex noise (function of position only, so
-    // shared vertices displace together and the surface never cracks).
-    function displacedSphere(r, seedOff, amp, wSeg = 7, hSeg = 6) {
-      const g = new THREE.SphereGeometry(r, wSeg, hSeg);
-      const p = g.attributes.position, v = new THREE.Vector3();
-      for (let i = 0; i < p.count; i++) {
-        v.fromBufferAttribute(p, i);
-        const n = v.clone().normalize();
-        const noise = Math.sin(n.x * 5.1 + seedOff) * 0.5 + Math.sin(n.y * 6.3 + seedOff * 1.7) * 0.3 + Math.sin(n.z * 4.7 + seedOff * 2.3) * 0.2;
-        v.addScaledVector(n, noise * amp);
-        p.setXYZ(i, v.x, v.y, v.z);
-      }
-      g.computeVertexNormals();
-      return g;
-    }
+    // V6: the displaced-sphere helper moved to js/proctex.js as
+    // canopyGeometry() — smoother (10x8, smooth normals, deeper
+    // noise, flattened belly) and shared with the other builders.
 
     // 7 trees: 3 inside (corners / west edge), 4 outside for the skyline.
     // Per-tree scale/rotation variation = different silhouettes.
@@ -700,10 +839,15 @@ export function buildWorld(scene) {
       { x: 20, z: -62, s: 1.2, sy: 1.3, rot: 3.3 },
       { x: -24, z: 60, s: 1.05, sy: 1.15, rot: 0.2 },
     ];
-    const barkMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true });
+    // V6 (Atlas): bark + foliage canvas textures (proctex.js);
+    // smooth shading everywhere — the flat-shaded facets were
+    // the "blocky" Brett called out.
+    const barkMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, map: makeBarkTexture() });
+    const foliageMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, map: makeFoliageTexture(), alphaTest: 0.42, side: THREE.DoubleSide });
 
-    // Trunks — tapered cylinders, per-instance bark-brown variation.
-    const trunkIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.36, 3.2, 7), barkMat, trees.length);
+    // Trunks — tapered cylinders (proctex profile: root flare +
+    // seeded wobble + gentle lean), per-instance bark variation.
+    const trunkIM = new THREE.InstancedMesh(taperedTrunkGeometry(0.20, 0.44, 3.2, 10, 4, 1.7), barkMat, trees.length);
     trunkIM.castShadow = true; trunkIM.receiveShadow = true; trunkIM.frustumCulled = false;
     trees.forEach((t, i) => {
       dummy.position.set(t.x, 1.6 * t.sy, t.z);
@@ -717,7 +861,7 @@ export function buildWorld(scene) {
     // Root flare — 5 flattened cones per tree, angled ~25 degrees below
     // horizontal so the tips bite into the ground and the thick ends meet
     // the trunk base: roots that read as gripping the soil.
-    const rootIM = new THREE.InstancedMesh(new THREE.ConeGeometry(0.17, 1.15, 5), barkMat, trees.length * 5);
+    const rootIM = new THREE.InstancedMesh(new THREE.ConeGeometry(0.17, 1.15, 6), barkMat, trees.length * 5);
     rootIM.frustumCulled = false;
     trees.forEach((t, i) => {
       for (let k = 0; k < 5; k++) {
@@ -727,12 +871,14 @@ export function buildWorld(scene) {
         dummy.position.set(t.x + dir.x * 0.5 * t.s, 0.27 * t.sy, t.z + dir.z * 0.5 * t.s);
         dummy.scale.set(t.s * 1.1, t.s, t.s * 0.55); // flattened fin
         dummy.updateMatrix(); rootIM.setMatrixAt(i * 5 + k, dummy.matrix);
+        rootIM.setColorAt(i * 5 + k, new THREE.Color(0x5b4632).offsetHSL(0, (lrand() - 0.5) * 0.05, (lrand() - 0.5) * 0.07));
       }
     });
+    if (rootIM.instanceColor) rootIM.instanceColor.needsUpdate = true;
     scene.add(rootIM);
 
     // Branches — 4 angled cylinders per tree, reaching into the canopy.
-    const branchIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.045, 0.09, 1.7, 5), barkMat, trees.length * 4);
+    const branchIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.03, 0.09, 1.7, 6), barkMat, trees.length * 4);
     branchIM.frustumCulled = false;
     trees.forEach((t, i) => {
       const trunkH = 3.2 * t.sy;
@@ -743,31 +889,33 @@ export function buildWorld(scene) {
         dummy.position.set(t.x + dir.x * 0.85 * t.s, trunkH * 0.72 + dir.y * 0.85 * t.s, t.z + dir.z * 0.85 * t.s);
         dummy.scale.set(t.s, t.s * (0.85 + lrand() * 0.35), t.s);
         dummy.updateMatrix(); branchIM.setMatrixAt(i * 4 + k, dummy.matrix);
+        branchIM.setColorAt(i * 4 + k, new THREE.Color(0x5b4632).offsetHSL(0, (lrand() - 0.5) * 0.05, (lrand() - 0.5) * 0.07));
       }
     });
+    if (branchIM.instanceColor) branchIM.instanceColor.needsUpdate = true;
     scene.add(branchIM);
 
-    // Canopy — 4 noise-displaced blobs per tree, clustered. Instance
-    // colours run deep green at the core to sunlit yellow-green at the
-    // highest blob. No flat neon green anywhere.
-    const canopyIM = new THREE.InstancedMesh(
-      displacedSphere(1, 3.1, 0.2),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true }),
-      trees.length * 4
-    );
+    // Canopy — V6: SIX smooth foliage masses per tree in three
+    // irregular tiers (wide lower skirt, mid ring, crown), each
+    // jittered in offset, scale and squash so no two trees read
+    // as clones. Instance colours run deep green at the skirt
+    // to sunlit yellow-green at the crown.
+    const BLOBS = 6;
+    const canopyIM = new THREE.InstancedMesh(canopyGeometry(1, 3.1, 0.30), foliageMat, trees.length * BLOBS);
     canopyIM.castShadow = true; canopyIM.frustumCulled = false;
     const deepGreen = new THREE.Color(0x2f4d20), tipGreen = new THREE.Color(0x7d9c3c);
     trees.forEach((t, i) => {
       const trunkH = 3.2 * t.sy;
-      for (let k = 0; k < 4; k++) {
-        const a = t.rot + k * 1.9 + 0.4, isTop = k === 0;
-        const rOff = isTop ? 0 : 0.8 * t.s;
+      for (let k = 0; k < BLOBS; k++) {
+        const isTop = k === 0, lower = k >= 3;
+        const a = t.rot + k * 2.1 + 0.4 + lrand() * 0.5;
+        const rOff = isTop ? 0 : (lower ? 0.95 : 0.55) * t.s;
         dummy.rotation.set(lrand() * 0.6, t.rot + k * 2.1, lrand() * 0.6);
-        dummy.position.set(t.x + Math.cos(a) * rOff, trunkH + (isTop ? 0.65 : 0.15) * t.sy, t.z + Math.sin(a) * rOff);
-        const bs = t.s * (isTop ? 1.55 : 1.1 + lrand() * 0.3);
+        dummy.position.set(t.x + Math.cos(a) * rOff, trunkH + (isTop ? 0.8 : lower ? -0.05 : 0.4) * t.sy, t.z + Math.sin(a) * rOff);
+        const bs = t.s * (isTop ? 1.5 : lower ? 1.2 + lrand() * 0.3 : 1.05 + lrand() * 0.25);
         dummy.scale.set(bs, bs * 0.72, bs * (0.85 + lrand() * 0.3));
-        dummy.updateMatrix(); canopyIM.setMatrixAt(i * 4 + k, dummy.matrix);
-        canopyIM.setColorAt(i * 4 + k, deepGreen.clone().lerp(tipGreen, isTop ? 0.8 + lrand() * 0.2 : lrand() * 0.45));
+        dummy.updateMatrix(); canopyIM.setMatrixAt(i * BLOBS + k, dummy.matrix);
+        canopyIM.setColorAt(i * BLOBS + k, deepGreen.clone().lerp(tipGreen, isTop ? 0.8 + lrand() * 0.2 : lower ? lrand() * 0.35 : 0.3 + lrand() * 0.35));
       }
     });
     canopyIM.instanceColor.needsUpdate = true;
@@ -795,18 +943,23 @@ export function buildWorld(scene) {
       [16, 22, 1.2], [-30, 32, 1.0], [28, 18, 1.3], [-18, 36, 0.9],
       [12, -6, 1.1], [-38, 28, 1.15],
     ];
-    const bushIM = new THREE.InstancedMesh(
-      displacedSphere(1, 7.7, 0.24),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true }),
-      bushData.length
-    );
+    // V6: two overlapping smooth masses per bush in the SAME
+    // InstancedMesh — organic clumps, zero extra draw calls.
+    // Collider rule below is unchanged (the main mass's box).
+    const bushIM = new THREE.InstancedMesh(canopyGeometry(1, 7.7, 0.34), foliageMat, bushData.length * 2);
     bushIM.castShadow = true; bushIM.receiveShadow = true; bushIM.frustumCulled = false;
     bushData.forEach(([x, z, size], i) => {
       dummy.rotation.set(0, lrand() * Math.PI * 2, 0);
       dummy.position.set(x, size * 0.34, z);
       dummy.scale.set(size, size * 0.72, size * (0.85 + lrand() * 0.3));
-      dummy.updateMatrix(); bushIM.setMatrixAt(i, dummy.matrix);
-      bushIM.setColorAt(i, deepGreen.clone().lerp(tipGreen, lrand() * 0.55));
+      dummy.updateMatrix(); bushIM.setMatrixAt(i * 2, dummy.matrix);
+      bushIM.setColorAt(i * 2, deepGreen.clone().lerp(tipGreen, lrand() * 0.55));
+      const oa = lrand() * Math.PI * 2, os = size * (0.5 + lrand() * 0.2);
+      dummy.rotation.set(0, lrand() * Math.PI * 2, 0);
+      dummy.position.set(x + Math.cos(oa) * size * 0.45, os * 0.36, z + Math.sin(oa) * size * 0.45);
+      dummy.scale.set(os, os * 0.7, os * (0.85 + lrand() * 0.3));
+      dummy.updateMatrix(); bushIM.setMatrixAt(i * 2 + 1, dummy.matrix);
+      bushIM.setColorAt(i * 2 + 1, deepGreen.clone().lerp(tipGreen, 0.15 + lrand() * 0.5));
       if (size >= 1.1) {
         colliders.push(new THREE.Box3(
           new THREE.Vector3(x - size * 0.75, 0, z - size * 0.75),
@@ -871,7 +1024,11 @@ export function buildWorld(scene) {
       dummy.position.set(p.x, 0.22 * p.s, p.z);
       dummy.scale.set(p.s, p.s, p.s);
       dummy.updateMatrix(); im.setMatrixAt(idx, dummy.matrix);
+      // Per-instance brightness jitter (Board 006 §2.1: 100% of
+      // instanced vegetation carries instance colour variation).
+      im.setColorAt(idx, new THREE.Color(0xffffff).offsetHSL(0, 0, (lrand() - 0.5) * 0.22));
     });
+    for (const im of tuftMeshes) if (im.instanceColor) im.instanceColor.needsUpdate = true;
     tuftMeshes[0].count = Math.min(90, tuftSpots.length);
     tuftMeshes[1].count = Math.max(0, tuftSpots.length - 90);
 
