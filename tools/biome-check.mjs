@@ -156,5 +156,92 @@ else fail('B0 mars registry status → ' + BIOMES.find(b => b.id === 'mars')?.st
   } else fail('B13 inert biome ids changed the world');
 }
 
+// ============================================================
+// L-series — DISTINCT-MAP LAYOUTS (V5, Atlas; Board 005 §3.2:
+// biome-check converts to per-map layout checks as maps land).
+// The dressing B-sections above still guard the transition
+// state; these sections guard the layouts themselves, built
+// with the REAL three via the vendor loader (mapbuilders.js
+// uses geo.js merges the stub can't serve). A map's registry
+// flag flips to distinct only with its L-section green.
+// ============================================================
+{
+  const { register } = await import('node:module');
+  register(join(ROOT, 'tools/three-vendor-loader.mjs'), import.meta.url);
+  const THREE = await import(pathToFileURL(join(ROOT, 'vendor/three.module.js')).href);
+  const { buildMapLayout, LAYOUT_IDS } = await import(pathToFileURL(join(ROOT, 'js/mapbuilders.js')).href);
+
+  if (LAYOUT_IDS.join(',') === 'forest,snow,mars') ok('L0 layout ids: forest, snow, mars');
+  else fail('L0 layout ids → ' + LAYOUT_IDS.join(','));
+
+  for (const id of LAYOUT_IDS) {
+    const D = await import(pathToFileURL(join(ROOT, `js/worlddata-${id}.js`)).href);
+    const tag = 'L-' + id;
+    // Data contract (Board §3.2 shape, compound-identical).
+    const contractOk = D.BOUNDS === 62 && D.SPAWN_POINTS.length === 8
+      && D.SOLIDS.length > 0 && D.STRUCTURE_STYLE.length === D.SOLIDS.length
+      && D.MODE_ZONES.A && D.MODE_ZONES.B && D.MODE_ZONES.C && D.ASSAULT_TARGET
+      && D.PICKUP_CACHES.length === 2 && D.TRANSMISSIONS.length === 3 && D.BARRELS.length >= 1;
+    if (contractOk) ok(`${tag} data contract complete (solids ${D.SOLIDS.length}, extra ${D.EXTRA_COLLIDERS.length}, all ${D.allColliders().length})`);
+    else fail(`${tag} data contract incomplete`);
+    // Barrels have matching EXTRA colliders (the compound rule).
+    let barrelOk = true;
+    for (const b of D.BARRELS) {
+      const hit = D.EXTRA_COLLIDERS.some(e => Math.abs((e.min[0] + e.max[0]) / 2 - b.x) < 0.01 && Math.abs((e.min[2] + e.max[2]) / 2 - b.z) < 0.01 && Math.abs(e.max[1] - 1.12) < 0.01);
+      if (!hit) { barrelOk = false; fail(`${tag} barrel (${b.x},${b.z}) lacks its EXTRA collider`); }
+    }
+    if (barrelOk) ok(`${tag} every barrel has its collider`);
+    // Spawns stand on honest ground.
+    let spawnOk = true;
+    for (const [sx, sy, sz] of D.SPAWN_POINTS) {
+      if (D.groundHeightAt(sx, sz, 0) > 0.001) { spawnOk = false; fail(`${tag} spawn (${sx},${sz}) not on ground floor`); }
+      for (const e of D.EXTRA_COLLIDERS) {
+        if (sx > e.min[0] && sx < e.max[0] && sz > e.min[2] && sz < e.max[2]) { spawnOk = false; fail(`${tag} spawn (${sx},${sz}) inside an EXTRA collider`); }
+      }
+    }
+    if (spawnOk) ok(`${tag} all 8 spawns on open ground`);
+    // Zones/assault: the floor at the centre is within the
+    // game's own capture tolerance (|pos.y - zone.y| < 3.2).
+    let zoneOk = true;
+    for (const [k, zn] of [...Object.entries(D.MODE_ZONES), ['assault', D.ASSAULT_TARGET]]) {
+      const floor = D.groundHeightAt(zn.x, zn.z, zn.y);
+      if (!(floor > zn.y - 3.2 && floor <= zn.y + 0.601)) { zoneOk = false; fail(`${tag} zone ${k} floor ${floor} vs zone y ${zn.y}`); }
+    }
+    if (zoneOk) ok(`${tag} zone/assault floors agree with their y (capture tolerance)`);
+    // Layout builds and mirrors the data exactly.
+    const scene = new THREE.Scene();
+    const L = buildMapLayout(id, scene);
+    if (!L) { fail(`${tag} buildMapLayout returned null`); continue; }
+    if (L.colliders.length === D.allColliders().length) ok(`${tag} layout colliders == data (${L.colliders.length})`);
+    else fail(`${tag} layout colliders ${L.colliders.length} != data ${D.allColliders().length}`);
+    const explosive = L.shootables.filter(s => s.userData && s.userData.explosive).length;
+    if (explosive === D.BARRELS.length) ok(`${tag} explosive shootables == barrels (${explosive})`);
+    else fail(`${tag} explosive shootables ${explosive} != barrels ${D.BARRELS.length}`);
+    // Static draw-call budget: layouts must stay lean (the
+    // reclaim lives here — measured builds run 16-18).
+    let calls = 0;
+    L.group.traverse(o => {
+      if ((o.isMesh || o.isInstancedMesh) && o.visible !== false && !(o.material && o.material.visible === false)) calls++;
+    });
+    if (calls <= 40) ok(`${tag} layout static draw calls: ${calls} (<= 40 layout budget)`);
+    else fail(`${tag} layout static draw calls: ${calls} (> 40)`);
+    // Per-map scatter floors.
+    if (id === 'forest') {
+      if (D.TREE_SPOTS.length >= 100 && D.TREE_COLLIDERS.length === D.TREE_SPOTS.length) ok(`${tag} tree scatter ${D.TREE_SPOTS.length} with 1:1 trunk colliders`);
+      else fail(`${tag} tree scatter ${D.TREE_SPOTS.length} / colliders ${D.TREE_COLLIDERS.length}`);
+      let proxies = 0;
+      L.group.traverse(o => { if (o.isMesh && o.material && o.material.visible === false) proxies++; });
+      if (proxies === D.TREE_SPOTS.length) ok(`${tag} trunk bullet proxies == trees (${proxies})`);
+      else fail(`${tag} trunk proxies ${proxies} != trees ${D.TREE_SPOTS.length}`);
+    }
+    if (id === 'snow' && !(D.DRIFT_SPOTS.length >= 40)) fail(`${tag} drift scatter ${D.DRIFT_SPOTS.length} (< 40)`);
+    if (id === 'snow' && D.DRIFT_SPOTS.length >= 40) ok(`${tag} drift scatter ${D.DRIFT_SPOTS.length}`);
+    if (id === 'mars' && !(D.ROCK_SPOTS.length >= 36)) fail(`${tag} rock scatter ${D.ROCK_SPOTS.length} (< 36)`);
+    if (id === 'mars' && D.ROCK_SPOTS.length >= 36) ok(`${tag} rock scatter ${D.ROCK_SPOTS.length}`);
+  }
+  if (buildMapLayout('compound', new THREE.Scene()) === null) ok('L9 compound id stays with buildWorld (null layout)');
+  else fail('L9 compound id must not build a layout');
+}
+
 console.log(failures ? `\nBIOME CHECK FAILED (${failures})` : '\nBIOME CHECK PASSED');
 process.exit(failures ? 1 : 0);
