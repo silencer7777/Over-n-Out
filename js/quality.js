@@ -8,10 +8,12 @@
 // renderer and scene are passed in.
 //
 // Quality levels (start at 0, higher number = lower quality):
-//   L0 full: pixelRatio = min(devicePixelRatio, 2);   shadows on, 2048
-//   L1:      pixelRatio = min(devicePixelRatio, 1.5); shadows on, 2048
-//   L2:      pixelRatio = 1.25;                       shadows on, 1024
+//   L0 full: pixelRatio = min(devicePixelRatio, 2);   shadows on, 4096
+//   L1:      pixelRatio = min(devicePixelRatio, 1.5); shadows on, 4096
+//   L2:      pixelRatio = 1.25;                       shadows on, 2048
 //   L3:      pixelRatio = 1.0;                        shadows off
+// (Shadow sizes raised by the V5 lighting spec, Board 005 §2.4 —
+// Coordinator's scoped edit; scaler logic untouched.)
 // main.js owns the sun's shadow camera; this scaler only ever touches
 // the sun's castShadow flag and shadow.mapSize.
 
@@ -114,14 +116,14 @@ export class QualityScaler {
     sun.castShadow = level !== 3;
 
     // Shadow map size for this level; L3 leaves the size untouched
-    // (shadows are off) so stepping back up restores L2's 1024 map
-    // without a needless resize.
+    // (shadows are off) so stepping back up restores L2's 2048 map
+    // without a needless resize. (V5 sizes per Board 005 §2.4.)
     let size = 0;
-    if (level === 0 || level === 1) size = 2048;
-    else if (level === 2) size = 1024;
+    if (level === 0 || level === 1) size = 4096;
+    else if (level === 2) size = 2048;
     if (size === 0 || !sun.shadow || !sun.shadow.mapSize) return;
 
-    // Resize only on an actual size change (L0 -> L1 is 2048 -> 2048
+    // Resize only on an actual size change (L0 -> L1 is 4096 -> 4096
     // and must not churn the shadow map).
     if (sun.shadow.mapSize.x === size && sun.shadow.mapSize.y === size) return;
     sun.shadow.mapSize.set(size, size);
