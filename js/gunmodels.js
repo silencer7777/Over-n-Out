@@ -71,6 +71,19 @@ function gripAndGuard(list, gripZ, magFrontZ) {
   P(list, box(0.010, 0.045, 0.012), 'metal', 0, -0.075, magFrontZ - 0.045, 0.3); // trigger blade
 }
 
+// V4 realism pass 2 (Verity bar): the small machined details that
+// sell a real receiver at arm's length — ejection port, magazine
+// release, selector switch, sling mount. All parts JOIN the same
+// lists, so draw calls are unchanged (merged per material / one
+// bot mesh); ~5 boxes ≈ 60 tris per gun.
+function receiverDetails(list, halfW, portZ, gripZ) {
+  P(list, box(0.006, 0.026, 0.085), 'steel', halfW + 0.002, 0.014, portZ);            // ejection port (right)
+  P(list, box(0.010, 0.020, 0.028), 'metal', halfW - 0.004, 0.020, portZ - 0.062, 0, 0, 0.5); // brass deflector / assist housing
+  P(list, cylY(0.011, 0.010), 'metal', halfW + 0.004, -0.018, portZ + 0.085, 0, 0, Math.PI / 2); // magazine release button
+  P(list, box(0.008, 0.013, 0.032), 'metal', -halfW - 0.002, -0.012, gripZ - 0.015, 0, 0, 0.35); // selector switch (left)
+  P(list, box(0.008, 0.030, 0.014), 'steel', 0, -0.052, gripZ + 0.10);                // sling mount lug
+}
+
 // A curved box magazine: 3 stacked segments with progressive tilt
 // (the AR's signature curve). Straight mags use segments = 1.
 function magazine(list, mat, x, y, z, depth, segments, tiltStep) {
@@ -107,6 +120,7 @@ function buildAR() {
   gripAndGuard(L, 0.125, 0.0);
   P(L, box(0.05, 0.095, 0.21), 'polymer', 0, 0.012, 0.25);                       // stock
   P(L, box(0.056, 0.115, 0.022), 'polymer', 0, 0.005, 0.365);                    // butt pad
+  receiverDetails(L, 0.035, -0.02, 0.125);
   return { parts: L, muzzle: new THREE.Vector3(0, 0.02, -0.71) };
 }
 
@@ -125,6 +139,7 @@ function buildSMG() {
   P(L, box(0.014, 0.014, 0.17), 'metal', 0.018, 0.03, 0.235);                    // wire stock (right strut)
   P(L, box(0.014, 0.014, 0.17), 'metal', -0.018, 0.03, 0.235);                   // wire stock (left strut)
   P(L, box(0.05, 0.07, 0.018), 'polymer', 0, 0.03, 0.325);                       // butt plate
+  receiverDetails(L, 0.033, -0.02, 0.115);
   return { parts: L, muzzle: new THREE.Vector3(0, 0.015, -0.39) };
 }
 
@@ -144,6 +159,12 @@ function buildShotgun() {
   P(L, box(0.052, 0.10, 0.17), 'wood', 0, -0.005, 0.245, 0.10);                  // stock (shoulder)
   P(L, box(0.048, 0.115, 0.09), 'wood', 0, -0.075, 0.155, 0.55);                 // stock wrist / grip
   P(L, box(0.056, 0.12, 0.022), 'polymer', 0, 0.0, 0.335);                       // butt pad
+  // V4 pass 2: side shell carrier (4 shells on the receiver's left
+  // face — the classic cruiser-ready look) + loading port.
+  for (let i = 0; i < 4; i++) {
+    P(L, cylZ(0.0095, 0.048), 'steel', -0.041, -0.005, -0.045 + i * 0.042);
+  }
+  P(L, box(0.036, 0.008, 0.09), 'metal', 0, -0.064, 0.02);                        // loading port (underside)
   return { parts: L, muzzle: new THREE.Vector3(0, 0.028, -0.645) };
 }
 
@@ -171,6 +192,12 @@ function buildDMR() {
   P(L, box(0.05, 0.10, 0.22), 'polymer', 0, 0.012, 0.26);                        // stock
   P(L, box(0.052, 0.045, 0.14), 'polymer', 0, 0.082, 0.25);                      // cheek riser
   P(L, box(0.056, 0.115, 0.022), 'polymer', 0, 0.005, 0.375);                    // butt pad
+  receiverDetails(L, 0.036, -0.02, 0.135);
+  // V4 pass 2: bolt handle + knob (the DMR is bolt-worked) and the
+  // scope's windage turret to match the elevation turret.
+  P(L, cylY(0.008, 0.045), 'steel', 0.052, 0.008, 0.085, 0, 0, 1.15);             // bolt handle
+  P(L, cylY(0.014, 0.022), 'metal', 0.072, -0.004, 0.095);                        // bolt knob
+  P(L, cylY(0.015, 0.026), 'metal', 0.032, 0.125, -0.045, 0, 0, Math.PI / 2);     // windage turret
   return { parts: L, muzzle: new THREE.Vector3(0, 0.02, -0.825) };
 }
 
@@ -187,23 +214,144 @@ function buildPistol() {
   P(L, box(0.048, 0.018, 0.064), 'accent', 0, -0.168, 0.068, 0.28);              // magazine baseplate (tinted)
   P(L, box(0.012, 0.010, 0.075), 'metal', 0, -0.062, -0.045);                    // trigger guard (lower bar)
   P(L, box(0.012, 0.042, 0.012), 'metal', 0, -0.042, -0.078);                   // trigger guard (front post)
+  // V4 pass 2: slide serration grooves, thumb safety, guide rod.
+  for (let i = 0; i < 3; i++) {
+    P(L, box(0.048, 0.040, 0.006), 'metal', 0, 0.038, 0.028 + i * 0.013, 0, 0, 0.0);
+  }
+  P(L, box(0.008, 0.012, 0.030), 'metal', -0.024, 0.012, 0.055, 0, 0, 0.3);       // thumb safety (left)
+  P(L, cylZ(0.006, 0.030), 'steel', 0, 0.012, -0.118);                            // guide rod
   return { parts: L, muzzle: new THREE.Vector3(0, 0.032, -0.145) };
 }
 
 const BUILDERS = { ar: buildAR, smg: buildSMG, shotgun: buildShotgun, dmr: buildDMR, pistol: buildPistol };
 
-// buildGunParts(weaponId) -> { parts, muzzle } — the single part
-// list both flavours batch from. Unknown ids fall back to the AR.
-export function buildGunParts(weaponId) {
-  const build = BUILDERS[getWeapon(weaponId).id] || BUILDERS.ar;
-  return build();
+// ---------------------------------------------------------------
+// ATTACHMENT PARTS (V4 loadouts). Attachments from js/loadouts.js
+// render as named parts JOINING the same part lists, so they batch
+// into the same merged meshes — bot guns stay ONE draw call,
+// viewmodels stay <= 6 meshes. Anchors are per class, read off the
+// base builds above (optic sits on the rail, magBottom under the
+// magazine, under = handguard underside, muzzle at the muzzle).
+// Bot-held forms get the silhouette parts (optic, mag, grip,
+// suppressor); the fine barrel/stock work is viewmodel-only.
+// ---------------------------------------------------------------
+const ATTACH_ANCHORS = {
+  ar:      { optic: [0, 0.148, -0.04], magBottom: [0, -0.40, 0.10], under: [0, -0.045, -0.28], muzzle: [0, 0.02, -0.70], barrelBase: [0, 0.02, -0.55], stock: [0, 0.075, 0.25] },
+  smg:     { optic: [0, 0.105, -0.02], magBottom: [0, -0.325, 0.045], under: [0, -0.05, -0.135], muzzle: [0, 0.015, -0.30], barrelBase: [0, 0.015, -0.20], stock: [0, 0.065, 0.26] },
+  shotgun: { optic: [0, 0.085, 0.02], magBottom: null, under: [0, -0.085, -0.30], muzzle: [0, 0.028, -0.64], barrelBase: [0, 0.028, -0.45], stock: null },
+  dmr:     { optic: [0, 0.175, -0.05], magBottom: [0, -0.315, 0.055], under: [0, -0.055, -0.33], muzzle: [0, 0.02, -0.82], barrelBase: [0, 0.02, -0.62], stock: [0, 0.115, 0.25] },
+  pistol:  { optic: [0, 0.085, -0.01], magBottom: [0, -0.185, 0.065], under: [0, -0.045, -0.06], muzzle: [0, 0.032, -0.145], barrelBase: [0, 0.032, -0.10], stock: null },
+};
+
+function attachmentParts(weaponId, attachmentIds, forBot) {
+  const L = [];
+  const A = ATTACH_ANCHORS[weaponId] || ATTACH_ANCHORS.ar;
+  const has = id => (attachmentIds || []).includes(id);
+  if (has('reddot') && A.optic) {
+    P(L, box(0.040, 0.045, 0.055), 'metal', A.optic[0], A.optic[1], A.optic[2]);            // red dot housing
+    P(L, cylZ(0.014, 0.006), 'glass', A.optic[0], A.optic[1] + 0.004, A.optic[2] - 0.028);  // red dot lens
+  }
+  if (has('holo') && A.optic) {
+    P(L, box(0.052, 0.058, 0.075), 'metal', A.optic[0], A.optic[1] + 0.004, A.optic[2]);    // holo housing (boxier)
+    P(L, cylZ(0.019, 0.006), 'glass', A.optic[0], A.optic[1] + 0.006, A.optic[2] - 0.038);  // holo lens
+  }
+  if (has('scope') && A.optic) {
+    P(L, cylZ(0.020, 0.15), 'metal', A.optic[0], A.optic[1] + 0.012, A.optic[2]);           // scope tube
+    P(L, cylZ(0.027, 0.030), 'metal', A.optic[0], A.optic[1] + 0.012, A.optic[2] - 0.075);  // objective bell
+    P(L, cylZ(0.022, 0.006), 'glass', A.optic[0], A.optic[1] + 0.012, A.optic[2] - 0.092);  // objective lens
+  }
+  if (has('laser') && A.under) {
+    P(L, cylZ(0.011, 0.055), 'metal', A.under[0], A.under[1] - 0.018, A.under[2] - 0.06);  // laser unit
+    P(L, cylZ(0.005, 0.006), 'accent', A.under[0], A.under[1] - 0.018, A.under[2] - 0.09); // laser emitter (tinted)
+  }
+  if (has('grip') && A.under) {
+    P(L, box(0.040, 0.105, 0.045), 'polymer', A.under[0], A.under[1] - 0.055, A.under[2] + 0.02, 0.35); // foregrip
+  }
+  if (has('extmag') && A.magBottom) {
+    P(L, box(0.048, 0.13, 0.068), 'metal', A.magBottom[0], A.magBottom[1] - 0.055, A.magBottom[2] + 0.012, 0.10); // extended magazine
+  }
+  if (has('fastmag') && A.magBottom) {
+    P(L, box(0.056, 0.05, 0.082), 'accent', A.magBottom[0], A.magBottom[1] + 0.10, A.magBottom[2]); // fast-mag pull band (tinted)
+  }
+  if (!forBot) {
+    if (has('suppressor') && A.muzzle) {
+      P(L, cylZ(0.030, 0.15), 'steel', A.muzzle[0], A.muzzle[1], A.muzzle[2] - 0.045);      // suppressor can
+    }
+    if (has('longbarrel') && A.barrelBase) {
+      P(L, cylZ(0.017, 0.15), 'steel', A.barrelBase[0], A.barrelBase[1], A.barrelBase[2] - 0.10); // barrel extension
+    }
+    if (has('shortbarrel') && A.muzzle) {
+      P(L, cylZ(0.033, 0.045), 'steel', A.muzzle[0], A.muzzle[1], A.muzzle[2] + 0.10);      // stubby brake, set back
+    }
+    if (has('stock') && A.stock) {
+      P(L, box(0.052, 0.045, 0.15), 'polymer', A.stock[0], A.stock[1], A.stock[2]);         // cheek riser / tactical stock
+    }
+  }
+  return L;
+}
+
+// buildGunParts(weaponId, attachmentIds?) -> { parts, muzzle } —
+// the single part list both flavours batch from. Unknown ids fall
+// back to the AR.
+export function buildGunParts(weaponId, attachmentIds = []) {
+  const id = getWeapon(weaponId).id;
+  const build = BUILDERS[id] || BUILDERS.ar;
+  const built = build();
+  if (attachmentIds && attachmentIds.length) {
+    built.parts = built.parts.concat(attachmentParts(id, attachmentIds, false));
+  }
+  return built;
+}
+
+// ---------------------------------------------------------------
+// VIEWMODEL ARMS (V4 soldier pass, Coordinator integration):
+// camo sleeves + glove hands in the gun group's frame, ONE merged
+// vertex-coloured mesh (1 draw call), rebuilt per weapon. The
+// right hand grips the pistol grip; the left hand works the
+// forend (pump on the shotgun, under the handguard on long guns,
+// cupped under the frame on the pistol). Sleeve tones match the
+// soldier uniform discipline (olive/tan camo + dark gloves).
+// ---------------------------------------------------------------
+const ARM_ANCHORS = {
+  ar:      { grip: [0, -0.115, 0.125], fore: [0, -0.048, -0.27] },
+  smg:     { grip: [0, -0.105, 0.115], fore: [0, -0.115, -0.135] },
+  shotgun: { grip: [0, -0.075, 0.155], fore: [0, -0.062, -0.30] },
+  dmr:     { grip: [0, -0.115, 0.135], fore: [0, -0.048, -0.34] },
+  pistol:  { grip: [0, -0.098, 0.048], fore: [0, -0.155, 0.045] },
+};
+const ARM_COLORS = { sleeve: 0x4a5238, sleeveDark: 0x3a4130, glove: 0x23272c, skin: 0xc9a189 };
+
+export function buildViewmodelArms(weaponId) {
+  const id = getWeapon(weaponId).id;
+  const A = ARM_ANCHORS[id] || ARM_ANCHORS.ar;
+  const parts = [];
+  const C = (geo, color, x, y, z, rx = 0, ry = 0, rz = 0) => parts.push({ geo, color, x, y, z, rx, ry, rz });
+  const [gx, gy, gz] = A.grip;
+  const [fx, fy, fz] = A.fore;
+  // Right hand + forearm (comes from lower right, behind the grip).
+  C(box(0.062, 0.048, 0.085), ARM_COLORS.glove, gx, gy - 0.008, gz + 0.008, 0.35);            // right glove
+  C(box(0.030, 0.016, 0.030), ARM_COLORS.skin, gx, gy + 0.016, gz + 0.038);                  // wrist skin
+  C(box(0.085, 0.075, 0.26), ARM_COLORS.sleeve, gx + 0.055, gy - 0.085, gz + 0.16, 0.55, 0, -0.35); // right forearm (camo)
+  C(box(0.088, 0.078, 0.10), ARM_COLORS.sleeveDark, gx + 0.028, gy - 0.038, gz + 0.075, 0.55, 0, -0.35); // cuff
+  // Left hand + forearm (comes from lower left to the forend).
+  C(box(0.060, 0.045, 0.095), ARM_COLORS.glove, fx, fy - 0.030, fz, 0.1);                    // left glove
+  C(box(0.030, 0.016, 0.030), ARM_COLORS.skin, fx - 0.012, fy - 0.012, fz + 0.045);         // wrist skin
+  C(box(0.082, 0.072, 0.27), ARM_COLORS.sleeve, fx - 0.030, fy - 0.105, fz + 0.155, 0.62, 0, 0.22); // left forearm (camo)
+  C(box(0.085, 0.075, 0.10), ARM_COLORS.sleeveDark, fx - 0.018, fy - 0.052, fz + 0.068, 0.62, 0, 0.22); // cuff
+  const mesh = new THREE.Mesh(
+    mergeColoredParts(parts),
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0.0 })
+  );
+  mesh.frustumCulled = false;
+  mesh.name = 'viewmodel-arms';
+  return mesh;
 }
 
 // Viewmodel: one mesh per material, real PBR-ish materials so metal
 // reads as metal at arm's length. Returns { group, muzzle,
 // accentMaterial, partCount }. Caller owns disposal.
-export function buildViewmodelGun(weaponId) {
-  const { parts, muzzle } = buildGunParts(weaponId);
+export function buildViewmodelGun(weaponId, attachmentIds = []) {
+  const { parts, muzzle } = buildGunParts(weaponId, attachmentIds);
   const byMat = mergePartsByMaterial(parts);
   const group = new THREE.Group();
   group.name = 'gun-' + getWeapon(weaponId).id;
@@ -226,10 +374,12 @@ export function buildViewmodelGun(weaponId) {
 // weapon tint rides the receiver + magazine so a bot's weapon class
 // still reads at range, on top of the silhouette.
 const _botGeoCache = new Map();
-export function buildBotGun(weaponId) {
+export function buildBotGun(weaponId, attachmentIds = []) {
   const id = getWeapon(weaponId).id;
-  if (!_botGeoCache.has(id)) {
-    const { parts } = buildGunParts(id);
+  const cacheKey = id + '|' + [...(attachmentIds || [])].sort().join(',');
+  if (!_botGeoCache.has(cacheKey)) {
+    const base = (BUILDERS[id] || BUILDERS.ar)();
+    const parts = base.parts.concat(attachmentParts(id, attachmentIds, true));
     const tint = getWeapon(id).tint;
     const colored = parts.map(p => ({
       ...p,
@@ -239,10 +389,10 @@ export function buildBotGun(weaponId) {
     // Simpler + honest: tint applies to accent parts only; the
     // receiver-tint heuristic above is limited to the receiver box
     // region so silhouettes stay realistic.
-    _botGeoCache.set(id, mergeColoredParts(colored));
+    _botGeoCache.set(cacheKey, mergeColoredParts(colored));
   }
   const mesh = new THREE.Mesh(
-    _botGeoCache.get(id),
+    _botGeoCache.get(cacheKey),
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.55 })
   );
   mesh.frustumCulled = false;
