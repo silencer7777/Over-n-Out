@@ -1,0 +1,552 @@
+import * as THREE from 'three';
+import { mergeColoredParts } from './geo.js';
+import * as FOREST from './worlddata-forest.js';
+import * as SNOW from './worlddata-snow.js';
+import * as MARS from './worlddata-mars.js';
+
+// ============================================================
+// mapbuilders.js — DISTINCT-MAP layout builders (V5, Atlas;
+// Board 005 §3 + Directive 7: each level its own place).
+//
+// buildMapLayout(id, scene) builds ONE map's full layout —
+// terrain blanket, structures, scatter, POIs — from its own
+// data module (js/worlddata-<id>.js), which is the single
+// source: the builder renders the data's solids, scatter
+// spots, barrels and colliders, so visuals and sim can never
+// drift apart. Returns the buildWorld-shaped object
+//   { group, colliders, shootables, spawnPoints, bounds,
+//     groundHeightAt }
+// or null for 'compound' / unknown ids (the Compound keeps
+// buildWorld; the Coordinator's registry in js/maps.js is the
+// selection point that decides when a map serves its layout
+// instead of the V4 transition dressing).
+//
+// Discipline: everything merged or instanced (the dressing
+// rules); structures cast shadows (Board §2.4); per-map static
+// draw calls land FAR under the 165 sustained line because the
+// layouts replace the compound statics instead of dressing
+// them. Headless-safe: no document/window use.
+// ============================================================
+
+function makeRng(seed) {
+  let s = seed >>> 0;
+  return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+}
+
+// Deterministic vertex-noise sphere (local copy of the biome
+// dressing helper — same recipe, so canopies/drifts/rocks read
+// as one family across dressing and layouts).
+function displacedSphere(r, seedOff, amp, wSeg = 7, hSeg = 6) {
+  const g = new THREE.SphereGeometry(r, wSeg, hSeg);
+  const p = g.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    const n = v.clone().normalize();
+    const noise = Math.sin(n.x * 5.1 + seedOff) * 0.5 + Math.sin(n.y * 6.3 + seedOff * 1.7) * 0.3 + Math.sin(n.z * 4.7 + seedOff * 2.3) * 0.2;
+    v.addScaledVector(n, noise * amp);
+    p.setXYZ(i, v.x, v.y, v.z);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+const MAT_STD = () => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0.02 });
+const MAT_METAL = () => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.48, metalness: 0.62 });
+const PROXY_MAT = new THREE.MeshBasicMaterial({ visible: false });
+
+const _box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+const _cylY = (r, h, seg = 10) => new THREE.CylinderGeometry(r, r, h, seg);
+function _p(list, geo, color, x, y, z, rx = 0, ry = 0, rz = 0) {
+  list.push({ geo, color, x, y, z, rx, ry, rz });
+}
+function merged(parts, mat, { shadow = true } = {}) {
+  const m = new THREE.Mesh(mergeColoredParts(parts), mat);
+  if (shadow) { m.castShadow = true; m.receiveShadow = true; }
+  return m;
+}
+function box3List(data) {
+  return data.allColliders().map(b => new THREE.Box3(
+    new THREE.Vector3(b.min[0], b.min[1], b.min[2]),
+    new THREE.Vector3(b.max[0], b.max[1], b.max[2])));
+}
+function shade(hex, amt) {
+  return new THREE.Color(hex).offsetHSL(0, 0, amt).getHex();
+}
+
+// Render a data module's SOLIDS as two merged meshes (standard
+// + metal styles), with a deterministic per-box shade jitter
+// so big flat walls don't read as one plastic slab.
+const METAL_STYLES = new Set(['metal']);
+function solidsMeshes(data, styleColors, group, shootables) {
+  const std = [], met = [];
+  data.SOLIDS.forEach((s, i) => {
+    const style = data.STRUCTURE_STYLE[i];
+    const jitter = ((i * 37) % 7 - 3) * 0.008;
+    const part = {
+      geo: _box(s.max[0] - s.min[0], s.max[1] - s.min[1], s.max[2] - s.min[2]),
+      color: shade(styleColors[style] ?? 0x888888, jitter),
+      x: (s.min[0] + s.max[0]) / 2, y: (s.min[1] + s.max[1]) / 2, z: (s.min[2] + s.max[2]) / 2,
+    };
+    (METAL_STYLES.has(style) ? met : std).push(part);
+  });
+  if (std.length) { const m = merged(std, MAT_STD()); group.add(m); shootables.push(m); }
+  if (met.length) { const m = merged(met, MAT_METAL()); group.add(m); shootables.push(m); }
+}
+
+// Explosive barrels from data (compound parity: individual
+// meshes, userData.explosive carries the spec main.js resolves).
+function barrelMeshes(data, group, shootables) {
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x9c3636, roughness: 0.55, metalness: 0.3 });
+  const bandMat = new THREE.MeshStandardMaterial({ color: 0x6e2a2a, roughness: 0.6, metalness: 0.3 });
+  for (const b of data.BARRELS) {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 1.12, 14), bodyMat);
+    body.position.y = 0.56;
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.355, 0.355, 0.1, 14), bandMat);
+    band.position.y = 0.85;
+    body.castShadow = true; body.receiveShadow = true;
+    g.add(body, band);
+    g.position.set(b.x, 0, b.z);
+    g.userData.explosive = { radius: b.radius, damage: b.damage };
+    group.add(g);
+    shootables.push(body);
+    body.userData.explosive = g.userData.explosive;
+  }
+}
+
+function blanket(group, color, speckleColors, seed) {
+  const m = new THREE.Mesh(_box(130, 0.24, 130),
+    new THREE.MeshStandardMaterial({ color, roughness: 1 }));
+  m.position.y = -0.13;
+  m.receiveShadow = true;
+  group.add(m);
+  const rng = makeRng(seed);
+  const fleck = new THREE.InstancedMesh(_box(0.3, 0.03, 0.3),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }), 220);
+  const dummy = new THREE.Object3D();
+  const cols = speckleColors.map(c => new THREE.Color(c));
+  for (let i = 0; i < 220; i++) {
+    dummy.position.set(-61 + rng() * 122, 0.005, -61 + rng() * 122);
+    dummy.rotation.set(0, rng() * Math.PI, 0);
+    const s = 0.5 + rng() * 1.6;
+    dummy.scale.set(s, 1, s * (0.6 + rng() * 0.7));
+    dummy.updateMatrix();
+    fleck.setMatrixAt(i, dummy.matrix);
+    fleck.setColorAt(i, cols[i % cols.length]);
+  }
+  fleck.receiveShadow = true;
+  group.add(fleck);
+  return m;
+}
+
+function finishLayout(data, group, colliders, shootables) {
+  return {
+    group, colliders, shootables,
+    spawnPoints: data.SPAWN_POINTS,
+    bounds: data.BOUNDS,
+    groundHeightAt: data.groundHeightAt,
+  };
+}
+
+// ============================================================
+// FOREST — "Meridian Relay" (worlddata-forest.js)
+// ============================================================
+function buildForestLayout(scene) {
+  const D = FOREST;
+  const group = new THREE.Group(); group.name = 'map-forest';
+  const colliders = box3List(D);
+  const shootables = [];
+  const rng = makeRng(9917);
+
+  blanket(group, 0x4a4436, [0x3e3a2e, 0x585344, 0x63573f], 517);
+
+  // Dry stream bed — a darker winding strip, visual only
+  // (flat; boots and the data agree it is not a trench).
+  const stream = new THREE.Mesh(_box(7, 0.03, 128),
+    new THREE.MeshStandardMaterial({ color: 0x39372c, roughness: 1 }));
+  stream.position.set(3, 0.012, 0); stream.rotation.y = 0.10;
+  stream.receiveShadow = true;
+  group.add(stream);
+
+  solidsMeshes(D, { earth: 0x5d5240, timber: 0x6b4f30, crate: 0x8a6b42, metal: 0x707880 }, group, shootables);
+
+  // Standing-mast extras + console (merged, metal bucket).
+  {
+    const P = [];
+    _p(P, _box(2.2, 0.12, 0.12), 0x707880, 6, 8.2, -14);
+    _p(P, _box(1.4, 0.10, 0.10), 0x707880, 6, 6.4, -14, 0, Math.PI / 2);
+    _p(P, new THREE.ConeGeometry(0.8, 0.5, 10, 1, true), 0xb9c0c7, 6, 7.1, -14.9, -0.9);
+    _p(P, _box(0.8, 1.0, 0.5), 0x3a3f45, 7.3, 0.5, -14);
+    _p(P, _box(0.55, 0.32, 0.04), 0x9fe8b0, 7.3, 0.68, -14.28);
+    const m = merged(P, MAT_METAL());
+    group.add(m); shootables.push(m);
+  }
+  // Cabin collapsed roof (visual + shootable; no collider —
+  // it fell IN, nobody stands on a collapse) + chimney.
+  {
+    const P = [];
+    _p(P, _box(8.8, 0.12, 4.6), 0x54382a, 38, 2.62, 4.4, 0.10, 0, 0.17);
+    _p(P, _box(8.8, 0.10, 3.4), 0x54382a, 38, 2.30, 7.6, -0.06, 0, 0.10);
+    _p(P, _box(0.5, 1.3, 0.5), 0x77716a, 35.5, 2.9, 4.2);
+    const m = merged(P, MAT_STD());
+    group.add(m); shootables.push(m);
+  }
+  // Fallen logs + boulders + fallen mast (merged sets).
+  {
+    const P = [];
+    const logs = [[-8, 26, 0.4], [20, -30, -0.3], [-30, -8, 0.9], [48, 30, 0.2], [-52, 24, -0.6], [14, 48, 1.2]];
+    for (const [x, z, ry] of logs) {
+      _p(P, new THREE.CylinderGeometry(0.32, 0.32, 3.6, 8).rotateZ(Math.PI / 2), 0x4c3a26, x, 0.32, z, 0, ry);
+      _p(P, new THREE.CylinderGeometry(0.20, 0.24, 1.1, 7).rotateZ(Math.PI / 2), 0x5d4a30, x + 0.8, 0.75, z, 0, ry + 0.4);
+    }
+    for (const [x, z] of [[-20, -44], [25, 15], [-44, 34], [56, -19]]) {
+      _p(P, new THREE.DodecahedronGeometry(0.95), 0x777d84, x, 0.55, z, rng() * 0.4, rng() * 3, 0);
+    }
+    const m = merged(P, MAT_STD());
+    group.add(m); shootables.push(m);
+  }
+  {
+    const P = [];
+    _p(P, new THREE.CylinderGeometry(0.15, 0.19, 12, 8).rotateZ(Math.PI / 2 - 0.06), 0x707880, -16, 0.55, 56.1);
+    _p(P, _box(0.12, 2.4, 0.12), 0x707880, -20.5, 0.7, 56.1, 0, 0, 0.06);
+    _p(P, new THREE.ConeGeometry(0.85, 0.5, 10, 1, true), 0xb9c0c7, -12.5, 0.75, 56.9, 0.8, 0, -1.2);
+    const m = merged(P, MAT_METAL());
+    group.add(m); shootables.push(m);
+  }
+
+  // Trees from TREE_SPOTS — trunk + 6-blob layered canopy,
+  // instanced (the dressing recipe at the data's positions).
+  {
+    const trees = D.TREE_SPOTS;
+    const dummy = new THREE.Object3D();
+    const trunkIM = new THREE.InstancedMesh(
+      new THREE.CylinderGeometry(0.30, 0.48, 3.2, 6),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true }), trees.length);
+    trunkIM.castShadow = true; trunkIM.receiveShadow = true; trunkIM.frustumCulled = false;
+    const BLOBS = 6;
+    const canopyIM = new THREE.InstancedMesh(displacedSphere(1, 3.1, 0.2),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true }), trees.length * BLOBS);
+    canopyIM.castShadow = true; canopyIM.frustumCulled = false;
+    const deepGreen = new THREE.Color(0x2f4d27), tipGreen = new THREE.Color(0x5f834a);
+    const bark = new THREE.Color(0x5a4630), barkLight = new THREE.Color(0x6e5840);
+    trees.forEach((t, i) => {
+      const trunkH = 3.2 * t.sy;
+      dummy.rotation.set(0, t.rot, 0);
+      dummy.position.set(t.x, trunkH / 2, t.z);
+      dummy.scale.set(t.s, t.sy, t.s);
+      dummy.updateMatrix(); trunkIM.setMatrixAt(i, dummy.matrix);
+      trunkIM.setColorAt(i, bark.clone().lerp(barkLight, rng() * 0.6));
+      for (let k = 0; k < BLOBS; k++) {
+        const lower = k < 3, isTop = k === 3;
+        const a = t.rot + k * 2.1 + 0.4;
+        const rOff = isTop ? 0 : (lower ? 1.0 : 0.7) * t.s;
+        dummy.rotation.set(rng() * 0.6, t.rot + k * 2.1, rng() * 0.6);
+        dummy.position.set(t.x + Math.cos(a) * rOff, trunkH + (lower ? -0.15 : isTop ? 0.75 : 0.35) * t.sy, t.z + Math.sin(a) * rOff);
+        const bs = t.s * (isTop ? 1.5 : lower ? 1.2 + rng() * 0.25 : 1.0 + rng() * 0.25);
+        dummy.scale.set(bs, bs * 0.72, bs * (0.85 + rng() * 0.3));
+        dummy.updateMatrix(); canopyIM.setMatrixAt(i * BLOBS + k, dummy.matrix);
+        canopyIM.setColorAt(i * BLOBS + k, deepGreen.clone().lerp(tipGreen, isTop ? 0.8 + rng() * 0.2 : lower ? rng() * 0.35 : 0.3 + rng() * 0.35));
+      }
+      // Invisible trunk proxy = the bullet-stopper (compound rule).
+      const h = 3.2 * t.sy;
+      const proxy = new THREE.Mesh(new THREE.CylinderGeometry(0.42 * t.s, 0.46 * t.s, h, 6), PROXY_MAT);
+      proxy.position.set(t.x, h / 2, t.z);
+      group.add(proxy); shootables.push(proxy);
+    });
+    if (trunkIM.instanceColor) trunkIM.instanceColor.needsUpdate = true;
+    if (canopyIM.instanceColor) canopyIM.instanceColor.needsUpdate = true;
+    group.add(trunkIM); group.add(canopyIM);
+  }
+  // Bushes + stumps + ferns (instanced scatter dressing).
+  {
+    const bushes = D.BUSH_SPOTS;
+    const dummy = new THREE.Object3D();
+    const bushIM = new THREE.InstancedMesh(displacedSphere(1, 7.7, 0.24),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, flatShading: true }), bushes.length);
+    bushIM.castShadow = true; bushIM.receiveShadow = true; bushIM.frustumCulled = false;
+    const deepGreen = new THREE.Color(0x2f4d27), tipGreen = new THREE.Color(0x5f834a);
+    bushes.forEach((b, i) => {
+      dummy.rotation.set(0, b.rot, 0);
+      dummy.position.set(b.x, b.size * 0.34, b.z);
+      dummy.scale.set(b.size, b.size * 0.72, b.size * 0.9);
+      dummy.updateMatrix(); bushIM.setMatrixAt(i, dummy.matrix);
+      bushIM.setColorAt(i, deepGreen.clone().lerp(tipGreen, rng() * 0.55));
+    });
+    if (bushIM.instanceColor) bushIM.instanceColor.needsUpdate = true;
+    group.add(bushIM);
+
+    const stumpIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.30, 0.40, 0.5, 7),
+      new THREE.MeshStandardMaterial({ color: 0x6e5840, roughness: 1 }), 14);
+    for (let i = 0; i < 14; i++) {
+      const t = D.TREE_SPOTS[(i * 7) % D.TREE_SPOTS.length];
+      dummy.rotation.set(0, rng() * 3, 0);
+      dummy.position.set(t.x + 1.6, 0.25, t.z + 1.1);
+      dummy.scale.setScalar(0.8 + rng() * 0.5);
+      dummy.updateMatrix(); stumpIM.setMatrixAt(i, dummy.matrix);
+    }
+    stumpIM.castShadow = true;
+    group.add(stumpIM);
+
+    const fernIM = new THREE.InstancedMesh(new THREE.ConeGeometry(0.55, 0.55, 6),
+      new THREE.MeshStandardMaterial({ color: 0x3d6034, roughness: 1, flatShading: true }), 40);
+    for (let i = 0; i < 40; i++) {
+      const b = bushes[(i * 2) % bushes.length];
+      dummy.rotation.set(0, rng() * 3, 0);
+      dummy.position.set(b.x + (rng() - 0.5) * 2.4, 0.22, b.z + (rng() - 0.5) * 2.4);
+      dummy.scale.setScalar(0.7 + rng() * 0.7);
+      dummy.updateMatrix(); fernIM.setMatrixAt(i, dummy.matrix);
+    }
+    group.add(fernIM);
+  }
+
+  barrelMeshes(D, group, shootables);
+  scene.add(group);
+  return finishLayout(D, group, colliders, shootables);
+}
+
+// ============================================================
+// SNOW STATION (worlddata-snow.js)
+// ============================================================
+function buildSnowLayout(scene) {
+  const D = SNOW;
+  const group = new THREE.Group(); group.name = 'map-snow';
+  const colliders = box3List(D);
+  const shootables = [];
+  const rng = makeRng(4242);
+
+  blanket(group, 0xe9eef2, [0xdde6ee, 0xf4f8fb, 0xd2dde8], 733);
+
+  solidsMeshes(D, { timber: 0x74522f, crate: 0x8a6b42, snowroof: 0xdfe7ee, drift: 0xe8eef4, metal: 0x707880 }, group, shootables);
+
+  // Hut dressing: doors, lit windows, chimneys, barrel stoves.
+  {
+    const P = [];
+    for (const cx of [-30, 0, 30]) {
+      _p(P, _box(1.2, 2.0, 0.06), 0x2c2620, cx, 1.0, -44.30);
+      _p(P, _box(0.55, 0.42, 0.06), 0xffca7a, cx - 2.6, 1.55, -44.30);
+      _p(P, _box(0.55, 0.42, 0.06), 0xffca7a, cx + 2.6, 1.55, -44.30);
+      _p(P, _cylY(0.14, 0.9, 8), 0x3a3f45, cx - 3.2, 3.15, -49);
+      _p(P, _cylY(0.4, 0.9, 10), 0x33302c, cx + 3.0, 0.45, -46.9);
+      _p(P, _cylY(0.05, 0.8, 6), 0x22242a, cx + 3.0, 1.3, -46.9);
+    }
+    const m = merged(P, MAT_STD());
+    group.add(m); shootables.push(m);
+  }
+  // Comms tower extras: console on L2 + dish assembly on the mast.
+  {
+    const P = [];
+    _p(P, _box(1.2, 1.0, 0.8), 0x3a3f45, -48, 5.1, -2.7);
+    _p(P, _box(0.8, 0.4, 0.04), 0x9fe8b0, -48, 5.35, -2.28);
+    _p(P, _box(2.0, 0.12, 0.12), 0x707880, -48, 10.2, -3.2);
+    _p(P, new THREE.ConeGeometry(1.1, 0.6, 12, 1, true), 0xd7dde3, -48, 9.2, -2.2, 0.9);
+    const m = merged(P, MAT_METAL());
+    group.add(m); shootables.push(m);
+  }
+  // Buried dome: hemisphere + skirt ring + hatch.
+  {
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(5.2, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0xf2f6f9, roughness: 0.5, metalness: 0.08 }));
+    dome.position.set(52, 0, -52);
+    dome.castShadow = true; dome.receiveShadow = true;
+    group.add(dome); shootables.push(dome);
+    const P = [];
+    _p(P, new THREE.CylinderGeometry(5.55, 5.7, 0.3, 18), 0xdbe4ec, 52, 0.15, -52);
+    _p(P, _box(1.1, 0.9, 0.5), 0x8a929c, 52, 3.6, -47.6, 0.5);
+    const m = merged(P, MAT_STD());
+    group.add(m); shootables.push(m);
+  }
+  // Wrecked snowcat (merged) — hard cover in the ice field.
+  {
+    const P = [];
+    _p(P, _box(5.2, 1.05, 3.0), 0x7a4a30, -8, 0.85, 10, 0, 0.2);
+    _p(P, _box(1.9, 1.0, 2.2), 0x8a5a38, -9.6, 1.85, 9.6, 0, 0.2);
+    _p(P, _box(5.4, 0.55, 0.7), 0x2e2a26, -8, 0.28, 8.35, 0, 0.2);
+    _p(P, _box(5.4, 0.55, 0.7), 0x2e2a26, -8, 0.28, 11.65, 0, 0.2);
+    _p(P, _cylY(0.09, 1.1, 6), 0x22242a, -6.2, 1.9, 10.8);
+    const m = merged(P, MAT_STD());
+    group.add(m); shootables.push(m);
+  }
+  // Fuel drums (instanced) — hard cover, not explosive.
+  {
+    const spots = [[38, 38], [39.2, 37.4], [50, 40], [51, 41.5], [37, 47], [52, 50]];
+    const dummy = new THREE.Object3D();
+    const im = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.34, 0.34, 1.05, 10),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0.4 }), spots.length);
+    const cols = [0x5a6a75, 0x707880, 0x4c5a63];
+    spots.forEach(([x, z], i) => {
+      dummy.position.set(x, 0.525, z);
+      dummy.rotation.set(0, rng() * 3, 0);
+      dummy.scale.setScalar(1);
+      dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix);
+      im.setColorAt(i, new THREE.Color(cols[i % 3]));
+    });
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    im.castShadow = true; im.receiveShadow = true;
+    group.add(im); shootables.push(im);
+  }
+  // Drifts from DRIFT_SPOTS + ice discs (visual ground truth).
+  {
+    const dummy = new THREE.Object3D();
+    const im = new THREE.InstancedMesh(displacedSphere(1, 9.4, 0.22),
+      new THREE.MeshStandardMaterial({ color: 0xeef3f7, roughness: 0.95, flatShading: true }), D.DRIFT_SPOTS.length);
+    D.DRIFT_SPOTS.forEach((d, i) => {
+      dummy.position.set(d.x, d.size * 0.10, d.z);
+      dummy.rotation.set(0, d.rot, 0);
+      dummy.scale.set(d.size, d.size * 0.42, d.size * 0.8);
+      dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix);
+    });
+    im.castShadow = true; im.receiveShadow = true; im.frustumCulled = false;
+    group.add(im); shootables.push(im);
+
+    const ICE = [[30, 40, 3.2], [44, 28, 2.6], [18, 52, 3.4], [52, 14, 2.4], [-34, 50, 2.8]];
+    const iceIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1.04, 0.07, 18),
+      new THREE.MeshStandardMaterial({ color: 0xcfe0ee, roughness: 0.22, metalness: 0.08 }), ICE.length);
+    ICE.forEach(([x, z, r], i) => {
+      dummy.position.set(x, 0.055, z);
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.set(r, 1, r);
+      dummy.updateMatrix(); iceIM.setMatrixAt(i, dummy.matrix);
+    });
+    iceIM.receiveShadow = true;
+    group.add(iceIM);
+  }
+
+  barrelMeshes(D, group, shootables);
+  scene.add(group);
+  return finishLayout(D, group, colliders, shootables);
+}
+
+// ============================================================
+// MARS UPLINK (worlddata-mars.js)
+// ============================================================
+function buildMarsLayout(scene) {
+  const D = MARS;
+  const group = new THREE.Group(); group.name = 'map-mars';
+  const colliders = box3List(D);
+  const shootables = [];
+  const rng = makeRng(2024);
+
+  blanket(group, 0xa0653f, [0x8a5636, 0xb57a4e, 0x96582f], 919);
+
+  solidsMeshes(D, { regolith: 0x9c6642, metal: 0x8a8f96 }, group, shootables);
+
+  // Uplink spire (merged): tapered mast, crossarms, dish,
+  // base ring, blinking-tip housing, console.
+  {
+    const P = [];
+    _p(P, new THREE.CylinderGeometry(2.5, 2.8, 1.2, 14), 0x8a5636, 50, 0.6, -52);
+    _p(P, new THREE.CylinderGeometry(0.16, 0.5, 13, 8), 0xb9c0c7, 50, 7.7, -52);
+    _p(P, _box(2.6, 0.14, 0.14), 0x9aa1a9, 50, 12.2, -52);
+    _p(P, _box(1.7, 0.12, 0.12), 0x9aa1a9, 50, 10.4, -52, 0, Math.PI / 2);
+    _p(P, new THREE.ConeGeometry(1.15, 0.65, 12, 1, true), 0xd7dde3, 50, 11.2, -50.9, 0.95);
+    _p(P, new THREE.SphereGeometry(0.17, 8, 6), 0xff5a33, 50, 14.35, -52);
+    _p(P, _box(1.2, 1.0, 0.8), 0x3a3f45, 48.8, 0.5, -49.4);
+    _p(P, _box(0.8, 0.4, 0.04), 0x9fe8b0, 48.8, 0.62, -48.98);
+    const m = merged(P, MAT_METAL());
+    group.add(m); shootables.push(m);
+  }
+  // Habitat cluster (merged): two hab tubes + connector +
+  // water tanks. (Cylinder radius 1.3 on the 0.5 skirt = the
+  // data's 3.1 top, honestly.)
+  {
+    const P = [];
+    for (const cz of [-3, 7]) {
+      _p(P, new THREE.CylinderGeometry(1.3, 1.3, 7.2, 14).rotateZ(Math.PI / 2), 0xe8e2d6, -44, 1.8, cz);
+      _p(P, new THREE.CylinderGeometry(1.32, 1.32, 0.5, 14).rotateZ(Math.PI / 2), 0xc96a26, -46.5, 1.8, cz);
+      _p(P, new THREE.CylinderGeometry(1.32, 1.32, 0.5, 14).rotateZ(Math.PI / 2), 0xc96a26, -41.5, 1.8, cz);
+      _p(P, _box(0.7, 1.6, 1.1), 0x9aa1a9, -40.2, 1.3, cz);
+    }
+    _p(P, _box(2.4, 2.4, 6.6), 0xd8d2c6, -44, 1.2, 2);
+    for (const tz of [-3.7, 5.7]) {
+      _p(P, _cylY(0.7, 2.6, 12), 0xe8e2d6, -38.2, 1.3, tz);
+      _p(P, _cylY(0.72, 0.4, 12), 0xc96a26, -38.2, 1.9, tz);
+    }
+    const m = merged(P, MAT_STD());
+    group.add(m); shootables.push(m);
+  }
+  // Greenhouse dome (translucent) — its own mesh.
+  {
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(2.2, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0xaed8b0, roughness: 0.25, metalness: 0.05, transparent: true, opacity: 0.8 }));
+    dome.position.set(-52, 0, 8);
+    dome.castShadow = true;
+    group.add(dome); shootables.push(dome);
+  }
+  // Solar panels (merged, tilted) — shootable, never floors.
+  {
+    const P = [];
+    for (const [x, z] of [[34, 36], [39, 41], [44, 46]]) {
+      _p(P, _box(3.4, 0.08, 2.2), 0x1c2f52, x, 1.95, z, -0.5);
+      _p(P, _box(3.5, 0.05, 0.3), 0x9aa1a9, x, 1.62, z - 0.95, -0.5);
+    }
+    const m = merged(P, MAT_METAL());
+    group.add(m); shootables.push(m);
+  }
+  // Crater: dark bowl disc + rim rocks; mesas; rust rocks.
+  {
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(7, 22),
+      new THREE.MeshStandardMaterial({ color: 0x7c4a2c, roughness: 1 }));
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.set(-30, 0.02, 52);
+    disc.receiveShadow = true;
+    group.add(disc);
+    const dummy = new THREE.Object3D();
+    const rimIM = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1),
+      new THREE.MeshStandardMaterial({ color: 0x8a5636, roughness: 1, flatShading: true }), 9);
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + 0.3;
+      dummy.position.set(-30 + Math.cos(a) * 7.6, 0.35, 52 + Math.sin(a) * 7.6);
+      dummy.rotation.set(rng() * 0.5, rng() * 3, rng() * 0.5);
+      dummy.scale.set(0.9 + rng() * 0.8, 0.7 + rng() * 0.5, 0.9 + rng() * 0.8);
+      dummy.updateMatrix(); rimIM.setMatrixAt(i, dummy.matrix);
+    }
+    rimIM.castShadow = true; rimIM.receiveShadow = true;
+    group.add(rimIM); shootables.push(rimIM);
+
+    const MESAS = [[-54, 34, 7], [55, -20, 6], [24, 56, 6]];
+    const mesaIM = new THREE.InstancedMesh(displacedSphere(1, 51.7, 0.16, 9, 7),
+      new THREE.MeshStandardMaterial({ color: 0x9c5636, roughness: 1, flatShading: true }), MESAS.length);
+    MESAS.forEach(([x, z, r], i) => {
+      dummy.position.set(x, -r * 0.10, z);
+      dummy.rotation.set(0, i * 1.13, 0);
+      dummy.scale.set(r, r * 0.34, r * 0.9);
+      dummy.updateMatrix(); mesaIM.setMatrixAt(i, dummy.matrix);
+    });
+    mesaIM.castShadow = true; mesaIM.receiveShadow = true;
+    group.add(mesaIM); shootables.push(mesaIM);
+
+    const rockIM = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, flatShading: true }), D.ROCK_SPOTS.length);
+    const rust = new THREE.Color(0x9c5a36), rustDark = new THREE.Color(0x7c4526);
+    D.ROCK_SPOTS.forEach((r, i) => {
+      dummy.position.set(r.x, r.size * 0.35, r.z);
+      dummy.rotation.set(rng() * 0.6, r.rot, rng() * 0.6);
+      dummy.scale.set(r.size, r.size * 0.75, r.size * (0.8 + rng() * 0.3));
+      dummy.updateMatrix(); rockIM.setMatrixAt(i, dummy.matrix);
+      rockIM.setColorAt(i, rust.clone().lerp(rustDark, rng() * 0.7));
+    });
+    if (rockIM.instanceColor) rockIM.instanceColor.needsUpdate = true;
+    rockIM.castShadow = true; rockIM.receiveShadow = true; rockIM.frustumCulled = false;
+    group.add(rockIM); shootables.push(rockIM);
+  }
+
+  barrelMeshes(D, group, shootables);
+  scene.add(group);
+  return finishLayout(D, group, colliders, shootables);
+}
+
+// ============================================================
+// Registry-facing entry (Board §3.2): the Coordinator's
+// js/maps.js decides WHEN a layout serves; this is the single
+// builder it calls.
+// ============================================================
+export const LAYOUT_IDS = ['forest', 'snow', 'mars'];
+export function buildMapLayout(id, scene) {
+  if (!scene) return null;
+  switch (id) {
+    case 'forest': return buildForestLayout(scene);
+    case 'snow': return buildSnowLayout(scene);
+    case 'mars': return buildMarsLayout(scene);
+    default: return null;
+  }
+}
