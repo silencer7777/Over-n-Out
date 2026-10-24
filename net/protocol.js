@@ -39,6 +39,16 @@ function isPlainObject(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
+// The default mode id (js/modes.js MODE_ORDER[0]) — the formalized
+// wave game every room runs unless a hello names another mode.
+// Mode ids are owned by js/modes.js (Board 004 §1); this module
+// validates their SHAPE, the server checks membership.
+export const DEFAULT_MODE = 'waves';
+const MODE_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/;
+export function isValidModeId(v) {
+  return typeof v === 'string' && MODE_ID_PATTERN.test(v);
+}
+
 // validateHello(msg) -> { ok, errors[] }
 //
 // The handshake (MULTIPLAYER.md §5.1). A client must send this first:
@@ -51,6 +61,21 @@ function isPlainObject(v) {
 // - room is null (join/create the default room) or a 4-char string
 //   room code. Anything else (missing, wrong length, non-string)
 //   is an error.
+//
+// Optional fields (V4 carriage — all shape-checked here, all
+// content-checked by the server against the data modules):
+// - session: the Stage 2 signed session token (§5.1). A string of
+//   at most 1024 chars. Shape only — Stage 2 verification does not
+//   exist yet, and net/README.md says so in plain language.
+// - mode: a mode id from js/modes.js (e.g. 'waves', 'tdm'). The
+//   first hello to a fresh room sets the room's mode; later hellos
+//   join the room's mode whatever they ask for (welcome reports
+//   the room's actual mode).
+// - loadout: ONE class object ({ name, primary, attachments,
+//   tactical, lethal }) — the class the player spawns with,
+//   validated server-side by js/loadouts.js validateClass()
+//   (Board 004 §3: the server validates against the same tables
+//   before the sim sees it).
 export function validateHello(msg) {
   const errors = [];
   if (!isPlainObject(msg)) {
@@ -69,6 +94,16 @@ export function validateHello(msg) {
     msg.room === null || (typeof msg.room === 'string' && msg.room.length === 4);
   if (!roomOk) {
     errors.push('room must be null or a 4-character string');
+  }
+  if (msg.session !== undefined &&
+      (typeof msg.session !== 'string' || msg.session.length > 1024)) {
+    errors.push('session must be a string of at most 1024 characters');
+  }
+  if (msg.mode !== undefined && !isValidModeId(msg.mode)) {
+    errors.push('mode must be a mode id (lowercase, 1-32 chars)');
+  }
+  if (msg.loadout !== undefined && !isPlainObject(msg.loadout)) {
+    errors.push('loadout must be a class object');
   }
   return { ok: errors.length === 0, errors };
 }
@@ -126,6 +161,16 @@ export function validateInput(msg) {
   }
   if (typeof msg.reload !== 'boolean') {
     errors.push('reload must be a boolean');
+  }
+  // Optional throw edges (Board 004 §3): the class's tactical /
+  // lethal are thrown on the sample where the key was pressed —
+  // same edge discipline as reload. Optional, but strictly
+  // boolean when present; the sim owns counts and effects.
+  if (msg.lethal !== undefined && typeof msg.lethal !== 'boolean') {
+    errors.push('lethal must be a boolean when present');
+  }
+  if (msg.tactical !== undefined && typeof msg.tactical !== 'boolean') {
+    errors.push('tactical must be a boolean when present');
   }
   if (!Number.isInteger(msg.weapon) || msg.weapon < 1 || msg.weapon > 5) {
     errors.push('weapon must be an integer 1-5');
