@@ -16,6 +16,7 @@ import {
   unlockedClassSlots, isAttachmentUnlocked, isPerkUnlocked, unlocksBetween, awardXp, XP_VALUES, UNLOCKS,
 } from './progression.js';
 import { OnlineSession } from './online.js';
+import { TouchControls, isTouchDevice } from './touchcontrols.js';
 import { applyLightingProfile } from './lighting.js';
 // V5 systems (Board 005 §§9–13): shared data/math modules +
 // Atlas's world actors. Solo wires them here; online runs the
@@ -64,6 +65,11 @@ applyLightingProfile(THREE, scene, renderer, 'compound');
 const player = new Player(scene, camera, world);
 const sfx = new Sfx();
 
+// V6 Directive V6-2 — one build, both platforms. Coarse-pointer
+// touch devices (the owner's iPhone) get the touch layer and a
+// lower starting quality tier; desktop is untouched. Decided once.
+const TOUCH_MODE = isTouchDevice();
+
 const barrelMeshes = world.shootables.filter(s => s.userData && s.userData.explosive);
 const barrelColliderOf = new Map();
 for (const m of barrelMeshes) {
@@ -74,7 +80,7 @@ for (const m of barrelMeshes) {
   if (c) barrelColliderOf.set(m, c);
 }
 const perfMeter = new FpsMeter(renderer);
-const quality = new QualityScaler(renderer, scene);
+const quality = new QualityScaler(renderer, scene, { startLevel: TOUCH_MODE ? 1 : 0 });
 
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
@@ -411,6 +417,9 @@ let lastSpawnedId = null;
 const input = { forward: false, back: false, left: false, right: false, sprint: false, jump: false, aim: false };
 let firing = false;
 let triggerPressed = false;
+// V6 mobile: the TouchControls instance (touch devices only; the
+// input-section block below constructs it). Null on desktop.
+let touchControls = null;
 
 // ---------------- fun features (V3 Phase 2, Board 003 picks) ----------------
 const explodedBarrels = new Set();
@@ -780,6 +789,7 @@ function switchWeapon(id) {
   weaponName.textContent = weapon.name;
   ammoNum.textContent = mags[currentId];
   player.setWeaponVisual(weapon, classAttachmentsForView());
+  if (touchControls) touchControls.setActiveWeapon(WEAPON_ORDER.indexOf(currentId));
 }
 
 function classAttachmentsForView() {
@@ -1064,7 +1074,13 @@ function startRun() {
 }
 
 // ---------------- input ----------------
-playBtn.addEventListener('click', () => { sfx.ensure(); canvas.requestPointerLock(); });
+playBtn.addEventListener('click', () => {
+  sfx.ensure();
+  // V6 mobile: touch devices have no pointer lock — DEPLOY starts
+  // (or resumes) directly. Desktop keeps the lock flow unchanged.
+  if (TOUCH_MODE) touchStartOrResume();
+  else canvas.requestPointerLock();
+});
 document.addEventListener('pointerlockchange', () => {
   const locked = document.pointerLockElement === canvas;
   if (locked && state === 'paused') {
@@ -1144,6 +1160,61 @@ addEventListener('keydown', e => {
   }
 });
 addEventListener('keyup', e => { if (KEYMAP[e.code] !== undefined) input[KEYMAP[e.code]] = false; });
+
+// ---------------- V6 mobile (Directive V6-2) ----------------
+// Touch equivalents of the pointer-lock transitions above: DEPLOY
+// starts/resumes with no lock, and the on-screen pause button does
+// what losing the lock does on desktop (pause solo / leave online).
+function touchStartOrResume() {
+  if (state === 'paused') {
+    menu.classList.add('hidden');
+    state = 'playing';
+  }
+  else if (state !== 'playing' && state !== 'online' && !joiningOnline) startRun();
+}
+function touchPause() {
+  if (state === 'playing') {
+    menuMsg.textContent = 'Paused — hostiles are waiting.';
+    playBtn.textContent = '▶  RESUME';
+    menu.classList.remove('hidden');
+    state = 'paused';
+  }
+  else if (state === 'online') {
+    leaveOnline('Left the session.');
+  }
+}
+// Constructed only on touch devices; hooks mirror the keyboard /
+// mouse handlers exactly (same edges, same state routing).
+if (TOUCH_MODE) {
+  document.body.classList.add('touch-mode');
+  const SLOT_LABELS = { ar: 'AR', smg: 'SMG', shotgun: 'SG', dmr: 'DMR', pistol: 'PST' };
+  touchControls = new TouchControls({
+    input,
+    slots: WEAPON_ORDER.map(id => ({ label: SLOT_LABELS[id] || id.toUpperCase() })),
+    hooks: {
+      look: (dx, dy) => player.look(dx, dy),
+      setFire: down => { firing = down; if (down) triggerPressed = true; },
+      reload: () => {
+        if (state === 'playing') reload();
+        else if (state === 'online') edgeReload = true;
+      },
+      lethal: () => {
+        if (state === 'playing') useLethal();
+        else if (state === 'online') edgeThrowL = true;
+      },
+      tactical: () => {
+        if (state === 'playing') { if (placing) cancelPlacement(); else throwGear(deployedClass().tactical); }
+        else if (state === 'online') edgeThrowT = true;
+      },
+      streak: () => { if (state === 'playing') callStreak(); },
+      weapon: i => {
+        if ((state === 'playing' || state === 'online') && i >= 0 && i < WEAPON_ORDER.length) switchWeapon(WEAPON_ORDER[i]);
+      },
+      pause: () => touchPause(),
+      firstTouch: () => sfx.ensure(),
+    },
+  });
+}
 
 // ---------------- online (V4) ----------------
 let session = null;
@@ -1387,6 +1458,10 @@ const DOWN_INPUT = { forward: false, back: false, left: false, right: false, spr
 function tick() {
   requestAnimationFrame(tick);
   const dt = Math.min(clock.getDelta(), 0.05);
+
+  // V6 mobile: the touch overlay exists exactly while a run is live
+  // (frame-driven, so pause/death/menu paths need no extra hooks).
+  if (touchControls) touchControls.setActive(state === 'playing' || state === 'online');
 
   // Flash white-out decay runs in every live state.
   if (flashBlindT > 0) {
