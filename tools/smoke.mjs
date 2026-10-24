@@ -172,7 +172,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.4.0-dev') fail(`M6 package.json version → ${pkg.version} (expected '0.4.0-dev')`); else ok("M6 package.json version === '0.4.0-dev'");
+  if (pkg.version !== '0.5.0-dev') fail(`M6 package.json version → ${pkg.version} (expected '0.5.0-dev')`); else ok("M6 package.json version === '0.5.0-dev'");
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -382,10 +382,13 @@ try {
   // they diluted sim contact until Vega's ws-soak turret test
   // (W9, fixed first-target + shotgun) starved. Data + rationale:
   // Atlas V4 report; restoring them pairs with turret upgrades.
-  if (wd.SOLIDS.length === 92) ok('T1 worlddata SOLIDS === 92 (mirrors world.js solids)');
-  else fail(`T1 worlddata SOLIDS → ${wd.SOLIDS.length} (expected 92 — mirror world.js!)`);
-  if (wd.EXTRA_COLLIDERS.length === 19) ok('T2 worlddata EXTRA_COLLIDERS === 19 (3 trees + 8 big bushes + 5 barrels + 3 wrecks)');
-  else fail(`T2 worlddata EXTRA_COLLIDERS → ${wd.EXTRA_COLLIDERS.length} (expected 19)`);
+  // V5 re-pin (Atlas): deliberate — SOLIDS 92 -> 111 (+11 Ops
+  // Building, +8 Comms Shed), EXTRA 19 -> 22 (+3 motor-pool
+  // fuel drums, hard cover only). Mirrors world.js exactly.
+  if (wd.SOLIDS.length === 111) ok('T1 worlddata SOLIDS === 111 (mirrors world.js solids)');
+  else fail(`T1 worlddata SOLIDS → ${wd.SOLIDS.length} (expected 111 — mirror world.js!)`);
+  if (wd.EXTRA_COLLIDERS.length === 22) ok('T2 worlddata EXTRA_COLLIDERS === 22 (3 trees + 8 big bushes + 5 barrels + 3 wrecks + 3 drums)');
+  else fail(`T2 worlddata EXTRA_COLLIDERS → ${wd.EXTRA_COLLIDERS.length} (expected 22)`);
   if (wd.SPAWN_POINTS.length === 12) ok('T3 worlddata SPAWN_POINTS === 12');
   else fail(`T3 worlddata SPAWN_POINTS → ${wd.SPAWN_POINTS.length} (expected 12)`);
   if (wd.BARRELS.length === 5) ok('T4 worlddata BARRELS === 5');
@@ -399,6 +402,57 @@ try {
   if (deckH === 2.3 && westH === 2.3 && stepH === 0.575 && groundH === 0) ok('T5 worlddata groundHeightAt: north deck 2.3, west deck 2.3, first stair step 0.575, open ground 0');
   else fail(`T5 worlddata groundHeightAt: deck ${deckH}, west ${westH}, step ${stepH}, ground ${groundH}`);
 } catch (e) { fail('T worlddata checks: ' + e.message); }
+
+// 1t) V5 LIGHTING SPEC — Board 005 §2: weather profiles, the
+// never-too-dark floor, coherence, sun bands, wiring + shadow pins.
+try {
+  const LT = await import('../js/lighting.js');
+  const IDS = ['compound', 'forest', 'snow', 'mars'];
+  // L1: a complete profile exists for every map id.
+  const FIELDS = ['sunXZ', 'elevationDeg', 'sunColor', 'sunIntensity', 'hemiSky', 'hemiGround', 'hemiIntensity', 'fogColor', 'fogNear', 'fogFar', 'sky', 'exposure', 'shadowExtent'];
+  let complete = true;
+  for (const id of IDS) {
+    const p = LT.LIGHTING_PROFILES[id];
+    if (!p || p.id !== id) { complete = false; break; }
+    for (const f of FIELDS) if (p[f] === undefined) { complete = false; break; }
+    if (!p.sky || p.sky.zenith === undefined || p.sky.mid === undefined || p.sky.horizon === undefined) complete = false;
+    if (!Array.isArray(p.sunXZ) || Math.abs(Math.hypot(p.sunXZ[0], p.sunXZ[1]) - 1) > 0.01) complete = false;
+  }
+  if (complete) ok('L1 lighting: complete weather profile for all 4 maps');
+  else fail('L1 lighting: a profile is missing or incomplete');
+  // L2: the never-too-dark floor, recomputed from the shipped table
+  // by the shipped formula — the grade cannot drift silently.
+  const proxies = IDS.map(id => `${id} ${LT.effectiveProxy(LT.LIGHTING_PROFILES[id]).toFixed(3)}`);
+  const below = IDS.filter(id => LT.effectiveProxy(LT.LIGHTING_PROFILES[id]) < LT.SHADOW_FLOOR);
+  if (LT.SHADOW_FLOOR === 0.36 && below.length === 0) ok(`L2 lighting floor: every profile effectiveProxy >= 0.36 (${proxies.join(', ')})`);
+  else fail(`L2 lighting floor: floor constant ${LT.SHADOW_FLOOR}, below: ${below.join(', ') || 'none'} (${proxies.join(', ')})`);
+  // L3: coherence — fog readability floor + range, horizon == fog colour.
+  const incoherent = IDS.filter(id => { const p = LT.LIGHTING_PROFILES[id]; return p.fogNear < 42 || p.fogFar < 190 || p.sky.horizon !== p.fogColor; });
+  if (incoherent.length === 0) ok('L3 lighting coherence: fog near >= 42, far >= 190, horizon == fog colour, all maps');
+  else fail(`L3 lighting coherence: ${incoherent.join(', ')}`);
+  // L4: sun elevation inside the ruled band per map + the snow
+  // overcast signature (weak key, dominant hemisphere).
+  const bandBad = IDS.filter(id => { const p = LT.LIGHTING_PROFILES[id]; const b = LT.ELEVATION_BANDS[id]; return !b || p.elevationDeg < b[0] || p.elevationDeg > b[1]; });
+  const snowP = LT.LIGHTING_PROFILES.snow;
+  if (bandBad.length === 0 && snowP.sunIntensity <= 1.6 && snowP.hemiIntensity >= 1.15) ok('L4 lighting: sun in the sky (ruled band per map); snow is weather-matched overcast');
+  else fail(`L4 lighting: band violations: ${bandBad.join(', ') || 'snow overcast signature'}`);
+} catch (e) { fail('L lighting checks: ' + e.message); }
+
+// L5–L7: source pins — rig naming + profile wiring, shadow size,
+// and the bot emissive readability floor (Board 005 §2.3/§2.4).
+{
+  const worldSrc = readFileSync(join(ROOT, 'js/world.js'), 'utf8');
+  const mainSrc = readFileSync(join(ROOT, 'js/main.js'), 'utf8');
+  const qualitySrc = readFileSync(join(ROOT, 'js/quality.js'), 'utf8');
+  const botsSrc = readFileSync(join(ROOT, 'js/bots.js'), 'utf8');
+  const rigNames = ["'sun-light'", "'hemi-light'", "'sun-disc'", "'sun-glow'", "'star-field'"];
+  if (rigNames.every(n => worldSrc.includes(n)) && worldSrc.includes("from './lighting.js'") && mainSrc.includes('applyLightingProfile')) ok('L5 lighting wiring: rig named in world.js; profiles imported + applied from main.js');
+  else fail('L5 lighting wiring: rig names / profile import / apply call missing');
+  if (mainSrc.includes('4096') && qualitySrc.includes('4096')) ok('L6 shadows: 4096 map in main.js config + quality tiers (Board 005 §2.4)');
+  else fail('L6 shadows: 4096 missing from main.js or quality.js');
+  if (botsSrc.includes('0x180505')) ok('L7 readability: bot emissive floor 0x180505 intact');
+  else fail('L7 readability: bot emissive floor 0x180505 MISSING from bots.js');
+}
 
 // 1i) Subprocess suites — biome placement + M1 soak are full
 // programs; the smoke gate runs them and requires green.
@@ -461,11 +515,68 @@ try {
   else fail('LD7 suppressor stealth flag missing');
 } catch (e) { fail('LD loadout checks: ' + e.message); }
 
+// --- V5 systems: equipment / streaks / maps (Board 005 + Addenda)
+try {
+  const L = await import('../js/loadouts.js');
+  const E = await import('../js/equipment-data.js');
+  const S = await import('../js/streaks.js');
+  const MP = await import('../js/maps.js');
+  // EQ1 smoke canister = Havoc's ratified numbers.
+  const sm = L.THROWABLES.smoke;
+  if (sm.bloom === 1.2 && sm.duration === 12 && sm.tail === 3 && sm.radius === 4.5 && sm.throwSpeed === 16) ok('EQ1 smoke canister: bloom 1.2 / full 12 / tail 3, r4.5, frag arc (Havoc §1)');
+  else fail(`EQ1 smoke canister drifted: ${JSON.stringify(sm)}`);
+  // EQ2 chord rule: through the core = blocked; a clean miss = clear.
+  const vol = { x: 0, y: 1.6, z: -10, bornAt: 0 };
+  const through = E.losSmokeState(0, 1.6, 0, 0, 1.6, -20, [vol], sm, 5);
+  const miss = E.losSmokeState(0, 1.6, 0, 12, 1.6, -20, [vol], sm, 5);
+  if (through === 'blocked' && miss === 'clear') ok('EQ2 smoke chord rule: core line blocked, offset line clear');
+  else fail(`EQ2 smoke LOS → through ${through}, miss ${miss}`);
+  // EQ3 placed-lethal numbers.
+  if (E.EQUIPMENT.claymore.damage.centre === 130 && E.EQUIPMENT.claymore.trigger.range === 7
+    && E.EQUIPMENT.tripmine.beam.height === 0.6 && E.EQUIPMENT.tripmine.damage.centre === 100
+    && E.SPAWN_EXCLUSION === 8) ok('EQ3 equipment table: claymore 130c/7m, trip beam 0.6m/100c, spawn exclusion 8m');
+  else fail('EQ3 equipment numbers drifted from Havoc');
+  // EQ4 claymore cone geometry: dead ahead pays centre, behind pays 0.
+  if (E.claymoreDamage({ x: 0, y: 0, z: 0, yaw: 0 }, 0, 2) === 130 && E.claymoreDamage({ x: 0, y: 0, z: 0, yaw: 0 }, 0, -2) === 0) ok('EQ4 claymore cone: 130 ahead, 0 behind');
+  else fail('EQ4 claymore cone math wrong');
+  // ST1 ladder thresholds + vocabulary never drift from loadouts.
+  const costs = Object.fromEntries(S.STREAKS.map(s => [s.id, s.cost]));
+  if (costs.uav === 500 && costs.cuav === 650 && costs.package === 800 && costs.sentry === 1050 && costs.precision === 1300
+    && JSON.stringify(L.STREAK_IDS) === JSON.stringify(S.STREAKS.map(s => s.id))) ok('ST1 streak ladder 500/650/800/1050/1300; ids match loadouts vocabulary');
+  else fail(`ST1 streak ladder drifted: ${JSON.stringify(costs)}`);
+  // ST2 meter: death does not reset; spend-on-call; UAV drone spec.
+  const st = S.createStreakState(['uav', 'cuav', 'package']);
+  S.feedStreak(st, S.streakFeedFor('kill') * 5);
+  const act = S.activateStreak(st, 'uav', 0);
+  if (act && st.score === 0 && S.UAV_SPEC.hp === 150 && S.UAV_SPEC.pingEvery === 3 && S.streakFeedFor('uavDenial') === 0) ok('ST2 streak meter: 5 kills = UAV, spend-on-call, drone HP150/ping3s, denial feeds 0');
+  else fail(`ST2 streak state wrong: score ${st.score}, act ${JSON.stringify(act)}`);
+  // ST3 drone circuit determinism: same inputs, same pose; period = 2πr/v.
+  const p1 = S.dronePositionAt(0, 0, 0, S.UAV_SPEC, 0.7, 5);
+  const p2 = S.dronePositionAt(0, 0, 0, S.UAV_SPEC, 0.7, 5);
+  const period = 2 * Math.PI * S.UAV_SPEC.orbitRadius / S.UAV_SPEC.speed;
+  if (p1.x === p2.x && p1.z === p2.z && Math.abs(Math.hypot(p1.x, p1.z) - 30) < 0.01 && period > 13 && period < 14) ok(`ST3 drone circuit deterministic, r30, period ${period.toFixed(1)}s at 14 m/s`);
+  else fail(`ST3 drone circuit wrong: ${JSON.stringify(p1)} period ${period}`);
+  // MP1 registry: 4 maps, contract exports on every data module.
+  const contract = ['BOUNDS', 'SPAWN_POINTS', 'MODE_ZONES', 'ASSAULT_TARGET', 'PICKUP_CACHES', 'TRANSMISSIONS'];
+  const allHave = MP.MAPS.every(m => contract.every(k => m.data[k] !== undefined) && typeof m.data.groundHeightAt === 'function');
+  if (MP.MAPS.length === 4 && allHave && MP.getMap('compound').layout === 'distinct') ok('MP1 map registry: 4 levels, worlddata contract complete on all');
+  else fail('MP1 map registry/contract incomplete');
+  // MP2 R2/R4: assault attackers stage from the tower-unseen set.
+  const unseen = MP.ASSAULT_ATTACKER_SPAWNS.compound;
+  if (JSON.stringify(unseen) === JSON.stringify([0, 1, 4, 8, 11])) ok('MP2 assault staging = tower-unseen spawns [S0 S1 S4 S8 S11] (Havoc R4)');
+  else fail(`MP2 assault spawns → ${JSON.stringify(unseen)}`);
+  // LD8 tiered perks validate by category; wrong category rejects.
+  const pk = L.validateClass({ primary: 'ar', perks: { movement: 'lightweight', defense: 'flak', utility: 'ghost' }, streaks: ['uav', 'cuav', 'sentry'], camo: 'night' });
+  const pkBad = L.validateClass({ primary: 'ar', perks: { movement: 'flak' } });
+  if (pk.ok && !pkBad.ok && L.PERKS.length === 8) ok('LD8 tiered-3 perks: 8 perks, category-checked validation, camo per class');
+  else fail(`LD8 perks validation → ok ${pk.ok} (${JSON.stringify(pk.errors)}), bad ${pkBad.ok}`);
+} catch (e) { fail('V5 systems checks: ' + e.message); }
+
 try {
   const P = await import('../js/progression.js');
   if (P.xpForLevel(2) === 400 && P.levelForXp(0) === 1 && P.levelForXp(400) === 2) ok('PG1 XP curve: level 2 at 400 XP (first-match unlock)');
   else fail(`PG1 curve → L2 ${P.xpForLevel(2)}, levelForXp(400) ${P.levelForXp(400)}`);
-  if (P.UNLOCKS.length === 15 && P.unlockedClassSlots(1) === 1 && P.unlockedClassSlots(18) === 5) ok('PG2 unlock ladder: 15 rungs, class slots 1→5 by L18');
+  if (P.UNLOCKS.length === 26 && P.unlockedClassSlots(1) === 1 && P.unlockedClassSlots(18) === 5) ok('PG2 unlock ladder: 26 rungs (V4 15 + V5 8 perks + 3 attachments), class slots 1→5 by L18');
   else fail(`PG2 ladder → ${P.UNLOCKS.length} rungs, slots(18) ${P.unlockedClassSlots(18)}`);
   if (!P.isAttachmentUnlocked(1, 'reddot') && P.isAttachmentUnlocked(2, 'reddot')) ok('PG3 reddot gated until level 2');
   else fail('PG3 reddot gating wrong');
@@ -479,7 +590,7 @@ try {
   // PG6: Havoc's ruled values + prestige track (v4-progression-curve.md §5 pin)
   if (P.XP_VALUES.capture === 100 && P.XP_VALUES.assist === 40 && P.XP_VALUES.matchLoss === 100 && P.XP_VALUES.streak8 === 150) ok('PG6 XP values ruled: capture 100 / assist 40 / matchLoss 100 / streak8 150');
   else fail(`PG6 XP values drifted: ${JSON.stringify(P.XP_VALUES)}`);
-  if (Array.isArray(P.PRESTIGE) && P.PRESTIGE.length === 7 && P.PRESTIGE.every(u => u.kind === 'prestige')) ok('PG7 prestige track: 7 entries, zero power past L18');
+  if (Array.isArray(P.PRESTIGE) && P.PRESTIGE.length === 11 && P.PRESTIGE.every(u => u.kind === 'prestige' || u.kind === 'camo')) ok('PG7 prestige track: 11 entries (7 V4 + 4 V5 camos), zero power past L18');
   else fail(`PG7 prestige → ${P.PRESTIGE?.length}`);
   const all = P.unlocksBetween(16, 30);
   if (all.some(u => u.kind === 'prestige') && all.some(u => u.id === 'suppressor')) ok('PG8 unlocksBetween merges power + prestige in level order');
@@ -572,7 +683,7 @@ try {
   }
 
   // M8: served HTML includes version tag
-  if (!home.includes('v0.4')) fail("M8 served HTML missing 'v0.4'"); else ok("M8 served HTML includes 'v0.4'");
+  if (!home.includes('v0.5')) fail("M8 served HTML missing 'v0.5'"); else ok("M8 served HTML includes 'v0.5'");
 
   // M9: served HTML contains V3 UI ids (story / objective / briefing / settings / biome)
   for (const idAttr of ['id="story-text"', 'id="objective"', 'id="briefing"', 'id="context-line"', 'id="sens-slider"', 'id="biome-select"']) {
