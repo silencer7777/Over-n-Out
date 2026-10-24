@@ -25,6 +25,7 @@
     <div id="health-num">100</div>
   </div>
   <div id="ammo-wrap">
+    <div id="weapon-name">ASSAULT RIFLE</div>
     <div id="ammo-num">30</div>
     <div id="ammo-label">/ ∞ &nbsp;·&nbsp; R — RELOAD</div>
   </div>
@@ -34,8 +35,18 @@
 <!-- MENU / PAUSE / DEATH overlay -->
 <div id="menu">
   <h1>OVER <span>N'</span> OUT</h1>
-  <p class="tag">TACTICAL BROWSER FPS · v0.1 “FIRST DROP”</p>
+  <p class="tag">TACTICAL BROWSER FPS · v0.2 "ARSENAL"</p>
   <p id="menu-msg">Hostile waves inbound. Hold the compound.</p>
+  <div id="loadout">
+    <div class="loadout-label">LOADOUT — CHOOSE YOUR WEAPON</div>
+    <div class="loadout-row">
+      <button class="wpn selected" data-weapon="ar">ASSAULT RIFLE</button>
+      <button class="wpn" data-weapon="smg">SMG</button>
+      <button class="wpn" data-weapon="shotgun">SHOTGUN</button>
+      <button class="wpn" data-weapon="dmr">DMR</button>
+      <button class="wpn" data-weapon="pistol">PISTOL</button>
+    </div>
+  </div>
   <button id="play-btn">▶ &nbsp;DEPLOY</button>
   <div class="controls">
     <div><b>W A S D</b> Move</div>
@@ -44,6 +55,7 @@
     <div><b>SHIFT</b> Sprint</div>
     <div><b>SPACE</b> Jump</div>
     <div><b>R</b> Reload</div>
+    <div><b>1–5</b> Switch weapon</div>
   </div>
   <p class="fine">Desktop + mouse recommended for now — mobile controls are on the roadmap.</p>
 </div>
