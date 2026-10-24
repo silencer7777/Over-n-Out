@@ -1,0 +1,326 @@
+{
+  "generatedAt": "2026-10-24T19:08:12.901Z",
+  "sections": {
+    "gates": {
+      "smoke": {
+        "passed": true,
+        "checks": 203,
+        "tail": " | SMOKE PASSED"
+      },
+      "reachability": {
+        "passed": true,
+        "checks": 31,
+        "tail": " | REACHABILITY PASSED"
+      },
+      "biomeCheck": {
+        "passed": true,
+        "checks": 23,
+        "tail": " | BIOME CHECK PASSED"
+      },
+      "soak": {
+        "passed": true,
+        "losUsPerRay": 7.82,
+        "simMsPerTick": 0.045
+      }
+    },
+    "sceneAudit": {
+      "convention": "static scene-graph traversal vs vendored three; 1 call per visible renderable; tris = (index|position)/3 × instances; upper bound (no frustum culling)",
+      "compound": {
+        "static": {
+          "calls": 83,
+          "tris": 14003,
+          "shadowCasters": 70,
+          "instancedMeshes": 8,
+          "renderables": 83
+        },
+        "sustained": {
+          "calls": 157,
+          "tris": 28215
+        },
+        "inclTransients": {
+          "calls": 158,
+          "tris": 28215
+        }
+      },
+      "forest": {
+        "static": {
+          "calls": 92,
+          "tris": 67065,
+          "shadowCasters": 77,
+          "instancedMeshes": 13,
+          "renderables": 92
+        },
+        "sustained": {
+          "calls": 166,
+          "tris": 81277
+        },
+        "inclTransients": {
+          "calls": 167,
+          "tris": 81277
+        }
+      },
+      "snow": {
+        "static": {
+          "calls": 95,
+          "tris": 18627,
+          "shadowCasters": 76,
+          "instancedMeshes": 10,
+          "renderables": 95
+        },
+        "sustained": {
+          "calls": 169,
+          "tris": 32839
+        },
+        "inclTransients": {
+          "calls": 170,
+          "tris": 32839
+        }
+      },
+      "botByWeapon": {
+        "ar": {
+          "calls": 7,
+          "tris": 1168,
+          "shadowCasters": 0,
+          "instancedMeshes": 0,
+          "renderables": 7
+        },
+        "smg": {
+          "calls": 7,
+          "tris": 980,
+          "shadowCasters": 0,
+          "instancedMeshes": 0,
+          "renderables": 7
+        },
+        "shotgun": {
+          "calls": 7,
+          "tris": 1020,
+          "shadowCasters": 0,
+          "instancedMeshes": 0,
+          "renderables": 7
+        },
+        "dmr": {
+          "calls": 7,
+          "tris": 1420,
+          "shadowCasters": 0,
+          "instancedMeshes": 0,
+          "renderables": 7
+        },
+        "pistol": {
+          "calls": 7,
+          "tris": 852,
+          "shadowCasters": 0,
+          "instancedMeshes": 0,
+          "renderables": 7
+        }
+      },
+      "worstBotTris": 1420,
+      "botCalls": 7,
+      "viewmodelByWeapon": {
+        "ar": {
+          "calls": 5,
+          "tris": 580,
+          "shadowCasters": 0,
+          "instancedMeshes": 0,
+          "renderables": 5
+        },
+        "smg": {
+          "calls": 3,
+          "tris": 392,
+          "shadowCasters": 0,
+          "instancedMeshes": 0,
+          "renderables": 3
+        },
+        "shotgun": {
+          "calls": 4,
+          "tris": 432,
+          "shadowCasters": 0,
+          "instancedMeshes": 0,
+          "renderables": 4
+        },
+        "dmr": {
+          "calls": 5,
+          "tris": 832,
+          "shadowCasters": 0,
+          "instancedMeshes": 0,
+          "renderables": 5
+        },
+        "pistol": {
+          "calls": 4,
+          "tris": 264,
+          "shadowCasters": 0,
+          "instancedMeshes": 0,
+          "renderables": 4
+        }
+      },
+      "worstViewmodelTris": 832,
+      "budgets": {
+        "v4CallsLine": 165,
+        "v4TrisLine": 300000,
+        "v3CallsLineWas": 150
+      }
+    },
+    "simBench": {
+      "standard": {
+        "label": "soak-parity (2 scripted clients)",
+        "clients": 2,
+        "ticks": 1058,
+        "sanity": {
+          "welcomesReceived": 2,
+          "matchBooted": true,
+          "snapshotsReceived": 1410
+        },
+        "msPerTickAvg": 0.154,
+        "windowMsPerTick": null,
+        "maxWave": 2,
+        "maxAliveBots": 6,
+        "maxSnapshotBytes": 1160,
+        "snapshotCapBytes": 4096,
+        "snapshotWithinCap": true
+      },
+      "stress": {
+        "label": "stress (4 scripted clients, window at wave ≥ 5 = alive cap 9)",
+        "clients": 4,
+        "ticks": 2470,
+        "sanity": {
+          "welcomesReceived": 4,
+          "matchBooted": true,
+          "snapshotsReceived": 6584
+        },
+        "msPerTickAvg": 0.09,
+        "windowMsPerTick": null,
+        "maxWave": 1,
+        "maxAliveBots": 4,
+        "maxSnapshotBytes": 1089,
+        "snapshotCapBytes": 4096,
+        "snapshotWithinCap": true
+      },
+      "boardBar": "≤ 0.5 ms/tick (Board 004 §6)"
+    },
+    "capabilities": {
+      "modes": {
+        "count": 4,
+        "ids": [
+          "waves",
+          "tdm",
+          "domination",
+          "assault"
+        ],
+        "target": 4
+      },
+      "loadouts": {
+        "combinations": 729,
+        "attachments": 11,
+        "slots": 5,
+        "maxClasses": 5,
+        "lethals": [
+          "frag"
+        ],
+        "tacticals": [
+          "flash"
+        ],
+        "target": 500
+      },
+      "progression": {
+        "maxLevel": 30,
+        "unlockEntries": 15,
+        "topUnlockLevel": 18,
+        "classSlotsAtMax": 5,
+        "targetNote": "Board 004 §6: 18 levels / 13 unlocks"
+      },
+      "maps": {
+        "biomes": [
+          {
+            "id": "compound",
+            "status": "live"
+          },
+          {
+            "id": "forest",
+            "status": "live"
+          },
+          {
+            "id": "snow",
+            "status": "live"
+          },
+          {
+            "id": "mars",
+            "status": "live"
+          }
+        ],
+        "liveCount": 4,
+        "footprintAcrossM": 124,
+        "targetFootprintAcrossM": 124,
+        "targetLive": 4
+      }
+    },
+    "realismVerdicts": {
+      "target": "≥ 8 of 10 features PASS (Board 004 §6)",
+      "features": [
+        {
+          "id": "guns",
+          "v3": "PASS",
+          "v4": "PENDING",
+          "source": "Phase 2 report (Ricci/Dvorak, Verity)"
+        },
+        {
+          "id": "characters",
+          "v3": "PASS",
+          "v4": "PENDING — Atlas soldier rebuild",
+          "source": "Phase 2 report"
+        },
+        {
+          "id": "lighting",
+          "v3": "PASS — owner re-test Oct 24 (\"way better… looks good how it is\"); Phase 2 grade is the LOCKED V4 baseline (improve-only, never darker)",
+          "v4": "PENDING",
+          "source": "Brett playtest verdict, Oct 24; Phase 2 report"
+        },
+        {
+          "id": "world",
+          "v3": "PASS",
+          "v4": "PENDING — Atlas ring/biomes",
+          "source": "Phase 2 report"
+        },
+        {
+          "id": "modes presentation",
+          "v3": "—",
+          "v4": "PENDING",
+          "source": "Board 004 §6 (new in V4)"
+        },
+        {
+          "id": "soldiers-uniform discipline",
+          "v3": "—",
+          "v4": "PENDING",
+          "source": "Board 004 §6 (new in V4)"
+        },
+        {
+          "id": "landscape/biome surfaces",
+          "v3": "—",
+          "v4": "PENDING",
+          "source": "Board 004 §6 (new in V4)"
+        },
+        {
+          "id": "audio believability",
+          "v3": "—",
+          "v4": "PENDING",
+          "source": "Board 004 §6 (new in V4)"
+        },
+        {
+          "id": "loadout presentation",
+          "v3": "—",
+          "v4": "PENDING",
+          "source": "Board 004 §6 (new in V4)"
+        },
+        {
+          "id": "HUD consistency",
+          "v3": "—",
+          "v4": "PENDING",
+          "source": "Board 004 §6 (new in V4)"
+        }
+      ],
+      "v3PassCount": 4
+    }
+  },
+  "warnings": [
+    "SPEC DRIFT (progression): js/progression.js ships 15 unlock entries vs Board 004 §4's ruled ladder of 13 — the module adds HOLO SIGHT (L11) and SUPPRESSOR (L17), and MAX_LEVEL 30 leaves L19–30 with no rewards. Flagged in commit f19f0b3 as coordinator assumptions pending Havoc's design pack; Havoc/Board must reconcile (amend the ladder or trim the module). Not a code defect."
+  ],
+  "head": "0831a03"
+}
