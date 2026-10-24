@@ -164,8 +164,116 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.2.0') fail(`M6 package.json version → ${pkg.version} (expected '0.2.0')`); else ok("M6 package.json version === '0.2.0'");
+  if (pkg.version !== '0.3.0-dev') fail(`M6 package.json version → ${pkg.version} (expected '0.3.0-dev')`); else ok("M6 package.json version === '0.3.0-dev'");
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
+
+// 1d) Story module — real import + narrative contract
+let STORY, briefingForWave, objectiveForWave, deathLine, clearLine;
+try {
+  ({ STORY, briefingForWave, objectiveForWave, deathLine, clearLine } = await import('../js/story.js'));
+  if (!STORY || typeof STORY !== 'object') fail('S1 story import — STORY is not an object'); else ok('S1 STORY is an object');
+  if (typeof briefingForWave !== 'function') fail('S1 story import — briefingForWave is not a function'); else ok('S1 briefingForWave is a function');
+  if (typeof objectiveForWave !== 'function') fail('S1 story import — objectiveForWave is not a function'); else ok('S1 objectiveForWave is a function');
+  if (typeof deathLine !== 'function') fail('S1 story import — deathLine is not a function'); else ok('S1 deathLine is a function');
+  if (typeof clearLine !== 'function') fail('S1 story import — clearLine is not a function'); else ok('S1 clearLine is a function');
+} catch (e) {
+  fail('S1 story import — failed to import ../js/story.js: ' + e.message);
+}
+
+if (STORY && typeof briefingForWave === 'function' && typeof objectiveForWave === 'function' && typeof deathLine === 'function' && typeof clearLine === 'function') {
+  // S2: premise is a non-empty array of strings
+  if (!Array.isArray(STORY.premise) || STORY.premise.length === 0 || !STORY.premise.every(s => typeof s === 'string' && s.length > 0)) fail(`S2 STORY.premise → ${JSON.stringify(STORY.premise)} (expected non-empty array of strings)`); else ok('S2 STORY.premise is a non-empty array of strings');
+
+  // S3: briefingForWave(1) is a non-empty string <= 90 chars
+  try {
+    const b1 = briefingForWave(1);
+    if (!(typeof b1 === 'string' && b1.length > 0 && b1.length <= 90)) fail(`S3 briefingForWave(1) → ${JSON.stringify(b1)} (expected non-empty string <= 90 chars)`); else ok('S3 briefingForWave(1) is a non-empty string <= 90 chars');
+  } catch (e) { fail('S3 briefingForWave(1) threw: ' + e.message); }
+
+  // S4: band escalation — briefingForWave(6) differs from briefingForWave(1)
+  try {
+    const b1 = briefingForWave(1);
+    const b6 = briefingForWave(6);
+    if (b6 === b1) fail(`S4 briefingForWave(6) === briefingForWave(1) → ${JSON.stringify(b6)} (expected different band)`); else ok('S4 briefingForWave(6) differs from briefingForWave(1)');
+  } catch (e) { fail('S4 briefingForWave(6) threw: ' + e.message); }
+
+  // S5: objectiveForWave(3) includes 'WAVE 3'
+  try {
+    const o3 = objectiveForWave(3);
+    if (!(typeof o3 === 'string' && o3.includes('WAVE 3'))) fail(`S5 objectiveForWave(3) → ${JSON.stringify(o3)} (expected to include 'WAVE 3')`); else ok("S5 objectiveForWave(3) includes 'WAVE 3'");
+  } catch (e) { fail('S5 objectiveForWave(3) threw: ' + e.message); }
+
+  // S6: deathLine(7) is deterministic and a non-empty string
+  try {
+    const d1 = deathLine(7);
+    const d2 = deathLine(7);
+    if (!(typeof d1 === 'string' && d1.length > 0)) fail(`S6 deathLine(7) → ${JSON.stringify(d1)} (expected non-empty string)`); else if (d1 !== d2) fail(`S6 deathLine(7) not deterministic: ${JSON.stringify(d1)} !== ${JSON.stringify(d2)}`); else ok('S6 deathLine(7) is deterministic and a non-empty string');
+  } catch (e) { fail('S6 deathLine(7) threw: ' + e.message); }
+
+  // S7: clearLine(2) is a non-empty string
+  try {
+    const c2 = clearLine(2);
+    if (!(typeof c2 === 'string' && c2.length > 0)) fail(`S7 clearLine(2) → ${JSON.stringify(c2)} (expected non-empty string)`); else ok('S7 clearLine(2) is a non-empty string');
+  } catch (e) { fail('S7 clearLine(2) threw: ' + e.message); }
+}
+
+// 1e) Net protocol — real import + wire contract (MULTIPLAYER.md §5)
+let MSG, PROTOCOL_VERSION, validateHello, validateInput, LIMITS;
+try {
+  ({ MSG, PROTOCOL_VERSION, validateHello, validateInput, LIMITS } = await import('../net/protocol.js'));
+  if (!MSG || typeof MSG !== 'object') fail('N1 protocol import — MSG is not an object'); else ok('N1 MSG is an object');
+  if (typeof validateHello !== 'function') fail('N1 protocol import — validateHello is not a function'); else ok('N1 validateHello is a function');
+  if (typeof validateInput !== 'function') fail('N1 protocol import — validateInput is not a function'); else ok('N1 validateInput is a function');
+} catch (e) {
+  fail('N1 protocol import — failed to import ../net/protocol.js: ' + e.message);
+}
+
+if (MSG && typeof validateHello === 'function' && typeof validateInput === 'function') {
+  // N1: MSG is frozen with exactly the 8 specified types
+  const EXPECTED_MSG = { HELLO: 'hello', WELCOME: 'welcome', ERROR: 'error', INPUT: 'input', SNAPSHOT: 'snapshot', EVENT: 'event', PING: 'ping', PONG: 'pong' };
+  if (!Object.isFrozen(MSG)) fail('N1 MSG is not frozen'); else if (Object.keys(MSG).length !== 8) fail(`N1 MSG key count → ${Object.keys(MSG).length} (expected 8): ${Object.keys(MSG).join(', ')}`); else if (JSON.stringify(MSG) !== JSON.stringify(EXPECTED_MSG)) fail(`N1 MSG → ${JSON.stringify(MSG)} (expected ${JSON.stringify(EXPECTED_MSG)})`); else ok('N1 MSG is frozen with exactly the 8 specified types');
+
+  // N2: PROTOCOL_VERSION === 1
+  if (PROTOCOL_VERSION !== 1) fail(`N2 PROTOCOL_VERSION → ${PROTOCOL_VERSION} (expected 1)`); else ok('N2 PROTOCOL_VERSION === 1');
+
+  // N3: validateHello accepts a valid sample
+  try {
+    const goodHello = { t: 'hello', protocol: 1, name: 'BRETT', room: 'A1B2' };
+    const r = validateHello(goodHello);
+    if (!r || r.ok !== true) fail(`N3 validateHello(valid) → ${JSON.stringify(r)} (expected ok: true)`); else ok('N3 validateHello accepts a valid sample');
+  } catch (e) { fail('N3 validateHello(valid) threw: ' + e.message); }
+
+  // N4: validateHello rejects a bad-protocol sample
+  try {
+    const badHello = { t: 'hello', protocol: 999, name: 'BRETT', room: 'A1B2' };
+    const r = validateHello(badHello);
+    if (!r || r.ok !== false) fail(`N4 validateHello(bad protocol) → ${JSON.stringify(r)} (expected ok: false)`); else ok('N4 validateHello rejects a bad-protocol sample');
+  } catch (e) { fail('N4 validateHello(bad protocol) threw: ' + e.message); }
+
+  // N5: validateInput accepts a valid sample (§5.2 shape)
+  const VALID_INPUT = { t: 'input', seq: 0, keys: { forward: true, back: false, left: false, right: false, sprint: false, jump: false }, yaw: 0, pitch: 0, fire: false, reload: false, weapon: 1 };
+  try {
+    const r = validateInput(VALID_INPUT);
+    if (!r || r.ok !== true) fail(`N5 validateInput(valid) → ${JSON.stringify(r)} (expected ok: true)`); else ok('N5 validateInput accepts a valid sample');
+  } catch (e) { fail('N5 validateInput(valid) threw: ' + e.message); }
+
+  // N6: validateInput rejects a sample with a non-boolean key
+  try {
+    const badKeys = { ...VALID_INPUT, keys: { ...VALID_INPUT.keys, forward: 1 } };
+    const r = validateInput(badKeys);
+    if (!r || r.ok !== false) fail(`N6 validateInput(non-boolean key) → ${JSON.stringify(r)} (expected ok: false)`); else ok('N6 validateInput rejects a sample with a non-boolean key');
+  } catch (e) { fail('N6 validateInput(non-boolean key) threw: ' + e.message); }
+
+  // N7: validateInput rejects a sample with pitch 2.0
+  try {
+    const badPitch = { ...VALID_INPUT, pitch: 2.0 };
+    const r = validateInput(badPitch);
+    if (!r || r.ok !== false) fail(`N7 validateInput(pitch 2.0) → ${JSON.stringify(r)} (expected ok: false)`); else ok('N7 validateInput rejects a sample with pitch 2.0');
+  } catch (e) { fail('N7 validateInput(pitch 2.0) threw: ' + e.message); }
+
+  // N8: LIMITS.MAX_MESSAGE_BYTES === 4096
+  if (!LIMITS || LIMITS.MAX_MESSAGE_BYTES !== 4096) fail(`N8 LIMITS.MAX_MESSAGE_BYTES → ${LIMITS?.MAX_MESSAGE_BYTES} (expected 4096)`); else ok('N8 LIMITS.MAX_MESSAGE_BYTES === 4096');
+}
 
 // 2) Boot server + fetch routes
 const PORT = 8199;
@@ -193,7 +301,7 @@ function rawGet(rawPath) {
 
 try {
   await wait(900);
-  for (const route of ['/', '/js/main.js', '/js/player.js', '/js/bots.js', '/js/world.js', '/js/audio.js', '/js/weapons.js', '/css/style.css', '/vendor/three.module.js']) {
+  for (const route of ['/', '/js/main.js', '/js/player.js', '/js/bots.js', '/js/world.js', '/js/audio.js', '/js/weapons.js', '/js/story.js', '/js/perfmeter.js', '/js/quality.js', '/js/biomes.js', '/css/style.css', '/vendor/three.module.js']) {
     const res = await fetch(`http://localhost:${PORT}${route}`);
     if (!res.ok) fail(`GET ${route} → ${res.status}`); else ok(`GET ${route} → 200`);
   }
@@ -245,7 +353,12 @@ try {
   }
 
   // M8: served HTML includes version tag
-  if (!home.includes('v0.2')) fail("M8 served HTML missing 'v0.2'"); else ok("M8 served HTML includes 'v0.2'");
+  if (!home.includes('v0.3')) fail("M8 served HTML missing 'v0.3'"); else ok("M8 served HTML includes 'v0.3'");
+
+  // M9: served HTML contains V3 UI ids (story / objective / briefing / settings / biome)
+  for (const idAttr of ['id="story-text"', 'id="objective"', 'id="briefing"', 'id="context-line"', 'id="sens-slider"', 'id="biome-select"']) {
+    if (!home.includes(idAttr)) fail(`M9 served HTML missing ${idAttr}`); else ok(`M9 served HTML contains ${idAttr}`);
+  }
 
   // m2: served HTML defaults match WEAPONS[0]
   if (Array.isArray(WEAPONS) && WEAPONS.length) {
