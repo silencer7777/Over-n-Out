@@ -141,3 +141,37 @@ All runtime strings below are implemented in `js/story.js`.
 | Briefing (wave start) | One radio line per wave, escalating by band (1 / 2 / 3 / 4–5 / 6+) from first lock to peak lock. Paired with the objective line naming the hold order and wave number. | `briefingForWave(wave)`, `objectiveForWave(wave)` |
 | Wave clear | A held breath, not a victory: channel clear, tower still dark, compound still Calder's — for now. Implies the breather heal and the next re-acquisition. | `clearLine(wave)` |
 | Death | Signal lost. The channel flatlines, Meridian goes dark, and the Carrier takes the tower. Shown on the death / redeploy screen alongside the run stats. | `deathLine(seed)` |
+
+## V4 — the modes in fiction
+
+The four V4 game modes are four ways the fight for Meridian is
+fought. Same operator, same tower, same enemy — different orders.
+
+- **Wave Defense** is the premise itself: hold the compound against
+  escalating lock (above).
+- **Team Deathmatch** is a contested yard: a standing Kestrel squad
+  patrols Meridian in force, and Calder's side — operators who
+  answered her open channel — fights to break the squad before it
+  breaks them. Eliminations are the score because the squad's
+  cohesion is the Carrier's local foothold.
+- **Domination** is a frequency war. The compound's three relay
+  points — north deck, rooftop, and the relay tower — each hold a slice of the
+  broadcast band. Whoever holds them starves the other side's
+  signal: hold the frequencies and the Carrier cannot coordinate
+  a lock; lose them and it can.
+- **Relay Assault** is the direct play: the rooftop relay is the
+  door the Carrier keeps knocking on. Calder gets to the roof,
+  opens a channel into the relay and scrambles its lock pattern —
+  while everything the Carrier has left defends the one piece of
+  hardware it cannot afford to lose. The timer is the window
+  before the Carrier rotates its pattern out of reach.
+
+## V4 — transmissions
+
+Hidden off Meridian's main lanes are dead drops and logged
+fragments from the operators who held this post before Calder —
+the transmissions. They are rewards for wandering: small pieces
+of the compound's memory, in the same radio voice, that make the
+place older than the current fight. Runtime strings:
+`transmissionLine(index)` in `js/story.js`; placement on the maps
+is Atlas's (Worlds & Soldiers).
