@@ -219,7 +219,7 @@ export class Player {
     // ADS (V4): aiming forbids sprint and scales movement by the
     // optic's moveAds (attachments) — irons/no-optic stays 1.
     this.aiming = !!input.aim;
-    const speed = (input.sprint && !this.aiming ? 9.2 : 5.6) * (this.aiming ? this.aimMoveMult : 1);
+    const speed = (input.sprint && !this.aiming ? 9.2 * (this.sprintMult || 1) : 5.6 * (this.walkMult || 1)) * (this.aiming ? Math.min(1, this.aimMoveMult + (this.stalkerAdd || 0)) : 1);
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
     const wx = (-sin * f + cos * s);
     const wz = (-cos * f - sin * s);
