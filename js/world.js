@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeColoredParts } from './geo.js';
 
 // Builds the arena: dusk-lit compound, perimeter walls, cover crates.
 // Returns collision data + lists used by shooting / bot line-of-sight.
@@ -20,6 +21,12 @@ export function buildWorld(scene) {
   //     darker below-horizon (stops below)
   //   renderer exposure 1.1 -> 0.95 (specified for main.js,
   //     which owns that value; not set in this file)
+  // PHASE 2 REVISION (Brett's live playtest — too dark, enemies
+  // unreadable, shadows too heavy): hemisphere fill 0.60 -> 0.95
+  // (the shadow-lift lever), sun 1.75 -> 1.85, exposure 0.95 ->
+  // 1.10 in main.js, bot emissive floor in bots.js. Sun angle,
+  // colours and fog (42->138, the 40 m readability floor) are
+  // UNCHANGED — brighter visibility, same golden-hour mood.
   // One shared SUN_POS drives the light, disc and glow so the
   // light and the picture always agree.
   // ============================================================
@@ -31,11 +38,17 @@ export function buildWorld(scene) {
   // cross-arena sightlines (far >= 130) still survive.
   scene.fog = new THREE.Fog(0x352130, 42, 138);
 
-  // Cooler, dimmer hemisphere fill: slate-blue sky bounce and
-  // a darker, less warm ground bounce replace the purple wash,
-  // so shadowed cover reads neutral rather than violet.
-  scene.add(new THREE.HemisphereLight(0x6f83b0, 0x2e231c, 0.60));
-  const sun = new THREE.DirectionalLight(0xff8f3c, 1.75);
+  // Hemisphere fill — PHASE 2 READABILITY REVISION (Brett's live
+  // playtest, Oct 24: "lighting still kinda dark, you can barely
+  // see the enemies, shadows too shadowy"). In this renderer a
+  // shadow is only as black as the non-directional light is weak,
+  // so the fix is the FILL RATIO, not the sun: hemisphere 0.60 ->
+  // 0.95 lifts every shadowed surface ~58% while the sun keeps the
+  // golden-hour modeling Brett asked for. Sky/ground bounce warmed
+  // slightly so lifted shadows read as dusk, not grey.
+  // (Phase 1 grade kept in git history: 0x6f83b0 / 0x2e231c, 0.60.)
+  scene.add(new THREE.HemisphereLight(0x8296bd, 0x3a2a20, 0.95));
+  const sun = new THREE.DirectionalLight(0xff8f3c, 1.85);
   sun.position.copy(SUN_POS);
   scene.add(sun);
 
@@ -323,6 +336,7 @@ export function buildWorld(scene) {
   // down is always allowed (falling works from any edge).
   solid(0, -32, 32, 2.3, 16, deckMat);   // north deck: x -16..16, z -40..-24
   solid(34, -16, 10, 2.3, 20, deckMat);  // east deck:  x 29..39,  z -26..-6
+  solid(-34, -16, 10, 2.3, 20, deckMat); // west deck:  x -39..-29, z -26..-6 (V3 Phase 2 course expansion — mirrors the east deck; Stair C below reaches it)
   // Catwalk slab bridging the decks: top 2.3, underside 2.0 (above the
   // 1.75 head clearance, so ground traffic passes underneath), on pillars.
   elevated(22.5, 2.0, -25, 13, 0.3, 4, slabMat); // x 16..29, z -27..-23
@@ -332,6 +346,7 @@ export function buildWorld(scene) {
   // Routes ground -> mid
   groundStairs(-11, -24, 3);              // A: west end, north deck south face
   groundStairs(34, -6, 3);                // B: south end, east deck south face
+  groundStairs(-34, -6, 3);               // C: south end, west deck south face (Phase 2)
   crateHop(10, -20.7, 10, -22.9, 0);      // alternate, flush with north deck edge
 
   // TOP LEVEL: rooftop block sitting on the north deck (base 2.3, top 4.6)
@@ -348,6 +363,7 @@ export function buildWorld(scene) {
   // Deck cover crates, one per mid deck (the hop stacks double as cover).
   elevated(10, 2.3, -38, 2, 1.1, 2, crateMat);   // north deck
   elevated(36, 2.3, -24, 2, 1.1, 2, crateMat2);  // east deck
+  elevated(-36, 2.3, -24, 2, 1.1, 2, crateMat);   // west deck (Phase 2)
 
   // Ground cover — REDUCED set (shootables budget; the old 19 pieces + 4
   // emissive pillars are gone, the north pillars collided with Stair A).
@@ -358,6 +374,32 @@ export function buildWorld(scene) {
     [-34, -26, 4, 4.4, 4], [34, 28, 4, 4.4, 4], [0, 0, 3.2, 3.2, 3.2],
   ];
   cover.forEach(([x, z, w, h, d], i) => solid(x, z, w, h, d, i % 3 === 0 ? crateMat2 : crateMat));
+
+  // Explosive barrels (V3 Phase 2 fun feature — Board 003 pick).
+  // Rust-red drums: shootable + collidable, NOT walkable. Drum + two
+  // rib bands are merged into ONE mesh each (geo.js) = 5 draw calls
+  // total. userData.explosive carries the spec main.js resolves on
+  // hit ({ radius, damage }); placement keeps every route, spawn
+  // and the central ground clear (checked by tools/smoke.mjs F3).
+  {
+    const barrelMat = new THREE.MeshStandardMaterial({ vertexColors: true, color: 0xffffff, roughness: 0.55, metalness: 0.35 });
+    const drumGeo = () => mergeColoredParts([
+      { geo: new THREE.CylinderGeometry(0.45, 0.45, 1.12, 14), color: 0x8a3324, x: 0, y: 0.56, z: 0 },
+      { geo: new THREE.CylinderGeometry(0.47, 0.47, 0.07, 14), color: 0x6e2718, x: 0, y: 0.30, z: 0 },
+      { geo: new THREE.CylinderGeometry(0.47, 0.47, 0.07, 14), color: 0x6e2718, x: 0, y: 0.82, z: 0 },
+      { geo: new THREE.CylinderGeometry(0.40, 0.40, 0.04, 14), color: 0x74301f, x: 0, y: 1.13, z: 0 },
+    ]);
+    const BARREL_SPOTS = [[18, 2], [-22, 18], [8, -14], [-30, -2], [24, 34]];
+    for (const [bx, bz] of BARREL_SPOTS) {
+      const drum = new THREE.Mesh(drumGeo(), barrelMat);
+      drum.position.set(bx, 0, bz);
+      drum.castShadow = true; drum.receiveShadow = true;
+      drum.userData.explosive = { radius: 6.5, damage: 95 };
+      scene.add(drum); shootables.push(drum);
+      colliders.push(new THREE.Box3(
+        new THREE.Vector3(bx - 0.45, 0, bz - 0.45), new THREE.Vector3(bx + 0.45, 1.12, bz + 0.45)));
+    }
+  }
 
   // ---- Horizon dressing (visual only: NOT in colliders or shootables) ----
   // Dark outer apron under everything beyond the arena floor, so the ridges
@@ -635,6 +677,7 @@ export function buildWorld(scene) {
     new THREE.Vector3(0, 0, -44), new THREE.Vector3(0, 0, 44),
     new THREE.Vector3(13, 2.3, -30),   // mid: north deck, SE area
     new THREE.Vector3(34, 2.3, -20),   // mid: east deck
+    new THREE.Vector3(-34, 2.3, -20),  // mid: west deck (Phase 2)
     new THREE.Vector3(-5, 4.6, -34),   // top: rooftop centre
   ];
 
