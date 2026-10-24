@@ -77,6 +77,40 @@ export function clearLine(wave) {
   return CLEAR_LINES[(waveNumber(wave) - 1) % CLEAR_LINES.length];
 }
 
+// Mode briefings (V4): one Relay line per game mode, played at
+// deploy. Canon: docs/STORY.md, "V4 — the modes in fiction".
+const MODE_BRIEFINGS = {
+  waves: 'RELAY — hold the compound. The Carrier re-acquires every wave; so do we.',
+  tdm: 'RELAY — Kestrel squad\'s hunting in packs now. First to thirty. Drop them first.',
+  domination: 'RELAY — three points keep this compound breathing. Take them. Hold them.',
+  assault: 'RELAY — that tower is the Carrier\'s throat. Get me to the relay. Keep me alive.',
+};
+
+// One radio line per mode id. Unknown ids fall back to the wave
+// defence line — a briefing always exists.
+export function briefingForMode(modeId) {
+  return MODE_BRIEFINGS[modeId] || MODE_BRIEFINGS.waves;
+}
+
+// Transmissions (V4 exploration rewards): fragments Calder picks up
+// at data pads hidden off the main lanes (Atlas places the pads;
+// the canon lives here). Finding one is a small story beat, not a
+// score event. Deterministic by index so replays stay stable.
+const TRANSMISSIONS = [
+  'TRANSMISSION 1 — "…caretaker posting, they said. Quiet. Log the bands, file the forms…"',
+  'TRANSMISSION 2 — "…the tower was never the weapon. A voice is. Remember that out there."',
+  'TRANSMISSION 3 — "…if the tone ever answers you back, do not — repeat, do NOT — answer it."',
+];
+
+export function transmissionLine(index) {
+  const n = Math.floor(Number(index));
+  const len = TRANSMISSIONS.length;
+  const idx = Number.isFinite(n) ? ((n % len) + len) % len : 0;
+  return TRANSMISSIONS[idx];
+}
+
+export const TRANSMISSION_COUNT = TRANSMISSIONS.length;
+
 const STREAK_LINES = {
   2: 'RELAY — two down back-to-back. Keep that rhythm.',
   3: 'RELAY — three in a row. The Carrier felt that one.',
