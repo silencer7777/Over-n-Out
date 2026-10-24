@@ -49,6 +49,28 @@ export function isValidModeId(v) {
   return typeof v === 'string' && MODE_ID_PATTERN.test(v);
 }
 
+// The default map id (Board 005 §3: map ids are compound /
+// forest / snow / mars; js/worlddata.js is the Compound map's
+// data). Same shape discipline as mode ids — this module checks
+// SHAPE, the server checks membership against the sim's world
+// registry (bad_map mirrors bad_mode, Board 005 §3.3).
+export const DEFAULT_MAP = 'compound';
+export function isValidMapId(v) {
+  return typeof v === 'string' && MODE_ID_PATTERN.test(v);
+}
+
+// Placed-equipment kinds a client may request on an input sample
+// (Directive 10). The sim owns placement validation, counts per
+// life, triggers and destruction — this list is only the wire
+// vocabulary. ('tripmine' is the ratified id — js/loadouts.js
+// LETHALS; an earlier draft called it 'mine'.)
+export const PLACE_KINDS = Object.freeze(['claymore', 'tripmine']);
+
+// Scorestreak ids a client may request on an input sample
+// (Directive 11). Mirrors js/loadouts.js STREAK_IDS; the sim
+// owns selection / meter / active-instance validation.
+export const STREAK_CALL_IDS = Object.freeze(['uav', 'cuav', 'package', 'sentry', 'precision']);
+
 // validateHello(msg) -> { ok, errors[] }
 //
 // The handshake (MULTIPLAYER.md §5.1). A client must send this first:
@@ -101,6 +123,9 @@ export function validateHello(msg) {
   }
   if (msg.mode !== undefined && !isValidModeId(msg.mode)) {
     errors.push('mode must be a mode id (lowercase, 1-32 chars)');
+  }
+  if (msg.map !== undefined && !isValidMapId(msg.map)) {
+    errors.push('map must be a map id (lowercase, 1-32 chars)');
   }
   if (msg.loadout !== undefined && !isPlainObject(msg.loadout)) {
     errors.push('loadout must be a class object');
@@ -171,6 +196,33 @@ export function validateInput(msg) {
   }
   if (msg.tactical !== undefined && typeof msg.tactical !== 'boolean') {
     errors.push('tactical must be a boolean when present');
+  }
+  // Optional placed-equipment edge (Directive 10): names WHAT to
+  // place on this sample; the sim validates surface / facing /
+  // count-per-life from authoritative state — the sample claims
+  // nothing about where the equipment lands.
+  if (msg.place !== undefined && !PLACE_KINDS.includes(msg.place)) {
+    errors.push('place must be one of: ' + PLACE_KINDS.join(', '));
+  }
+  // Optional scorestreak edge (Directive 11): request activation
+  // of a scorestreak the player has earned. `streak` names the
+  // ladder id; `streakX`/`streakZ` optionally name the target
+  // point for a precision strike (finite numbers, clamped by
+  // the sim to the map bounds — the sample claims a request,
+  // never an outcome). The sim tracks the meter and decides.
+  if (msg.streak !== undefined && !STREAK_CALL_IDS.includes(msg.streak)) {
+    errors.push('streak must be one of: ' + STREAK_CALL_IDS.join(', '));
+  }
+  if (msg.streakX !== undefined && (typeof msg.streakX !== 'number' || !Number.isFinite(msg.streakX))) {
+    errors.push('streakX must be a finite number when present');
+  }
+  if (msg.streakZ !== undefined && (typeof msg.streakZ !== 'number' || !Number.isFinite(msg.streakZ))) {
+    errors.push('streakZ must be a finite number when present');
+  }
+  // Legacy alias: request the UAV specifically. Strictly
+  // boolean when present.
+  if (msg.uav !== undefined && typeof msg.uav !== 'boolean') {
+    errors.push('uav must be a boolean when present');
   }
   if (!Number.isInteger(msg.weapon) || msg.weapon < 1 || msg.weapon > 5) {
     errors.push('weapon must be an integer 1-5');
