@@ -1,0 +1,64 @@
+{
+  "vm": "vm1-stability",
+  "commit": "476ac34a46896acb31af1e1175f20217a90dea9a",
+  "subject": "v6(docs): Update 2 landed — ledger entry (before/after per map + §3.4 offsets named) + Update 2 report",
+  "soakReps": 1,
+  "wsReps": 1,
+  "verdict": "STABLE",
+  "results": [
+    {
+      "gate": "smoke",
+      "tool": "tools/smoke.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 20074,
+      "checks": 253,
+      "timedOut": false
+    },
+    {
+      "gate": "biome-check",
+      "tool": "tools/biome-check.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 1292,
+      "checks": 50,
+      "timedOut": false
+    },
+    {
+      "gate": "reachability",
+      "tool": "tools/reachability.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 185,
+      "checks": 28,
+      "timedOut": false
+    },
+    {
+      "gate": "reachability-maps",
+      "tool": "tools/reachability-maps.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 1502,
+      "checks": 3,
+      "timedOut": false
+    },
+    {
+      "gate": "soak #1",
+      "tool": "tools/soak.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 1312,
+      "checks": 10,
+      "timedOut": false
+    },
+    {
+      "gate": "ws-soak #1",
+      "tool": "tools/ws-soak.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 4890,
+      "checks": 27,
+      "timedOut": false
+    }
+  ]
+}
