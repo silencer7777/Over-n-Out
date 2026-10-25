@@ -14,7 +14,7 @@ or grades. No new gameplay systems.
 | # | Update | Scope | Status |
 |---|--------|-------|--------|
 | 1 | Vegetation + buildings realism — Compound & Forest | Tapered textured trunks, layered irregular canopies, per-instance variation; rooflines/trim/doors/window grids/parapets/panel seams, beveled edges, procedural facade textures. Instancing/merging pays for all of it. (Atlas) | **LANDED Oct 24** (commits be2cb74, 21d2e7e, f9b1185 + report 45e3809) — awaiting Brett playtest; ships in the next push |
-| 2 | Vegetation + buildings parity — Snow Station & Mars Uplink | Update 1's treatment carried to the remaining two maps (snow-loaded pines, station architecture; Mars habitat/industrial structures, rock forms). (Atlas) | queued |
+| 2 | Vegetation + buildings parity — Snow Station & Mars Uplink | Update 1's treatment carried to the remaining two maps (snow-loaded pines, station architecture; Mars habitat/industrial structures, rock forms). (Atlas) | **LANDED Oct 24** (commits 553e9ad, 0ed4e0d, c2ac69c, d96e74c, febfa93 + report) — awaiting Brett playtest; ships in the next push |
 | 3 | Terrain & ground realness — all maps | Smooth-shaded undulation, blended ground materials (asphalt/concrete/grass/dirt/snow/rock), edge wear, instanced scatter (rocks, tufts, debris). (Atlas) | queued |
 | 4 | Soldiers & guns realism | Rounded, blended forms — capsule/sphere-blended limbs and kit, fabric-ish texture variation. Hit cores byte-identical (proof required); per-bot call budget held. (Atlas) | queued |
 | 5 | Materials & finish pass | Texture resolution/atlas uplift, anisotropy, per-instance color-variation audit across all maps; no large flat-color surface survives on any map. (Atlas + Odin) | queued |
@@ -121,3 +121,29 @@ only when they cost the graphics mission nothing:
   Update 1 ships in the next push once integrated. Pages
   confirmation check scheduled ~3:15pm PT; Brett gets the live
   ping + iPhone try-it steps from that check.
+- **Update 2 LANDED** (Oct 24): vegetation + buildings parity,
+  Snow Station & Mars Uplink, both render paths. SNOW client:
+  127→130 calls / 45.1k→77.7k tris; flat share 0.338→0.105,
+  textured 0.489→0.825; **30 snow-loaded pines** (separately
+  seeded stand, SNOW_SEED+4242 — shipped scatter proven
+  exact-float identical, pines append after it); drifts smooth +
+  snowpack texture; habitat dome panelled. MARS client: 130→130
+  calls / 44.8k→48.5k tris; flat 0.336→0.182, textured
+  0.494→0.676; rock family smooth + regolith (colliders proven
+  exact-float identical, 27/27). Layouts: snow static 18→25
+  calls, flat 0.390→0, textured 0→0.684 (plank huts, standing-seam
+  roofs, hut facade pass with emissive glass); mars static 16→18,
+  flat 0.338→0, textured 0→0.715 (habitat paneling + window
+  strips, emissive spire tip). Vetoes held everywhere;
+  shadow-pass estimates published per §2.6: snow client 191 calls
+  / 64.0k tris (mobile bar 200 holds), mars client 191 / 35.0k.
+  **§3.4 offsets:** snow client's net +3 calls are the pine
+  stand's three InstancedMeshes — the instancing conversion
+  itself (30 trees × 9 parts = 270 parts in 3 calls, where
+  unmerged parts would cost ~270); all densification folded into
+  pre-existing InstancedMeshes at +0 (Mars client net +0 calls).
+  Layout adds are merged-mesh consolidations: three huts' + the
+  depot's trim and glass ride in 3 meshes total; Mars's tip and
+  window programs are one merged mesh each. Report:
+  `docs/sessions/v6-update-02-report.md`. Not pushed — ships in
+  the next push on Brett's tap.
