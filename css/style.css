@@ -115,12 +115,25 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0b0f14; font-
 .tc-slot.active { border-color:#39ff6a; color:#fff; background:rgba(57,255,106,.22); }
 .tc-slot.on { background:rgba(57,255,106,.35); }
 
+/* ---------- V6-3 menu pages (Directive V6-3) ---------- */
+/* The menu splits into two stacked pages inside #menu: the wrapper
+   replicates #menu's centered column for its children, and the
+   global .hidden rule flips which page shows. Nav buttons are
+   quiet ghosts — DEPLOY keeps the only loud styling. */
+.menu-page { display:flex; flex-direction:column; align-items:center; width:100%; }
+.menu-page-title { font-size:15px; font-weight:800; letter-spacing:4px; color:#fff; margin-top:6px; }
+#menu-more-btn, #menu-back-btn { pointer-events:auto; cursor:pointer; background:rgba(255,255,255,.06); border:1px solid rgba(182,255,176,.35); color:#d9e8db; padding:11px 22px; font-size:12px; font-weight:700; letter-spacing:2px; border-radius:4px; }
+#menu-more-btn { margin-top:16px; }
+#menu-back-btn { margin-top:26px; }
+#menu-more-btn:hover, #menu-back-btn:hover { border-color:rgba(182,255,176,.85); }
+
 /* Touch-mode shell: 44px+ targets everywhere in the menu, no
    double-tap zoom, HUD readouts moved clear of the thumb cluster. */
 body.touch-mode { touch-action:manipulation; }
 body.touch-mode .wpn, body.touch-mode .cls-tab, body.touch-mode .att-select,
 body.touch-mode #mode-select, body.touch-mode #biome-select,
-body.touch-mode #online-panel input, body.touch-mode #online-btn { min-height:44px; }
+body.touch-mode #online-panel input, body.touch-mode #online-btn,
+body.touch-mode #menu-more-btn, body.touch-mode #menu-back-btn { min-height:44px; }
 body.touch-mode #play-btn { min-height:56px; }
 body.touch-mode .controls { grid-template-columns:repeat(2, auto); font-size:12px; gap:8px 22px; }
 body.touch-mode #ammo-wrap { top:calc(104px + env(safe-area-inset-top)); bottom:auto; right:calc(20px + env(safe-area-inset-right)); }
