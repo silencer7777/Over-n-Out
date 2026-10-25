@@ -1,0 +1,24 @@
+{
+  "vm": "vm5-restore",
+  "backup": "2026-10-25-476ac34",
+  "commit": "476ac34a46896acb31af1e1175f20217a90dea9a",
+  "verdict": "RESTORE PROVEN",
+  "steps": [
+    {
+      "name": "archive sha256",
+      "pass": true,
+      "detail": "matches manifest"
+    },
+    {
+      "name": "per-file checksums",
+      "pass": true,
+      "detail": "101/101 files verified, 0 bad"
+    },
+    {
+      "name": "restored tree smoke",
+      "pass": true,
+      "detail": "exit 0, 21.0s"
+    }
+  ],
+  "extractDir": "/home/hatch/workspace/over-n-out-rig-scratch/restores/2026-10-25-476ac34-20261025-0937"
+}
