@@ -269,7 +269,15 @@ function makeSnowTextureLocal() {
       c.fillStyle = rng() > 0.5 ? `rgba(0,0,0,${0.02 + rng() * 0.03})` : `rgba(255,255,255,${0.02 + rng() * 0.04})`;
       c.fillRect(rng() * S, rng() * S, 1 + rng() * 2, 1 + rng() * 2);
     }
-    for (let i = 0; i < 70; i++) {
+    // V6-3 weather: wind-scour streaks + doubled sparkle glints
+    // (kept in step with proctex makeSnowTexture).
+    for (let i = 0; i < 12; i++) {
+      c.fillStyle = `rgba(255,255,255,${0.05 + rng() * 0.06})`;
+      c.beginPath();
+      c.ellipse(rng() * S, rng() * S, 26 + rng() * 44, 3 + rng() * 5, 0.35 + (rng() - 0.5) * 0.2, 0, Math.PI * 2);
+      c.fill();
+    }
+    for (let i = 0; i < 140; i++) {
       c.fillStyle = `rgba(255,255,255,${0.5 + rng() * 0.5})`;
       c.fillRect(rng() * S, rng() * S, 1.3, 1.3);
     }
@@ -306,7 +314,7 @@ function makeMetalPanelTextureLocal() {
     c.fillStyle = '#ccd1d6'; c.fillRect(0, 0, S, S);
     for (let py = 0; py < 2; py++) for (let px = 0; px < 2; px++) {
       const v = 196 + Math.floor(rng() * 22);
-      c.fillStyle = `rgb(${v},${v + 3},${v + 7})`;
+      c.fillStyle = `rgb(${v - 6},${v + 2},${v + 14})`; // V6-3 vivid sync (proctex)
       c.fillRect(px * 128 + 2, py * 128 + 2, 124, 124);
     }
     c.fillStyle = 'rgba(28,32,38,0.65)'; c.fillRect(126, 0, 4, S); c.fillRect(0, 126, S, 4);
@@ -337,6 +345,14 @@ function makeRegolithTextureLocal() {
       c.fillStyle = rng() > 0.5 ? `rgba(146,88,48,${0.05 + rng() * 0.07})` : `rgba(255,240,220,${0.04 + rng() * 0.05})`;
       c.beginPath();
       c.ellipse(rng() * S, rng() * S, 12 + rng() * 46, 8 + rng() * 26, rng() * Math.PI, 0, Math.PI * 2);
+      c.fill();
+    }
+    // V6-3 weather: wind-blown dust streaks (kept in step with
+    // proctex makeRegolithTexture).
+    for (let i = 0; i < 9; i++) {
+      c.fillStyle = `rgba(255,238,214,${0.05 + rng() * 0.06})`;
+      c.beginPath();
+      c.ellipse(rng() * S, rng() * S, 30 + rng() * 52, 3 + rng() * 6, 0.5 + (rng() - 0.5) * 0.25, 0, Math.PI * 2);
       c.fill();
     }
     for (let i = 0; i < 220; i++) {
@@ -434,7 +450,7 @@ function buildForest(ctx) {
   group.userData.treeCount = trees.length;
   group.userData.bushCount = bushes.length;
 
-  const deepGreen = new THREE.Color(0x2f4d20), tipGreen = new THREE.Color(0x7d9c3c);
+  const deepGreen = new THREE.Color(0x2a6318), tipGreen = new THREE.Color(0x93c23e); // V6-3 vivid (syncs world.js)
   const barkMat = barkMatShared();
   // V6: foliage material — leaf texture with alpha-cut holes,
   // smooth shading, double-sided so crowns read from below.
@@ -448,7 +464,7 @@ function buildForest(ctx) {
     dummy.position.set(t.x, 1.6 * t.sy, t.z);
     dummy.rotation.set(0, t.rot, 0); dummy.scale.set(t.s, t.sy, t.s);
     dummy.updateMatrix(); trunkIM.setMatrixAt(i, dummy.matrix);
-    trunkIM.setColorAt(i, new THREE.Color(0x5b4632).offsetHSL(0, (rng() - 0.5) * 0.05, (rng() - 0.5) * 0.07));
+    trunkIM.setColorAt(i, new THREE.Color(0x6b4a2a).offsetHSL(0, (rng() - 0.5) * 0.05, (rng() - 0.5) * 0.07));
   });
   if (trunkIM.instanceColor) trunkIM.instanceColor.needsUpdate = true;
   group.add(trunkIM);
@@ -466,7 +482,7 @@ function buildForest(ctx) {
       dummy.position.set(t.x + dir.x * 0.5 * t.s, 0.27 * t.sy, t.z + dir.z * 0.5 * t.s);
       dummy.scale.set(t.s * 1.1, t.s, t.s * 0.55);
       dummy.updateMatrix(); rootIM.setMatrixAt(i * 3 + k, dummy.matrix);
-      rootIM.setColorAt(i * 3 + k, new THREE.Color(0x5b4632).offsetHSL(0, (rng() - 0.5) * 0.05, (rng() - 0.5) * 0.07));
+      rootIM.setColorAt(i * 3 + k, new THREE.Color(0x6b4a2a).offsetHSL(0, (rng() - 0.5) * 0.05, (rng() - 0.5) * 0.07));
     }
   });
   if (rootIM.instanceColor) rootIM.instanceColor.needsUpdate = true;
@@ -485,7 +501,7 @@ function buildForest(ctx) {
       dummy.position.set(t.x + dir.x * 0.85 * t.s, trunkH * 0.72 + dir.y * 0.85 * t.s, t.z + dir.z * 0.85 * t.s);
       dummy.scale.set(t.s, t.s * (0.85 + rng() * 0.35), t.s);
       dummy.updateMatrix(); branchIM.setMatrixAt(i * 3 + k, dummy.matrix);
-      branchIM.setColorAt(i * 3 + k, new THREE.Color(0x5b4632).offsetHSL(0, (rng() - 0.5) * 0.05, (rng() - 0.5) * 0.07));
+      branchIM.setColorAt(i * 3 + k, new THREE.Color(0x6b4a2a).offsetHSL(0, (rng() - 0.5) * 0.05, (rng() - 0.5) * 0.07));
     }
   });
   if (branchIM.instanceColor) branchIM.instanceColor.needsUpdate = true;
@@ -743,7 +759,7 @@ function buildSnow(ctx) {
   // matte snow: pure ground-truth dressing (6 cm tall, visual
   // only — shots and boots pass as if over flat ice).
   {
-    const iceMat = new THREE.MeshStandardMaterial({ color: 0xcfe0ee, roughness: 0.22, metalness: 0.08 });
+    const iceMat = new THREE.MeshStandardMaterial({ color: 0xbfdcf2, roughness: 0.22, metalness: 0.08 }); // V6-3 vivid: deeper ice blue
     const ICE_SPOTS = [[30, 40, 3.2], [44, 28, 2.6], [18, 52, 3.4], [52, 14, 2.4], [-34, 50, 2.8]];
     // V5 RECLAIM (Odin audit: snow owed −3): the five discs are
     // ONE InstancedMesh now (unit cylinder, per-instance scale
@@ -803,7 +819,7 @@ function buildSnow(ctx) {
     foliageIM.castShadow = true; foliageIM.frustumCulled = false;
     const capIM = new THREE.InstancedMesh(displacedSphere(1, 8.3, 0.16, 8, 6), pineSnowMat, pines.length * MASSES);
     capIM.castShadow = true; capIM.frustumCulled = false;
-    const deepPine = new THREE.Color(0x24382a), tipPine = new THREE.Color(0x46684a);
+    const deepPine = new THREE.Color(0x1f4028), tipPine = new THREE.Color(0x3f7a44); // V6-3 vivid pines
     const snowLow = new THREE.Color(0xdfe8f2), snowHigh = new THREE.Color(0xffffff);
     const proxyMat = new THREE.MeshBasicMaterial({ visible: false });
     pines.forEach((t, i) => {
@@ -812,7 +828,7 @@ function buildSnow(ctx) {
       dummy.position.set(t.x, trunkH / 2, t.z);
       dummy.scale.set(t.s, t.sy, t.s);
       dummy.updateMatrix(); trunkIM.setMatrixAt(i, dummy.matrix);
-      trunkIM.setColorAt(i, new THREE.Color(0x4c3a2a).offsetHSL(0, (rng2() - 0.5) * 0.05, (rng2() - 0.5) * 0.07));
+      trunkIM.setColorAt(i, new THREE.Color(0x59422a).offsetHSL(0, (rng2() - 0.5) * 0.05, (rng2() - 0.5) * 0.07));
       for (let k = 0; k < MASSES; k++) {
         const tier = k / (MASSES - 1);           // 0 = low skirt .. 1 = crown
         const r = t.s * (1.30 - tier * 0.55);
@@ -884,7 +900,7 @@ function buildMars(ctx) {
   {
     const blanket = new THREE.Mesh(
       new THREE.CylinderGeometry(90, 90, 0.04, 48),
-      new THREE.MeshStandardMaterial({ color: 0x9c4a26, roughness: 1, map: regGroundTex }));
+      new THREE.MeshStandardMaterial({ color: 0xa84f20, roughness: 1, map: regGroundTex }));
     blanket.position.set(0, 0.02, 0);
     blanket.receiveShadow = true;
     group.add(blanket);
@@ -905,7 +921,7 @@ function buildMars(ctx) {
     rockSpots.push({ x, z });
   }
   const rocks = rockSpots.map((p) => ({ x: p.x, z: p.z, size: 0.7 + rng() * 1.3, rot: rng() * Math.PI * 2 }));
-  const rustLow = new THREE.Color(0x8a4a28), rustHigh = new THREE.Color(0xbc7440);
+  const rustLow = new THREE.Color(0x96481f), rustHigh = new THREE.Color(0xc97a38);
   // V6 (Update 2): rocks go smooth-shaded at 10x8 with the
   // regolith surface — geometry/material only; the scatter
   // stream and the >= 1.5 m collider rule are untouched.
@@ -940,7 +956,7 @@ function buildMars(ctx) {
   {
     const bowl = new THREE.Mesh(
       new THREE.CylinderGeometry(6.4, 6.6, 0.05, 20),
-      new THREE.MeshStandardMaterial({ color: 0x6e3418, roughness: 1, map: regGroundTex }));
+      new THREE.MeshStandardMaterial({ color: 0x783a14, roughness: 1, map: regGroundTex }));
     bowl.position.set(-30, 0.055, 52);
     bowl.receiveShadow = true;
     group.add(bowl);
@@ -981,7 +997,7 @@ function buildMars(ctx) {
     // V6 (Update 2): mesas go smooth at 12x9 with the regolith
     // surface + per-instance tint (own tiny rng — the MARS_SEED
     // stream is not touched). Colliders unchanged.
-    const mesaMat = new THREE.MeshStandardMaterial({ color: 0x9c5636, roughness: 1, map: regRockTex });
+    const mesaMat = new THREE.MeshStandardMaterial({ color: 0xa85c30, roughness: 1, map: regRockTex });
     const MESAS = [[-54, 34, 7], [55, -20, 6], [24, 56, 6]];
     // V5 RECLAIM (Odin audit: Mars owed −2): the three mesas
     // are ONE InstancedMesh (shared displaced-sphere geometry,
