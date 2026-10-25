@@ -218,6 +218,69 @@ if (worldSrc) {
   } else fail(`V5 route Comms Shed — floor ${g(24, 56, 0)}, top ${solidTopAt(24, 56)}, wall2.4 ${hasSolidTop(24, 53.65, 2.4)}`);
 }
 
+// --- V6-3 Stage 1 interiors (Atlas): the Ops Building is now a
+// 3-room interior. Probe the full indoor route the way a bot
+// walks it: south door -> SE storage -> gap B -> NE comms ->
+// gap A -> west office, plus room floors and partition blocks.
+{
+  const wd = await import('../js/worlddata.js');
+  const g = wd.groundHeightAt;
+  const all = wd.allColliders();
+  const blockedAt = (x, z) => all.some(e => x > e.min[0] && x < e.max[0] && z > e.min[2] && z < e.max[2] && e.min[1] < 1.75 && e.max[1] > 0.05);
+  // Room floors: all three rooms are open ground at y 0.
+  if (g(-34.4, 44, 0) === 0 && !blockedAt(-34.4, 44) && g(-29.6, 42.7, 0) === 0 && !blockedAt(-29.6, 42.7) && g(-31, 46.5, 0) === 0 && !blockedAt(-31, 46.5)) {
+    ok('V6-3 Ops interior: west office / NE comms / SE storage floors open at 0');
+  } else fail('V6-3 Ops interior — a room floor probe disagrees');
+  // Door gaps passable; partition runs block beside them.
+  if (!blockedAt(-32, 44.1) && blockedAt(-32, 42) && !blockedAt(-29.9, 44) && blockedAt(-31.2, 44)) {
+    ok('V6-3 Ops interior: gap A + gap B passable, partitions block beside them');
+  } else fail('V6-3 Ops interior — door-gap probes disagree');
+  // The full indoor route, waypoint by waypoint.
+  const route = [[-30.2, 47.85], [-31, 46.5], [-29.9, 44], [-29.6, 42.7], [-32, 44.1], [-34.4, 44]];
+  if (route.every(([x, z]) => !blockedAt(x, z) && g(x, z, 0) === 0)) {
+    ok('V6-3 Ops interior route: south door -> SE -> NE -> west office, all waypoints walkable');
+  } else fail('V6-3 Ops interior route — a waypoint is blocked or lifted');
+}
+
+// --- V6-3 HQ (Atlas): the two-story enterable. Floor-aware
+// probes: blockedAtY tests the body band standing on floor y0
+// (the collide() rule lifted to the upper floor).
+{
+  const wd = await import('../js/worlddata.js');
+  const g = wd.groundHeightAt;
+  const all = wd.allColliders();
+  const blockedAtY = (x, z, y0) => all.some(e => x > e.min[0] && x < e.max[0] && z > e.min[2] && z < e.max[2] && e.min[1] < y0 + 1.75 && e.max[1] > y0 + 0.05);
+  const hasSolidTop = (x, z, top) => wd.SOLIDS.some(s => x >= s.min[0] && x <= s.max[0] && z >= s.min[2] && z <= s.max[2] && s.max[1] === top);
+  // Ground floor: three rooms open at 0; both exterior doors
+  // and both partition gaps passable; walls block beside them;
+  // the ring spawn east of the HQ (0, 44) stays clear.
+  if (g(-19, 44, 0) === 0 && !blockedAtY(-19, 44, 0) && g(-10, 39, 0) === 0 && !blockedAtY(-10, 39, 0) && g(-8, 44, 0) === 0 && !blockedAtY(-8, 44, 0)) {
+    ok('V6-3 HQ ground floor: bunk / NE ops / SE entry rooms open at 0');
+  } else fail('V6-3 HQ ground floor — a room probe disagrees');
+  if (!blockedAtY(-12.8, 46.5, 0) && !blockedAtY(-5.7, 37.5, 0) && !blockedAtY(-14, 42, 0) && !blockedAtY(-7.9, 41, 0)
+    && blockedAtY(-17.8, 46.5, 0) && blockedAtY(-14, 40, 0) && !blockedAtY(0, 44, 0)) {
+    ok('V6-3 HQ ground floor: S door + N door + P1/P2 gaps passable, walls block, spawn (0,44) clear');
+  } else fail('V6-3 HQ ground floor — door/wall probes disagree');
+  // Stair chain: five 0.575 rises + the 0.25 step onto the
+  // plate — every rise within the step tolerance, probed the
+  // way a climber's feet experience it.
+  const chain = [[-20.4, 0, 0.575], [-19.4, 0.575, 1.15], [-18.4, 1.15, 1.725], [-17.4, 1.725, 2.3], [-16.4, 2.3, 2.875], [-14.6, 2.875, 3.125]];
+  if (chain.every(([x, refY, want]) => g(x, 38.6, refY) === want)) {
+    ok('V6-3 HQ stair chain: 0 -> 0.575 -> 1.15 -> 1.725 -> 2.3 -> 2.875 -> plate 3.125');
+  } else fail(`V6-3 HQ stair chain — ${chain.map(([x, r]) => g(x, 38.6, r)).join(' / ')}`);
+  // Upper floor: three rooms stand on the plate at 3.125,
+  // partition gaps passable, the railing guards the well, the
+  // well itself drops to the stair (never to a void), and the
+  // roof (6.25) is a lid — not a floor.
+  if (g(-19, 44, 3.4) === 3.125 && !blockedAtY(-19, 44, 3.125) && g(-10, 39, 3.4) === 3.125 && g(-8, 44, 3.4) === 3.125
+    && !blockedAtY(-14, 42, 3.125) && !blockedAtY(-7.9, 41, 3.125) && blockedAtY(-14, 40, 3.125)) {
+    ok('V6-3 HQ upper floor: overwatch / NE / SE rooms on plate 3.125, gaps passable, partitions block');
+  } else fail('V6-3 HQ upper floor — a room/gap probe disagrees');
+  if (blockedAtY(-18.4, 39.56, 3.125) && g(-18, 38.6, 3.4) === 1.725 && hasSolidTop(-12, 42, 6.25) && g(-12, 42, 3.4) === 3.125) {
+    ok('V6-3 HQ: railing guards the well, well drops to the stair (1.725), roof 6.25 is a lid');
+  } else fail('V6-3 HQ — railing/well/roof probes disagree');
+}
+
 console.log('\nRoute table:');
 for (const r of ROUTES) {
   const verdict = r.pass ? 'PASS' : 'FAIL';
