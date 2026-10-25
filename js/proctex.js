@@ -91,7 +91,7 @@ export function makeFoliageTexture() {
     c.clearRect(0, 0, S, S);
     // Soft dark cluster masses first (interior depth).
     for (let i = 0; i < 26; i++) {
-      c.fillStyle = `rgba(168,178,160,${0.30 + rng() * 0.25})`;
+      c.fillStyle = `rgba(148,172,138,${0.30 + rng() * 0.25})`; // V6-3 vivid: greener cluster depth
       c.beginPath();
       c.ellipse(rng() * S, rng() * S, 22 + rng() * 34, 16 + rng() * 24, rng() * Math.PI, 0, Math.PI * 2);
       c.fill();
@@ -194,7 +194,7 @@ export function makeMetalPanelTexture() {
     c.fillStyle = '#ccd1d6'; c.fillRect(0, 0, S, S);
     for (let py = 0; py < 2; py++) for (let px = 0; px < 2; px++) {
       const v = 196 + Math.floor(rng() * 22);
-      c.fillStyle = `rgb(${v},${v + 3},${v + 7})`;
+      c.fillStyle = `rgb(${v - 6},${v + 2},${v + 14})`; // V6-3 vivid: bluer steel panels
       c.fillRect(px * 128 + 2, py * 128 + 2, 124, 124);
     }
     c.fillStyle = 'rgba(28,32,38,0.65)'; c.fillRect(126, 0, 4, S); c.fillRect(0, 126, S, 4);
@@ -229,8 +229,8 @@ export function makeRoofTexture() {
       c.fillStyle = 'rgba(30,32,36,0.4)'; c.fillRect(x, 0, 2, S);
       c.fillStyle = 'rgba(255,255,255,0.16)'; c.fillRect(x + 2, 0, 2, S);
     }
-    for (let i = 0; i < 9; i++) { // rust blooms
-      c.fillStyle = `rgba(146,88,46,${0.05 + rng() * 0.07})`;
+    for (let i = 0; i < 9; i++) { // rust blooms (V6-3 vivid: stronger)
+      c.fillStyle = `rgba(158,84,38,${0.08 + rng() * 0.09})`;
       c.beginPath(); c.ellipse(rng() * S, rng() * S, 5 + rng() * 16, 4 + rng() * 10, 0, 0, Math.PI * 2); c.fill();
     }
     speckle(c, S, rng, 900, 0.06);
@@ -246,9 +246,9 @@ export function makeBrickTexture() {
       const off = (row % 2) * (bw / 2);
       for (let x = -1; x * bw < S + bw; x++) {
         const v = 196 + Math.floor(rng() * 34);
-        c.fillStyle = `rgb(${v},${v - 14},${v - 34})`;
+        c.fillStyle = `rgb(${v},${v - 26},${v - 52})`; // V6-3 vivid: richer brick red
         c.fillRect(x * bw + off + 2, row * bh + 2, bw - 4, bh - 4);
-        if (rng() > 0.6) { c.fillStyle = `rgba(90,60,40,${0.05 + rng() * 0.08})`; c.fillRect(x * bw + off + 2, row * bh + 2, bw - 4, bh - 4); }
+        if (rng() > 0.6) { c.fillStyle = `rgba(104,54,30,${0.06 + rng() * 0.09})`; c.fillRect(x * bw + off + 2, row * bh + 2, bw - 4, bh - 4); }
       }
     }
     speckle(c, S, rng, 700, 0.06);
@@ -269,8 +269,17 @@ export function makeSnowTexture() {
       c.fill();
     }
     speckle(c, S, rng, 1500, 0.05);
-    // Sparkle glints: sparse hard white points.
-    for (let i = 0; i < 70; i++) {
+    // V6-3 weather: wind-scour streaks — long pale ellipses the
+    // wind has polished into the pack (all near one bearing).
+    for (let i = 0; i < 12; i++) {
+      c.fillStyle = `rgba(255,255,255,${0.05 + rng() * 0.06})`;
+      c.beginPath();
+      c.ellipse(rng() * S, rng() * S, 26 + rng() * 44, 3 + rng() * 5, 0.35 + (rng() - 0.5) * 0.2, 0, Math.PI * 2);
+      c.fill();
+    }
+    // Sparkle glints: hard white points (V6-3: doubled — sun on
+    // fresh snow should bite a little).
+    for (let i = 0; i < 140; i++) {
       c.fillStyle = `rgba(255,255,255,${0.5 + rng() * 0.5})`;
       c.fillRect(rng() * S, rng() * S, 1.3, 1.3);
     }
@@ -321,6 +330,14 @@ export function makeRegolithTexture() {
       c.fillStyle = rng() > 0.5 ? `rgba(146,88,48,${0.05 + rng() * 0.07})` : `rgba(255,240,220,${0.04 + rng() * 0.05})`;
       c.beginPath();
       c.ellipse(rng() * S, rng() * S, 12 + rng() * 46, 8 + rng() * 26, rng() * Math.PI, 0, Math.PI * 2);
+      c.fill();
+    }
+    // V6-3 weather: wind-blown dust streaks — pale elongated
+    // smears on one bearing, dust sheeting across the surface.
+    for (let i = 0; i < 9; i++) {
+      c.fillStyle = `rgba(255,238,214,${0.05 + rng() * 0.06})`;
+      c.beginPath();
+      c.ellipse(rng() * S, rng() * S, 30 + rng() * 52, 3 + rng() * 6, 0.5 + (rng() - 0.5) * 0.25, 0, Math.PI * 2);
       c.fill();
     }
     for (let i = 0; i < 220; i++) { // pebbles
