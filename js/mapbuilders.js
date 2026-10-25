@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeColoredParts } from './geo.js';
-import { makeBarkTexture, makeFoliageTexture, makePlankTexture, makeConcreteTexture, makeDirtTexture, makeMetalPanelTexture, makeBrickTexture, taperedTrunkGeometry, canopyGeometry } from './proctex.js';
+import { makeBarkTexture, makeFoliageTexture, makePlankTexture, makeConcreteTexture, makeDirtTexture, makeMetalPanelTexture, makeBrickTexture, makeRoofTexture, makeSnowTexture, makeIceTexture, makeRegolithTexture, taperedTrunkGeometry, canopyGeometry } from './proctex.js';
 import * as FOREST from './worlddata-forest.js';
 import * as SNOW from './worlddata-snow.js';
 import * as MARS from './worlddata-mars.js';
@@ -62,6 +62,9 @@ const TEX = {
   bark: makeBarkTexture(), foliage: makeFoliageTexture(), plank: makePlankTexture(),
   concrete: makeConcreteTexture(), dirt: makeDirtTexture(), metal: makeMetalPanelTexture(),
   brick: makeBrickTexture(),
+  // V6 (Update 2): snow / ice / regolith / roof join the kit.
+  roof: makeRoofTexture(), snow: makeSnowTexture(), ice: makeIceTexture(),
+  regolith: makeRegolithTexture(),
 };
 const MAT_PLANK = () => new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.plank, roughness: 0.9 });
 const MAT_DIRT = () => new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.dirt, roughness: 1 });
@@ -69,6 +72,14 @@ const MAT_METALPANEL = () => new THREE.MeshStandardMaterial({ vertexColors: true
 const MAT_BARK = () => new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.bark, roughness: 0.95 });
 const MAT_BRICK = () => new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.brick, roughness: 0.95 });
 const MAT_FOLIAGE = () => new THREE.MeshStandardMaterial({ color: 0xffffff, map: TEX.foliage, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 0.95 });
+// V6 (Update 2) materials — roof / snowpack / regolith buckets
+// for the Snow + Mars solids, and the emissive glass pair the
+// forest facade pass established (warm-lit / dark).
+const MAT_ROOF = () => new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.roof, roughness: 0.85 });
+const MAT_SNOW = () => new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.snow, roughness: 0.95 });
+const MAT_REGOLITH = () => new THREE.MeshStandardMaterial({ vertexColors: true, map: TEX.regolith, roughness: 1 });
+const GLASS_WARM = () => new THREE.MeshStandardMaterial({ color: 0x2a1f0e, emissive: 0xffb45e, emissiveIntensity: 1.0, roughness: 0.35 });
+const GLASS_DARK = () => new THREE.MeshStandardMaterial({ color: 0x151a1f, roughness: 0.18, metalness: 0.55 });
 const PROXY_MAT = new THREE.MeshBasicMaterial({ visible: false });
 
 const _box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
@@ -413,21 +424,63 @@ function buildSnowLayout(scene) {
 
   blanket(group, 0xe9eef2, [0xdde6ee, 0xf4f8fb, 0xd2dde8], 733);
 
-  solidsMeshes(D, { timber: 0x74522f, crate: 0x8a6b42, snowroof: 0xdfe7ee, drift: 0xe8eef4, metal: 0x707880 }, group, shootables);
+  // V6 (Update 2): snow solids wear real surfaces, on the
+  // forest precedent — plank huts/crates, standing-seam roofs,
+  // a snowpack drift ridge, panelled metal for the tower.
+  // Geometry (the SOLIDS) is byte-identical; bucket materials
+  // only.
+  const snowPlank = MAT_PLANK();
+  solidsMeshes(D, { timber: 0x74522f, crate: 0x8a6b42, snowroof: 0xdfe7ee, drift: 0xe8eef4, metal: 0x707880 }, group, shootables,
+    { timber: snowPlank, crate: snowPlank, snowroof: MAT_ROOF(), drift: MAT_SNOW(), metal: MAT_METALPANEL() });
 
-  // Hut dressing: doors, lit windows, chimneys, barrel stoves.
+  // Hut dressing: doors, chimneys, barrel stoves (merged std).
   {
     const P = [];
     for (const cx of [-30, 0, 30]) {
       _p(P, _box(1.2, 2.0, 0.06), 0x2c2620, cx, 1.0, -44.30);
-      _p(P, _box(0.55, 0.42, 0.06), 0xffca7a, cx - 2.6, 1.55, -44.30);
-      _p(P, _box(0.55, 0.42, 0.06), 0xffca7a, cx + 2.6, 1.55, -44.30);
       _p(P, _cylY(0.14, 0.9, 8), 0x3a3f45, cx - 3.2, 3.15, -49);
       _p(P, _cylY(0.4, 0.9, 10), 0x33302c, cx + 3.0, 0.45, -46.9);
       _p(P, _cylY(0.05, 0.8, 6), 0x22242a, cx + 3.0, 1.3, -46.9);
     }
     const m = merged(P, MAT_STD());
     group.add(m); shootables.push(m);
+  }
+  // V6 FACADE PASS (Update 2) — door frames + roof fascia for
+  // the three station huts and the fuel-depot shed (one merged
+  // plank trim mesh), and the hut windows re-read as GLASS:
+  // warm-lit emissive on two huts, dark on the third — the
+  // emissive buckets the compound established. All flat on a
+  // wall face or trimming a roofline; zero collider changes.
+  {
+    const T = [];
+    for (const cx of [-30, 0, 30]) {
+      // Door frame around the south gap (gap cx±0.7, face -44.35).
+      _p(T, _box(0.14, 2.1, 0.12), 0x54382a, cx - 0.78, 1.05, -44.29);
+      _p(T, _box(0.14, 2.1, 0.12), 0x54382a, cx + 0.78, 1.05, -44.29);
+      _p(T, _box(1.7, 0.14, 0.12), 0x54382a, cx, 2.17, -44.29);
+      // Roof fascia: south + north edges and both gable ends
+      // (roof slab cx±4.65, z -51.65..-44.35, top 2.75).
+      _p(T, _box(9.5, 0.2, 0.14), 0x54382a, cx, 2.66, -44.28);
+      _p(T, _box(9.5, 0.2, 0.14), 0x54382a, cx, 2.66, -51.72);
+      _p(T, _box(0.14, 0.2, 7.44), 0x54382a, cx - 4.72, 2.66, -48.0);
+      _p(T, _box(0.14, 0.2, 7.44), 0x54382a, cx + 4.72, 2.66, -48.0);
+    }
+    // Depot shed fascia (roof 40.8..47.2 x 41.3..46.7, top 2.55).
+    _p(T, _box(6.56, 0.18, 0.12), 0x54382a, 44, 2.46, 46.76);
+    _p(T, _box(6.56, 0.18, 0.12), 0x54382a, 44, 2.46, 41.24);
+    const tm = merged(T, MAT_PLANK());
+    group.add(tm); shootables.push(tm);
+    const W = [], K = [];
+    for (const cx of [-30, 0]) {
+      _p(W, _box(0.55, 0.42, 0.06), 0xffffff, cx - 2.6, 1.55, -44.30);
+      _p(W, _box(0.55, 0.42, 0.06), 0xffffff, cx + 2.6, 1.55, -44.30);
+    }
+    _p(K, _box(0.55, 0.42, 0.06), 0xffffff, 30 - 2.6, 1.55, -44.30);
+    _p(K, _box(0.55, 0.42, 0.06), 0xffffff, 30 + 2.6, 1.55, -44.30);
+    const wm = merged(W, GLASS_WARM());
+    group.add(wm); shootables.push(wm);
+    const km = merged(K, GLASS_DARK());
+    group.add(km); shootables.push(km);
   }
   // Comms tower extras: console on L2 + dish assembly on the mast.
   {
@@ -436,18 +489,24 @@ function buildSnowLayout(scene) {
     _p(P, _box(0.8, 0.4, 0.04), 0x9fe8b0, -48, 5.35, -2.28);
     _p(P, _box(2.0, 0.12, 0.12), 0x707880, -48, 10.2, -3.2);
     _p(P, new THREE.ConeGeometry(1.1, 0.6, 12, 1, true), 0xd7dde3, -48, 9.2, -2.2, 0.9);
-    const m = merged(P, MAT_METAL());
+    // V6 (Update 2): tower extras wear the panel surface too.
+    const m = merged(P, MAT_METALPANEL());
     group.add(m); shootables.push(m);
   }
   // Buried dome: hemisphere + skirt ring + hatch.
   {
+    // V6 (Update 2): the dome wears habitat paneling (the
+    // client biome dome's twin); its skirt ring is snowpack.
     const dome = new THREE.Mesh(new THREE.SphereGeometry(5.2, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2),
-      new THREE.MeshStandardMaterial({ color: 0xf2f6f9, roughness: 0.5, metalness: 0.08 }));
+      new THREE.MeshStandardMaterial({ color: 0xe8edf2, roughness: 0.55, metalness: 0.35, map: TEX.metal }));
     dome.position.set(52, 0, -52);
     dome.castShadow = true; dome.receiveShadow = true;
     group.add(dome); shootables.push(dome);
+    const SK = [];
+    _p(SK, new THREE.CylinderGeometry(5.55, 5.7, 0.3, 18), 0xdbe4ec, 52, 0.15, -52);
+    const skm = merged(SK, MAT_SNOW());
+    group.add(skm); shootables.push(skm);
     const P = [];
-    _p(P, new THREE.CylinderGeometry(5.55, 5.7, 0.3, 18), 0xdbe4ec, 52, 0.15, -52);
     _p(P, _box(1.1, 0.9, 0.5), 0x8a929c, 52, 3.6, -47.6, 0.5);
     const m = merged(P, MAT_STD());
     group.add(m); shootables.push(m);
@@ -462,6 +521,12 @@ function buildSnowLayout(scene) {
     _p(P, _cylY(0.09, 1.1, 6), 0x22242a, -6.2, 1.9, 10.8);
     const m = merged(P, MAT_STD());
     group.add(m); shootables.push(m);
+    // Windshield: glossy dark glass on the cab's south face,
+    // yawed with the cab (0.2) — visual + shootable.
+    const glass = new THREE.Mesh(_box(1.7, 0.66, 0.06), GLASS_DARK());
+    glass.position.set(-9.38, 2.02, 10.71); glass.rotation.y = 0.2;
+    glass.castShadow = true;
+    group.add(glass); shootables.push(glass);
   }
   // Fuel drums (instanced) — hard cover, not explosive.
   {
@@ -484,20 +549,26 @@ function buildSnowLayout(scene) {
   // Drifts from DRIFT_SPOTS + ice discs (visual ground truth).
   {
     const dummy = new THREE.Object3D();
-    const im = new THREE.InstancedMesh(displacedSphere(1, 9.4, 0.22),
-      new THREE.MeshStandardMaterial({ color: 0xeef3f7, roughness: 0.95, flatShading: true }), D.DRIFT_SPOTS.length);
+    // V6 (Update 2): layout drifts go smooth at 10x8 with the
+    // snowpack texture + per-instance tint (colour-only rng
+    // use, downstream of every placement stream — the spots
+    // are data, untouched).
+    const im = new THREE.InstancedMesh(displacedSphere(1, 9.4, 0.22, 10, 8),
+      new THREE.MeshStandardMaterial({ color: 0xeef3f7, roughness: 0.95, map: TEX.snow }), D.DRIFT_SPOTS.length);
     D.DRIFT_SPOTS.forEach((d, i) => {
       dummy.position.set(d.x, d.size * 0.10, d.z);
       dummy.rotation.set(0, d.rot, 0);
       dummy.scale.set(d.size, d.size * 0.42, d.size * 0.8);
       dummy.updateMatrix(); im.setMatrixAt(i, dummy.matrix);
+      im.setColorAt(i, new THREE.Color(0xffffff).offsetHSL(0, 0, (rng() - 0.5) * 0.05));
     });
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
     im.castShadow = true; im.receiveShadow = true; im.frustumCulled = false;
     group.add(im); shootables.push(im);
 
     const ICE = [[30, 40, 3.2], [44, 28, 2.6], [18, 52, 3.4], [52, 14, 2.4], [-34, 50, 2.8]];
     const iceIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1.04, 0.07, 18),
-      new THREE.MeshStandardMaterial({ color: 0xcfe0ee, roughness: 0.22, metalness: 0.08 }), ICE.length);
+      new THREE.MeshStandardMaterial({ color: 0xcfe0ee, roughness: 0.22, metalness: 0.08, map: TEX.ice }), ICE.length);
     ICE.forEach(([x, z, r], i) => {
       dummy.position.set(x, 0.055, z);
       dummy.rotation.set(0, 0, 0);
@@ -525,10 +596,14 @@ function buildMarsLayout(scene) {
 
   blanket(group, 0xa0653f, [0x8a5636, 0xb57a4e, 0x96582f], 919);
 
-  solidsMeshes(D, { regolith: 0x9c6642, metal: 0x8a8f96 }, group, shootables);
+  // V6 (Update 2): mars solids wear real surfaces — regolith
+  // terraces/skirts, panelled metal. SOLIDS byte-identical.
+  solidsMeshes(D, { regolith: 0x9c6642, metal: 0x8a8f96 }, group, shootables,
+    { regolith: MAT_REGOLITH(), metal: MAT_METALPANEL() });
 
   // Uplink spire (merged): tapered mast, crossarms, dish,
-  // base ring, blinking-tip housing, console.
+  // base ring, console. V6: panelled surface; the tip leaves
+  // the merged mesh for its own emissive housing below.
   {
     const P = [];
     _p(P, new THREE.CylinderGeometry(2.5, 2.8, 1.2, 14), 0x8a5636, 50, 0.6, -52);
@@ -536,11 +611,14 @@ function buildMarsLayout(scene) {
     _p(P, _box(2.6, 0.14, 0.14), 0x9aa1a9, 50, 12.2, -52);
     _p(P, _box(1.7, 0.12, 0.12), 0x9aa1a9, 50, 10.4, -52, 0, Math.PI / 2);
     _p(P, new THREE.ConeGeometry(1.15, 0.65, 12, 1, true), 0xd7dde3, 50, 11.2, -50.9, 0.95);
-    _p(P, new THREE.SphereGeometry(0.17, 8, 6), 0xff5a33, 50, 14.35, -52);
     _p(P, _box(1.2, 1.0, 0.8), 0x3a3f45, 48.8, 0.5, -49.4);
     _p(P, _box(0.8, 0.4, 0.04), 0x9fe8b0, 48.8, 0.62, -48.98);
-    const m = merged(P, MAT_METAL());
+    const m = merged(P, MAT_METALPANEL());
     group.add(m); shootables.push(m);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6),
+      new THREE.MeshStandardMaterial({ color: 0x33150c, emissive: 0xff5a33, emissiveIntensity: 1.4, roughness: 0.4 }));
+    tip.position.set(50, 14.35, -52);
+    group.add(tip); shootables.push(tip);
   }
   // Habitat cluster (merged): two hab tubes + connector +
   // water tanks. (Cylinder radius 1.3 on the 0.5 skirt = the
@@ -558,8 +636,21 @@ function buildMarsLayout(scene) {
       _p(P, _cylY(0.7, 2.6, 12), 0xe8e2d6, -38.2, 1.3, tz);
       _p(P, _cylY(0.72, 0.4, 12), 0xc96a26, -38.2, 1.9, tz);
     }
-    const m = merged(P, MAT_STD());
+    // V6 (Update 2): the cluster wears HABITAT PANELING —
+    // seams + rivets over the tubes, rings and tanks.
+    const m = merged(P, MAT_METALPANEL());
     group.add(m); shootables.push(m);
+    // Warm-lit window strips: two per tube on the south face
+    // (flush with the r1.3 shell at y 1.9) + one on the
+    // connector's south face. One merged emissive mesh.
+    const W = [];
+    for (const cz of [-3, 7]) {
+      _p(W, _box(0.5, 0.4, 0.05), 0xffffff, -45.5, 1.9, cz - 1.31);
+      _p(W, _box(0.5, 0.4, 0.05), 0xffffff, -42.5, 1.9, cz - 1.31);
+    }
+    _p(W, _box(0.5, 0.4, 0.05), 0xffffff, -44, 1.35, -1.32);
+    const wm = merged(W, GLASS_WARM());
+    group.add(wm); shootables.push(wm);
   }
   // Greenhouse dome (translucent) — its own mesh.
   {
@@ -582,38 +673,48 @@ function buildMarsLayout(scene) {
   // Crater: dark bowl disc + rim rocks; mesas; rust rocks.
   {
     const disc = new THREE.Mesh(new THREE.CircleGeometry(7, 22),
-      new THREE.MeshStandardMaterial({ color: 0x7c4a2c, roughness: 1 }));
+      new THREE.MeshStandardMaterial({ color: 0x7c4a2c, roughness: 1, map: TEX.regolith }));
     disc.rotation.x = -Math.PI / 2;
     disc.position.set(-30, 0.02, 52);
     disc.receiveShadow = true;
     group.add(disc);
     const dummy = new THREE.Object3D();
-    const rimIM = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1),
-      new THREE.MeshStandardMaterial({ color: 0x8a5636, roughness: 1, flatShading: true }), 9);
+    // V6 (Update 2): the rock family goes smooth + regolith,
+    // client parity. Rim tints ride a dedicated rng so the
+    // shipped stream feeding the rock scatter below is
+    // consumed in exactly the shipped order.
+    const rimRng = makeRng(777);
+    const rimIM = new THREE.InstancedMesh(displacedSphere(1, 41.1, 0.25, 10, 8),
+      new THREE.MeshStandardMaterial({ color: 0x8a5636, roughness: 1, map: TEX.regolith }), 9);
     for (let i = 0; i < 9; i++) {
       const a = (i / 9) * Math.PI * 2 + 0.3;
       dummy.position.set(-30 + Math.cos(a) * 7.6, 0.35, 52 + Math.sin(a) * 7.6);
       dummy.rotation.set(rng() * 0.5, rng() * 3, rng() * 0.5);
       dummy.scale.set(0.9 + rng() * 0.8, 0.7 + rng() * 0.5, 0.9 + rng() * 0.8);
       dummy.updateMatrix(); rimIM.setMatrixAt(i, dummy.matrix);
+      rimIM.setColorAt(i, new THREE.Color(0xffffff).offsetHSL(0, 0, (rimRng() - 0.5) * 0.06));
     }
+    if (rimIM.instanceColor) rimIM.instanceColor.needsUpdate = true;
     rimIM.castShadow = true; rimIM.receiveShadow = true;
     group.add(rimIM); shootables.push(rimIM);
 
     const MESAS = [[-54, 34, 7], [55, -20, 6], [24, 56, 6]];
-    const mesaIM = new THREE.InstancedMesh(displacedSphere(1, 51.7, 0.16, 9, 7),
-      new THREE.MeshStandardMaterial({ color: 0x9c5636, roughness: 1, flatShading: true }), MESAS.length);
+    const mesaRng = makeRng(778);
+    const mesaIM = new THREE.InstancedMesh(displacedSphere(1, 51.7, 0.16, 12, 9),
+      new THREE.MeshStandardMaterial({ color: 0x9c5636, roughness: 1, map: TEX.regolith }), MESAS.length);
     MESAS.forEach(([x, z, r], i) => {
       dummy.position.set(x, -r * 0.10, z);
       dummy.rotation.set(0, i * 1.13, 0);
       dummy.scale.set(r, r * 0.34, r * 0.9);
       dummy.updateMatrix(); mesaIM.setMatrixAt(i, dummy.matrix);
+      mesaIM.setColorAt(i, new THREE.Color(0xffffff).offsetHSL(0, (mesaRng() - 0.5) * 0.03, (mesaRng() - 0.5) * 0.08));
     });
+    if (mesaIM.instanceColor) mesaIM.instanceColor.needsUpdate = true;
     mesaIM.castShadow = true; mesaIM.receiveShadow = true;
     group.add(mesaIM); shootables.push(mesaIM);
 
-    const rockIM = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, flatShading: true }), D.ROCK_SPOTS.length);
+    const rockIM = new THREE.InstancedMesh(displacedSphere(1, 31.3, 0.22, 10, 8),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, map: TEX.regolith }), D.ROCK_SPOTS.length);
     const rust = new THREE.Color(0x9c5a36), rustDark = new THREE.Color(0x7c4526);
     D.ROCK_SPOTS.forEach((r, i) => {
       dummy.position.set(r.x, r.size * 0.35, r.z);
