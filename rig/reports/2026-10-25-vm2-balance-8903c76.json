@@ -1,0 +1,3484 @@
+{
+  "vm": "vm2-balance",
+  "commit": "8903c7663e706c393ba5f2c95538920aafc41fd0",
+  "subject": "v6(rig): the test rig — VM1 stability, VM2 balance, VM3 compatibility, VM4 comparative, VM5 backup + restore drill, bot swarm, 10-seat roster",
+  "baseline": {
+    "ar": {
+      "ttk": 0.53,
+      "hits": 3.8
+    },
+    "smg": {
+      "ttk": 2.43
+    },
+    "shotgun": {
+      "hits": 13.1
+    },
+    "dmr": {
+      "ttk": 0.6
+    },
+    "pistol": {
+      "hits": 5.7
+    }
+  },
+  "probeRows": [
+    {
+      "weapon": "ar",
+      "ttk": 0.4,
+      "hits": 3.7
+    },
+    {
+      "weapon": "smg",
+      "ttk": 3.37,
+      "hits": 7.4
+    },
+    {
+      "weapon": "shotgun",
+      "ttk": 6.2,
+      "hits": 11.9
+    },
+    {
+      "weapon": "dmr",
+      "ttk": 0.6,
+      "hits": 2
+    },
+    {
+      "weapon": "pistol",
+      "ttk": 2.33,
+      "hits": 5.4
+    }
+  ],
+  "probeRawTail": "=== A. TTK PER WEAPON (turret, chest tracking, 5 seeds each) ===\nar       kills=38 barrelKills=0 medianTTK=0.40s meanHitsToKill=3.7 pullHitRate=76% · burst-disciplined medianTTK=0.40s (n=38)\n         0-10m: — · 10-20m: 0.27s (n=15) · 20-35m: 0.27s (n=3) · 35m+: 0.67s (n=20)\nsmg      kills=46 barrelKills=0 medianTTK=3.37s meanHitsToKill=7.4 pullHitRate=24% · burst-disciplined medianTTK=3.00s (n=50)\n         0-10m: — · 10-20m: 0.47s (n=17) · 20-35m: 3.43s (n=19) · 35m+: 7.13s (n=10)\nshotgun  kills=27 barrelKills=0 medianTTK=6.20s meanHitsToKill=11.9 pullHitRate=88%\n         0-10m: 2.40s (n=2) · 10-20m: 6.73s (n=25) · 20-35m: — · 35m+: —\ndmr      kills=31 barrelKills=0 medianTTK=0.60s meanHitsToKill=2.0 pullHitRate=91%\n         0-10m: — · 10-20m: 1.93s (n=10) · 20-35m: 0.60s (n=2) · 35m+: 0.60s (n=19)\npistol   kills=45 barrelKills=0 medianTTK=2.33s meanHitsToKill=5.4 pullHitRate=82%\n         0-10m: — · 10-20m: 0.80s (n=22) · 20-35m: 3.13s (n=7) · 35m+: 3.13s (n=16)\n\n=== B. TIME-TO-DOWN, PASSIVE PLAYER (4 seeds each) ===\nwave 1: downed 4/4 · median TTD=16.3s · median first-damage at 5.9s\nwave 3: downed 4/4 · median TTD=17.4s · median first-damage at 3.1s\nwave 5: downed 4/4 · median TTD=13.6s · median first-damage at 5.4s\nwave 7: downed 4/4 · median TTD=17.5s · median first-damage at 6.1s\n\n=== C. WAVE PACING (AR hunter, 6 seeds, 300 s cap) ===\nwave 1: median clear 32.1s (n=1)\nseed run 1: survived 300s · waves cleared 0 · kills 5 · final wave 1 · died=false · trailing stall 291s · repositions=0\nseed run 2: survived 300s · waves cleared 0 · kills 5 · final wave 1 · died=false · trailing stall 291s · repositions=0\nseed run 3: survived 300s · waves cleared 0 · kills 4 · final wave 1 · died=false · trailing stall 289s · repositions=0\nseed run 4: survived 300s · waves cleared 0 · kills 3 · final wave 1 · died=false · trailing stall 293s · repositions=0\nseed run 5: survived 300s · waves cleared 0 · kills 5 · final wave 1 · died=false · trailing stall 293s · repositions=0\nseed run 6: survived 300s · waves cleared 1 · kills 13 · final wave 2 · died=false · trailing stall 243s · repositions=0",
+  "byProfile": {
+    "turret/dmr": {
+      "n": 24,
+      "wins": 12,
+      "losses": 12,
+      "caps": 0,
+      "winRate": 0.5,
+      "kills": 524,
+      "deaths": 11,
+      "avgSimSeconds": 297
+    },
+    "mobile/ar": {
+      "n": 24,
+      "wins": 16,
+      "losses": 8,
+      "caps": 0,
+      "winRate": 0.67,
+      "kills": 794,
+      "deaths": 21,
+      "avgSimSeconds": 279
+    },
+    "mobile/smg": {
+      "n": 24,
+      "wins": 14,
+      "losses": 10,
+      "caps": 0,
+      "winRate": 0.58,
+      "kills": 647,
+      "deaths": 30,
+      "avgSimSeconds": 268
+    },
+    "mobile/shotgun": {
+      "n": 24,
+      "wins": 13,
+      "losses": 10,
+      "caps": 1,
+      "winRate": 0.54,
+      "kills": 467,
+      "deaths": 74,
+      "avgSimSeconds": 342
+    }
+  },
+  "byMode": {
+    "tdm": {
+      "n": 32,
+      "wins": 29,
+      "losses": 2,
+      "caps": 1,
+      "winRate": 0.91,
+      "kills": 716,
+      "deaths": 62,
+      "avgSimSeconds": 287
+    },
+    "domination": {
+      "n": 32,
+      "wins": 21,
+      "losses": 11,
+      "caps": 0,
+      "winRate": 0.66,
+      "kills": 555,
+      "deaths": 22,
+      "avgSimSeconds": 271
+    },
+    "assault": {
+      "n": 32,
+      "wins": 5,
+      "losses": 27,
+      "caps": 0,
+      "winRate": 0.16,
+      "kills": 1161,
+      "deaths": 52,
+      "avgSimSeconds": 331
+    }
+  },
+  "matches": [
+    {
+      "modeId": "tdm",
+      "mapId": "compound",
+      "seed": 11,
+      "ticks": 6254,
+      "simSeconds": 208.5,
+      "wallMs": 1309,
+      "peakBots": 8,
+      "botDeaths": 43,
+      "botsAliveEnd": 4,
+      "botLives": 47,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 13
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 13,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 25,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "compound",
+      "seed": 23,
+      "ticks": 15042,
+      "simSeconds": 501.4,
+      "wallMs": 2967,
+      "peakBots": 8,
+      "botDeaths": 53,
+      "botsAliveEnd": 6,
+      "botLives": 59,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 23
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 23,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 17,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "compound",
+      "seed": 11,
+      "ticks": 7194,
+      "simSeconds": 239.8,
+      "wallMs": 1544,
+      "peakBots": 8,
+      "botDeaths": 42,
+      "botsAliveEnd": 7,
+      "botLives": 49,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 12
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 12,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 25,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "compound",
+      "seed": 23,
+      "ticks": 19462,
+      "simSeconds": 648.7,
+      "wallMs": 3790,
+      "peakBots": 8,
+      "botDeaths": 48,
+      "botsAliveEnd": 7,
+      "botLives": 55,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 18
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 18,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 19,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "compound",
+      "seed": 11,
+      "ticks": 5749,
+      "simSeconds": 191.6,
+      "wallMs": 1432,
+      "peakBots": 8,
+      "botDeaths": 37,
+      "botsAliveEnd": 6,
+      "botLives": 43,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 7
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 7,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 25,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "compound",
+      "seed": 23,
+      "ticks": 8913,
+      "simSeconds": 297.1,
+      "wallMs": 2112,
+      "peakBots": 8,
+      "botDeaths": 42,
+      "botsAliveEnd": 6,
+      "botLives": 48,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 12
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 12,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 25,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "compound",
+      "seed": 11,
+      "ticks": 6660,
+      "simSeconds": 222,
+      "wallMs": 1229,
+      "peakBots": 8,
+      "botDeaths": 42,
+      "botsAliveEnd": 6,
+      "botLives": 48,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 12
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 12,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 23,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "compound",
+      "seed": 23,
+      "ticks": 36000,
+      "simSeconds": 1200,
+      "wallMs": 6892,
+      "peakBots": 8,
+      "botDeaths": 53,
+      "botsAliveEnd": 8,
+      "botLives": 61,
+      "waveClears": 0,
+      "modeEnd": null,
+      "finalScore": {
+        "scoreYou": 29,
+        "scoreThem": 24,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 20,
+          "deaths": 0
+        }
+      ],
+      "state": "playing",
+      "endedByCap": true,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "forest",
+      "seed": 11,
+      "ticks": 3780,
+      "simSeconds": 126,
+      "wallMs": 633,
+      "peakBots": 8,
+      "botDeaths": 39,
+      "botsAliveEnd": 6,
+      "botLives": 45,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 9
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 9,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 25,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "forest",
+      "seed": 23,
+      "ticks": 2882,
+      "simSeconds": 96.1,
+      "wallMs": 446,
+      "peakBots": 8,
+      "botDeaths": 36,
+      "botsAliveEnd": 6,
+      "botLives": 42,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 6
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 6,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 24,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "forest",
+      "seed": 11,
+      "ticks": 5552,
+      "simSeconds": 185.1,
+      "wallMs": 1644,
+      "peakBots": 8,
+      "botDeaths": 41,
+      "botsAliveEnd": 3,
+      "botLives": 44,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 11
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 11,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 26,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "forest",
+      "seed": 23,
+      "ticks": 3238,
+      "simSeconds": 107.9,
+      "wallMs": 566,
+      "peakBots": 8,
+      "botDeaths": 34,
+      "botsAliveEnd": 6,
+      "botLives": 40,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 4
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 4,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 25,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "forest",
+      "seed": 11,
+      "ticks": 7833,
+      "simSeconds": 261.1,
+      "wallMs": 951,
+      "peakBots": 8,
+      "botDeaths": 46,
+      "botsAliveEnd": 7,
+      "botLives": 53,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 16
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 16,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 21,
+          "deaths": 4
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "forest",
+      "seed": 23,
+      "ticks": 9460,
+      "simSeconds": 315.3,
+      "wallMs": 1205,
+      "peakBots": 8,
+      "botDeaths": 55,
+      "botsAliveEnd": 4,
+      "botLives": 59,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 25
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 25,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 24,
+          "deaths": 4
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "forest",
+      "seed": 11,
+      "ticks": 10632,
+      "simSeconds": 354.4,
+      "wallMs": 1107,
+      "peakBots": 8,
+      "botDeaths": 54,
+      "botsAliveEnd": 7,
+      "botLives": 61,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 24
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 24,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 20,
+          "deaths": 6
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "forest",
+      "seed": 23,
+      "ticks": 8442,
+      "simSeconds": 281.4,
+      "wallMs": 1031,
+      "peakBots": 8,
+      "botDeaths": 50,
+      "botsAliveEnd": 6,
+      "botLives": 56,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 20
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 20,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 26,
+          "deaths": 4
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "snow",
+      "seed": 11,
+      "ticks": 9315,
+      "simSeconds": 310.5,
+      "wallMs": 1404,
+      "peakBots": 8,
+      "botDeaths": 50,
+      "botsAliveEnd": 6,
+      "botLives": 56,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 20
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 20,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 20,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "snow",
+      "seed": 23,
+      "ticks": 9376,
+      "simSeconds": 312.5,
+      "wallMs": 1302,
+      "peakBots": 8,
+      "botDeaths": 56,
+      "botsAliveEnd": 6,
+      "botLives": 62,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 26
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 26,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 21,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "snow",
+      "seed": 11,
+      "ticks": 8599,
+      "simSeconds": 286.6,
+      "wallMs": 1428,
+      "peakBots": 8,
+      "botDeaths": 49,
+      "botsAliveEnd": 7,
+      "botLives": 56,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 19
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 19,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 27,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "snow",
+      "seed": 23,
+      "ticks": 3374,
+      "simSeconds": 112.5,
+      "wallMs": 753,
+      "peakBots": 8,
+      "botDeaths": 35,
+      "botsAliveEnd": 7,
+      "botLives": 42,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 5
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 5,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 26,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "snow",
+      "seed": 11,
+      "ticks": 7727,
+      "simSeconds": 257.6,
+      "wallMs": 1077,
+      "peakBots": 8,
+      "botDeaths": 47,
+      "botsAliveEnd": 7,
+      "botLives": 54,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 17
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 17,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 22,
+          "deaths": 4
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "snow",
+      "seed": 23,
+      "ticks": 6508,
+      "simSeconds": 216.9,
+      "wallMs": 963,
+      "peakBots": 8,
+      "botDeaths": 46,
+      "botsAliveEnd": 6,
+      "botLives": 52,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 16
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 16,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 25,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "snow",
+      "seed": 11,
+      "ticks": 7764,
+      "simSeconds": 258.8,
+      "wallMs": 1164,
+      "peakBots": 8,
+      "botDeaths": 49,
+      "botsAliveEnd": 6,
+      "botLives": 55,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 19
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 19,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 20,
+          "deaths": 4
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "snow",
+      "seed": 23,
+      "ticks": 11194,
+      "simSeconds": 373.1,
+      "wallMs": 1471,
+      "peakBots": 8,
+      "botDeaths": 53,
+      "botsAliveEnd": 6,
+      "botLives": 59,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 23
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 23,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 19,
+          "deaths": 6
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "mars",
+      "seed": 11,
+      "ticks": 10937,
+      "simSeconds": 364.6,
+      "wallMs": 1359,
+      "peakBots": 8,
+      "botDeaths": 46,
+      "botsAliveEnd": 7,
+      "botLives": 53,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 16,
+        "scoreThem": 30
+      },
+      "finalScore": {
+        "scoreYou": 16,
+        "scoreThem": 30,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 8,
+          "deaths": 3
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "mars",
+      "seed": 23,
+      "ticks": 3978,
+      "simSeconds": 132.6,
+      "wallMs": 658,
+      "peakBots": 8,
+      "botDeaths": 36,
+      "botsAliveEnd": 7,
+      "botLives": 43,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 6
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 6,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 25,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "mars",
+      "seed": 11,
+      "ticks": 4626,
+      "simSeconds": 154.2,
+      "wallMs": 835,
+      "peakBots": 8,
+      "botDeaths": 40,
+      "botsAliveEnd": 6,
+      "botLives": 46,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 10
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 10,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 28,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "mars",
+      "seed": 23,
+      "ticks": 4364,
+      "simSeconds": 145.5,
+      "wallMs": 603,
+      "peakBots": 8,
+      "botDeaths": 35,
+      "botsAliveEnd": 6,
+      "botLives": 41,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 5
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 5,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 23,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "mars",
+      "seed": 11,
+      "ticks": 7079,
+      "simSeconds": 236,
+      "wallMs": 993,
+      "peakBots": 8,
+      "botDeaths": 45,
+      "botsAliveEnd": 4,
+      "botLives": 49,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 15
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 15,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 25,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "mars",
+      "seed": 23,
+      "ticks": 4415,
+      "simSeconds": 147.2,
+      "wallMs": 647,
+      "peakBots": 8,
+      "botDeaths": 37,
+      "botsAliveEnd": 6,
+      "botLives": 43,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 7
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 7,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 25,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "mars",
+      "seed": 11,
+      "ticks": 12207,
+      "simSeconds": 406.9,
+      "wallMs": 1628,
+      "peakBots": 8,
+      "botDeaths": 50,
+      "botsAliveEnd": 7,
+      "botLives": 57,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 20,
+        "scoreThem": 30
+      },
+      "finalScore": {
+        "scoreYou": 20,
+        "scoreThem": 30,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 8,
+          "deaths": 4
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "tdm",
+      "mapId": "mars",
+      "seed": 23,
+      "ticks": 6750,
+      "simSeconds": 225,
+      "wallMs": 832,
+      "peakBots": 9,
+      "botDeaths": 47,
+      "botsAliveEnd": 8,
+      "botLives": 55,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 30,
+        "scoreThem": 17
+      },
+      "finalScore": {
+        "scoreYou": 30,
+        "scoreThem": 17,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 24,
+          "deaths": 5
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "compound",
+      "seed": 11,
+      "ticks": 8531,
+      "simSeconds": 284.4,
+      "wallMs": 1999,
+      "peakBots": 8,
+      "botDeaths": 48,
+      "botsAliveEnd": 8,
+      "botLives": 56,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 118,
+        "scoreThem": 200
+      },
+      "finalScore": {
+        "scoreYou": 118,
+        "scoreThem": 200,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 31,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "compound",
+      "seed": 23,
+      "ticks": 12351,
+      "simSeconds": 411.7,
+      "wallMs": 2890,
+      "peakBots": 8,
+      "botDeaths": 54,
+      "botsAliveEnd": 8,
+      "botLives": 62,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 174
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 174,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 22,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "compound",
+      "seed": 11,
+      "ticks": 5743,
+      "simSeconds": 191.4,
+      "wallMs": 1509,
+      "peakBots": 8,
+      "botDeaths": 39,
+      "botsAliveEnd": 6,
+      "botLives": 45,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 67
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 67,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 26,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "compound",
+      "seed": 23,
+      "ticks": 8980,
+      "simSeconds": 299.3,
+      "wallMs": 2283,
+      "peakBots": 8,
+      "botDeaths": 54,
+      "botsAliveEnd": 7,
+      "botLives": 61,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 133
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 133,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 34,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "compound",
+      "seed": 11,
+      "ticks": 12513,
+      "simSeconds": 417.1,
+      "wallMs": 2684,
+      "peakBots": 8,
+      "botDeaths": 110,
+      "botsAliveEnd": 7,
+      "botLives": 117,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 197
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 197,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 81,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "compound",
+      "seed": 23,
+      "ticks": 8364,
+      "simSeconds": 278.8,
+      "wallMs": 2214,
+      "peakBots": 8,
+      "botDeaths": 53,
+      "botsAliveEnd": 8,
+      "botLives": 61,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 102,
+        "scoreThem": 200
+      },
+      "finalScore": {
+        "scoreYou": 102,
+        "scoreThem": 200,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 37,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "compound",
+      "seed": 11,
+      "ticks": 10008,
+      "simSeconds": 333.6,
+      "wallMs": 2253,
+      "peakBots": 8,
+      "botDeaths": 37,
+      "botsAliveEnd": 8,
+      "botLives": 45,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 98,
+        "scoreThem": 200
+      },
+      "finalScore": {
+        "scoreYou": 98,
+        "scoreThem": 200,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 13,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "compound",
+      "seed": 23,
+      "ticks": 12558,
+      "simSeconds": 418.6,
+      "wallMs": 2707,
+      "peakBots": 9,
+      "botDeaths": 51,
+      "botsAliveEnd": 9,
+      "botLives": 60,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 53
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 53,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 21,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "forest",
+      "seed": 11,
+      "ticks": 7770,
+      "simSeconds": 259,
+      "wallMs": 1138,
+      "peakBots": 8,
+      "botDeaths": 32,
+      "botsAliveEnd": 7,
+      "botLives": 39,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 140
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 140,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 16,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "forest",
+      "seed": 23,
+      "ticks": 7100,
+      "simSeconds": 236.7,
+      "wallMs": 1134,
+      "peakBots": 8,
+      "botDeaths": 25,
+      "botsAliveEnd": 6,
+      "botLives": 31,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 109
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 109,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 8,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "forest",
+      "seed": 11,
+      "ticks": 8557,
+      "simSeconds": 285.2,
+      "wallMs": 1295,
+      "peakBots": 8,
+      "botDeaths": 40,
+      "botsAliveEnd": 8,
+      "botLives": 48,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 179,
+        "scoreThem": 200
+      },
+      "finalScore": {
+        "scoreYou": 179,
+        "scoreThem": 200,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 20,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "forest",
+      "seed": 23,
+      "ticks": 7733,
+      "simSeconds": 257.8,
+      "wallMs": 1037,
+      "peakBots": 8,
+      "botDeaths": 26,
+      "botsAliveEnd": 8,
+      "botLives": 34,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 146
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 146,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 13,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "forest",
+      "seed": 11,
+      "ticks": 8037,
+      "simSeconds": 267.9,
+      "wallMs": 1216,
+      "peakBots": 8,
+      "botDeaths": 27,
+      "botsAliveEnd": 8,
+      "botLives": 35,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 164
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 164,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 16,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "forest",
+      "seed": 23,
+      "ticks": 7876,
+      "simSeconds": 262.5,
+      "wallMs": 1360,
+      "peakBots": 8,
+      "botDeaths": 31,
+      "botsAliveEnd": 7,
+      "botLives": 38,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 164,
+        "scoreThem": 200
+      },
+      "finalScore": {
+        "scoreYou": 164,
+        "scoreThem": 200,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 16,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "forest",
+      "seed": 11,
+      "ticks": 8498,
+      "simSeconds": 283.3,
+      "wallMs": 1272,
+      "peakBots": 8,
+      "botDeaths": 33,
+      "botsAliveEnd": 6,
+      "botLives": 39,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 190
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 190,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 16,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "forest",
+      "seed": 23,
+      "ticks": 7291,
+      "simSeconds": 243,
+      "wallMs": 1369,
+      "peakBots": 8,
+      "botDeaths": 32,
+      "botsAliveEnd": 8,
+      "botLives": 40,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 124
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 124,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 14,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "snow",
+      "seed": 11,
+      "ticks": 7986,
+      "simSeconds": 266.2,
+      "wallMs": 1217,
+      "peakBots": 8,
+      "botDeaths": 37,
+      "botsAliveEnd": 5,
+      "botLives": 42,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 173
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 173,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 18,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "snow",
+      "seed": 23,
+      "ticks": 8541,
+      "simSeconds": 284.7,
+      "wallMs": 1127,
+      "peakBots": 8,
+      "botDeaths": 13,
+      "botsAliveEnd": 8,
+      "botLives": 21,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 140,
+        "scoreThem": 200
+      },
+      "finalScore": {
+        "scoreYou": 140,
+        "scoreThem": 200,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 5,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "snow",
+      "seed": 11,
+      "ticks": 8443,
+      "simSeconds": 281.4,
+      "wallMs": 1335,
+      "peakBots": 8,
+      "botDeaths": 50,
+      "botsAliveEnd": 7,
+      "botLives": 57,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 167,
+        "scoreThem": 200
+      },
+      "finalScore": {
+        "scoreYou": 167,
+        "scoreThem": 200,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 34,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "snow",
+      "seed": 23,
+      "ticks": 8952,
+      "simSeconds": 298.4,
+      "wallMs": 1594,
+      "peakBots": 8,
+      "botDeaths": 19,
+      "botsAliveEnd": 8,
+      "botLives": 27,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 193
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 193,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 8,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "snow",
+      "seed": 11,
+      "ticks": 5800,
+      "simSeconds": 193.3,
+      "wallMs": 848,
+      "peakBots": 8,
+      "botDeaths": 16,
+      "botsAliveEnd": 8,
+      "botLives": 24,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 57,
+        "scoreThem": 200
+      },
+      "finalScore": {
+        "scoreYou": 57,
+        "scoreThem": 200,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 4,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "snow",
+      "seed": 23,
+      "ticks": 6931,
+      "simSeconds": 231,
+      "wallMs": 1283,
+      "peakBots": 8,
+      "botDeaths": 14,
+      "botsAliveEnd": 8,
+      "botLives": 22,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 87,
+        "scoreThem": 200
+      },
+      "finalScore": {
+        "scoreYou": 87,
+        "scoreThem": 200,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 7,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "snow",
+      "seed": 11,
+      "ticks": 7592,
+      "simSeconds": 253.1,
+      "wallMs": 1221,
+      "peakBots": 8,
+      "botDeaths": 31,
+      "botsAliveEnd": 8,
+      "botLives": 39,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 151,
+        "scoreThem": 200
+      },
+      "finalScore": {
+        "scoreYou": 151,
+        "scoreThem": 200,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 17,
+          "deaths": 3
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "snow",
+      "seed": 23,
+      "ticks": 8341,
+      "simSeconds": 278,
+      "wallMs": 1206,
+      "peakBots": 8,
+      "botDeaths": 27,
+      "botsAliveEnd": 7,
+      "botLives": 34,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 186
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 186,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 10,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "mars",
+      "seed": 11,
+      "ticks": 6667,
+      "simSeconds": 222.2,
+      "wallMs": 1034,
+      "peakBots": 8,
+      "botDeaths": 20,
+      "botsAliveEnd": 8,
+      "botLives": 28,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 86,
+        "scoreThem": 200
+      },
+      "finalScore": {
+        "scoreYou": 86,
+        "scoreThem": 200,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 8,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "mars",
+      "seed": 23,
+      "ticks": 6834,
+      "simSeconds": 227.8,
+      "wallMs": 1310,
+      "peakBots": 8,
+      "botDeaths": 23,
+      "botsAliveEnd": 8,
+      "botLives": 31,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 124
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 124,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 3,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "mars",
+      "seed": 11,
+      "ticks": 8119,
+      "simSeconds": 270.6,
+      "wallMs": 1286,
+      "peakBots": 8,
+      "botDeaths": 19,
+      "botsAliveEnd": 7,
+      "botLives": 26,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 137
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 137,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 7,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "mars",
+      "seed": 23,
+      "ticks": 7324,
+      "simSeconds": 244.1,
+      "wallMs": 969,
+      "peakBots": 8,
+      "botDeaths": 27,
+      "botsAliveEnd": 8,
+      "botLives": 35,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 143
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 143,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 13,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "mars",
+      "seed": 11,
+      "ticks": 7592,
+      "simSeconds": 253.1,
+      "wallMs": 1097,
+      "peakBots": 8,
+      "botDeaths": 22,
+      "botsAliveEnd": 7,
+      "botLives": 29,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 130
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 130,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 7,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "mars",
+      "seed": 23,
+      "ticks": 6628,
+      "simSeconds": 220.9,
+      "wallMs": 1287,
+      "peakBots": 8,
+      "botDeaths": 28,
+      "botsAliveEnd": 7,
+      "botLives": 35,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 107
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 107,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 13,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "mars",
+      "seed": 11,
+      "ticks": 7007,
+      "simSeconds": 233.6,
+      "wallMs": 1005,
+      "peakBots": 8,
+      "botDeaths": 14,
+      "botsAliveEnd": 7,
+      "botLives": 21,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 112
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 112,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 3,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "domination",
+      "mapId": "mars",
+      "seed": 23,
+      "ticks": 5881,
+      "simSeconds": 196,
+      "wallMs": 888,
+      "peakBots": 9,
+      "botDeaths": 29,
+      "botsAliveEnd": 9,
+      "botLives": 38,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 200,
+        "scoreThem": 76
+      },
+      "finalScore": {
+        "scoreYou": 200,
+        "scoreThem": 76,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 14,
+          "deaths": 4
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "compound",
+      "seed": 11,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 2449,
+      "peakBots": 8,
+      "botDeaths": 51,
+      "botsAliveEnd": 5,
+      "botLives": 56,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 21,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "compound",
+      "seed": 23,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1969,
+      "peakBots": 8,
+      "botDeaths": 47,
+      "botsAliveEnd": 7,
+      "botLives": 54,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 23,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "compound",
+      "seed": 11,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 2139,
+      "peakBots": 8,
+      "botDeaths": 83,
+      "botsAliveEnd": 4,
+      "botLives": 87,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 62,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "compound",
+      "seed": 23,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1720,
+      "peakBots": 8,
+      "botDeaths": 69,
+      "botsAliveEnd": 7,
+      "botLives": 76,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 57,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "compound",
+      "seed": 11,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 2171,
+      "peakBots": 8,
+      "botDeaths": 75,
+      "botsAliveEnd": 7,
+      "botLives": 82,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 57,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "compound",
+      "seed": 23,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1963,
+      "peakBots": 8,
+      "botDeaths": 67,
+      "botsAliveEnd": 7,
+      "botLives": 74,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 45,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "compound",
+      "seed": 11,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 2203,
+      "peakBots": 8,
+      "botDeaths": 60,
+      "botsAliveEnd": 7,
+      "botLives": 67,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 36,
+          "deaths": 3
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "compound",
+      "seed": 23,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 2196,
+      "peakBots": 8,
+      "botDeaths": 48,
+      "botsAliveEnd": 6,
+      "botLives": 54,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 20,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "forest",
+      "seed": 11,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1406,
+      "peakBots": 8,
+      "botDeaths": 48,
+      "botsAliveEnd": 8,
+      "botLives": 56,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 9,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "forest",
+      "seed": 23,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1474,
+      "peakBots": 8,
+      "botDeaths": 59,
+      "botsAliveEnd": 8,
+      "botLives": 67,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 20,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "forest",
+      "seed": 11,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1577,
+      "peakBots": 9,
+      "botDeaths": 95,
+      "botsAliveEnd": 7,
+      "botLives": 102,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 66,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "forest",
+      "seed": 23,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1417,
+      "peakBots": 10,
+      "botDeaths": 104,
+      "botsAliveEnd": 9,
+      "botLives": 113,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 74,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "forest",
+      "seed": 11,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1526,
+      "peakBots": 9,
+      "botDeaths": 77,
+      "botsAliveEnd": 6,
+      "botLives": 83,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 49,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "forest",
+      "seed": 23,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1313,
+      "peakBots": 8,
+      "botDeaths": 72,
+      "botsAliveEnd": 8,
+      "botLives": 80,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 44,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "forest",
+      "seed": 11,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1340,
+      "peakBots": 8,
+      "botDeaths": 52,
+      "botsAliveEnd": 8,
+      "botLives": 60,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 24,
+          "deaths": 4
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "forest",
+      "seed": 23,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1410,
+      "peakBots": 9,
+      "botDeaths": 64,
+      "botsAliveEnd": 9,
+      "botLives": 73,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 31,
+          "deaths": 6
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "snow",
+      "seed": 11,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1264,
+      "peakBots": 8,
+      "botDeaths": 105,
+      "botsAliveEnd": 7,
+      "botLives": 112,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 83,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "snow",
+      "seed": 23,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1312,
+      "peakBots": 8,
+      "botDeaths": 105,
+      "botsAliveEnd": 7,
+      "botLives": 112,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 79,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "snow",
+      "seed": 11,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1516,
+      "peakBots": 8,
+      "botDeaths": 80,
+      "botsAliveEnd": 7,
+      "botLives": 87,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 59,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "snow",
+      "seed": 23,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1331,
+      "peakBots": 8,
+      "botDeaths": 73,
+      "botsAliveEnd": 7,
+      "botLives": 80,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 53,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "snow",
+      "seed": 11,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1192,
+      "peakBots": 8,
+      "botDeaths": 61,
+      "botsAliveEnd": 8,
+      "botLives": 69,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 30,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "snow",
+      "seed": 23,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1667,
+      "peakBots": 8,
+      "botDeaths": 57,
+      "botsAliveEnd": 8,
+      "botLives": 65,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 29,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "snow",
+      "seed": 11,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1297,
+      "peakBots": 8,
+      "botDeaths": 50,
+      "botsAliveEnd": 6,
+      "botLives": 56,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 18,
+          "deaths": 3
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "snow",
+      "seed": 23,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1355,
+      "peakBots": 8,
+      "botDeaths": 61,
+      "botsAliveEnd": 6,
+      "botLives": 67,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 39,
+          "deaths": 3
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "mars",
+      "seed": 11,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1613,
+      "peakBots": 8,
+      "botDeaths": 36,
+      "botsAliveEnd": 6,
+      "botLives": 42,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 10,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "mars",
+      "seed": 23,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1746,
+      "peakBots": 9,
+      "botDeaths": 35,
+      "botsAliveEnd": 7,
+      "botLives": 42,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "turret",
+          "weapon": "dmr",
+          "kills": 3,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "mars",
+      "seed": 11,
+      "ticks": 5382,
+      "simSeconds": 179.4,
+      "wallMs": 811,
+      "peakBots": 10,
+      "botDeaths": 24,
+      "botsAliveEnd": 10,
+      "botLives": 34,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 100
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 16,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "mars",
+      "seed": 23,
+      "ticks": 10326,
+      "simSeconds": 344.2,
+      "wallMs": 1646,
+      "peakBots": 10,
+      "botDeaths": 80,
+      "botsAliveEnd": 9,
+      "botLives": 89,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 100
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "ar",
+          "kills": 53,
+          "deaths": 4
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "mars",
+      "seed": 11,
+      "ticks": 4324,
+      "simSeconds": 144.1,
+      "wallMs": 720,
+      "peakBots": 10,
+      "botDeaths": 19,
+      "botsAliveEnd": 8,
+      "botLives": 27,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 100
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 9,
+          "deaths": 0
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "mars",
+      "seed": 23,
+      "ticks": 2577,
+      "simSeconds": 85.9,
+      "wallMs": 519,
+      "peakBots": 9,
+      "botDeaths": 16,
+      "botsAliveEnd": 9,
+      "botLives": 25,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 100
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "smg",
+          "kills": 11,
+          "deaths": 1
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "mars",
+      "seed": 11,
+      "ticks": 10800,
+      "simSeconds": 360,
+      "wallMs": 1304,
+      "peakBots": 8,
+      "botDeaths": 47,
+      "botsAliveEnd": 8,
+      "botLives": 55,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "lose",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 0
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 19,
+          "deaths": 6
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    },
+    {
+      "modeId": "assault",
+      "mapId": "mars",
+      "seed": 23,
+      "ticks": 3959,
+      "simSeconds": 132,
+      "wallMs": 814,
+      "peakBots": 9,
+      "botDeaths": 18,
+      "botsAliveEnd": 9,
+      "botLives": 27,
+      "waveClears": 0,
+      "modeEnd": {
+        "result": "win",
+        "scoreYou": 0,
+        "scoreThem": 0
+      },
+      "finalScore": {
+        "scoreYou": 0,
+        "scoreThem": 0,
+        "channel": 100
+      },
+      "players": [
+        {
+          "id": "profile",
+          "profile": "mobile",
+          "weapon": "shotgun",
+          "kills": 12,
+          "deaths": 2
+        }
+      ],
+      "state": "over",
+      "endedByCap": false,
+      "harnessError": null
+    }
+  ],
+  "harnessFailed": false
+}
