@@ -66,6 +66,11 @@ export class Player {
     this.landDipMax = 0;         // dip depth captured at touchdown
     this.landDipT = 1;           // 0→1 recovery progress over ~0.18s
     this.gunKick = 0;            // view-model kickback offset on +Z
+    // --- V6-3 feel state (cosmetic smoothing only; no sim value) ---
+    this.bobAmp = 0;             // head-bob envelope (eases in/out, no pop)
+    this.leanZ = 0;              // strafe camera roll (radians, subtle)
+    this.swayX = 0; this.swayY = 0; // view-model look sway (lag offsets)
+    this._prevYaw = 0; this._prevPitch = 0; // last frame's smoothed look
 
     // --- view-model gun: realistic procedural model (js/gunmodels.js).
     // this.gun is the container the update loop bobs/kicks; the model
@@ -161,6 +166,8 @@ export class Player {
     this.jumpCutDone = false; this.jumpCutApplied = false;
     this.landDip = 0; this.landDipMax = 0; this.landDipT = 1;
     this.gunKick = 0;
+    this.bobAmp = 0; this.leanZ = 0; this.swayX = 0; this.swayY = 0;
+    this._prevYaw = this.yaw; this._prevPitch = this.pitch;
     this.aiming = false;
     if (Math.abs(this.camera.fov - this.baseFov) > 0.01) {
       this.camera.fov = this.baseFov;
@@ -324,11 +331,17 @@ export class Player {
     this.coyoteTime = this.coyoteTimer;
     this.jumpBuffer = this.jumpBufferTimer;
 
-    // Landing-dip recovery: ease the captured dip back to 0 over ~0.18s.
+    // Landing dip: recovery follows a smootherstep curve (zero
+    // slope at both ends — no kink when the dip starts or ends) and
+    // the value eases toward that curve, so touchdown takes ~45ms
+    // to reach depth instead of arriving inside a single frame.
+    // Depth formula and 0.18s window are the V5 numbers.
     if (this.landDipT < 1) {
       this.landDipT = Math.min(1, this.landDipT + dt / 0.18);
-      const k = 1 - this.landDipT;
-      this.landDip = -this.landDipMax * k * k;
+      const t = this.landDipT;
+      const curve = -this.landDipMax * (1 - t * t * (3 - 2 * t));
+      this.landDip += (curve - this.landDip) * Math.min(1, dt * 26);
+      if (this.landDipT >= 1) this.landDip = 0;
     } else {
       this.landDip = 0;
     }
@@ -345,20 +358,52 @@ export class Player {
       this.camera.updateProjectionMatrix();
     }
 
-    // Head-bob + gun sway (landing dip added alongside the bob, bob math intact)
-    const moving = hSpeed > 0.6 && this.onGround;
-    this.bobT += dt * (moving ? hSpeed * 1.4 : 0);
-    const bobY = moving ? Math.sin(this.bobT * 2) * 0.028 : 0;
-    const bobX = moving ? Math.cos(this.bobT) * 0.018 : 0;
+    // Head-bob: the stride phase still advances at the V5 rate,
+    // but the amplitude runs through an eased envelope (bobAmp), so
+    // starting/stopping movement — or stepping off a ledge — no
+    // longer pops the camera between full bob and none. Peak
+    // amplitudes are the V5 numbers (0.028 / 0.018).
+    const bobTarget = (hSpeed > 0.6 && this.onGround)
+      ? Math.min(1, Math.max(0.15, (hSpeed - 0.6) / 3)) : 0;
+    this.bobAmp += (bobTarget - this.bobAmp) * Math.min(1, dt * 9);
+    if (this.bobAmp > 0.01) this.bobT += dt * hSpeed * 1.4;
+    const bobY = Math.sin(this.bobT * 2) * 0.028 * this.bobAmp;
+    const bobX = Math.cos(this.bobT) * 0.018 * this.bobAmp;
     this.camera.position.y = EYE + bobY + this.landDip;
+    // Strafe lean (V6-3): a whisper of camera roll into lateral
+    // motion — the world tilts a degree, at most, when you strafe
+    // at full speed. Lateral velocity is vel in camera space;
+    // sign: strafing right (latVel > 0) rolls the view slightly
+    // clockwise-negative. Grounded only; eases out in the air.
+    const latVel = this.vel.x * cos - this.vel.z * sin;
+    const leanTarget = this.onGround
+      ? Math.max(-0.011, Math.min(0.011, -latVel * 0.0016)) : 0;
+    this.leanZ += (leanTarget - this.leanZ) * Math.min(1, dt * 8);
+    this.camera.rotation.z = this.leanZ;
+    // View-model look sway (V6-3): the gun lags the camera a touch
+    // when you flick, then settles — measured from the SMOOTHED
+    // yaw/pitch deltas (post look-smoothing), wrapped to the short
+    // arc, clamped, and damped hard while aiming down sights.
+    let dYawS = this.yaw - this._prevYaw;
+    dYawS = Math.atan2(Math.sin(dYawS), Math.cos(dYawS));
+    const dPitchS = this.pitch - this._prevPitch;
+    this._prevYaw = this.yaw; this._prevPitch = this.pitch;
+    const yawVel = dt > 0 ? Math.max(-8, Math.min(8, dYawS / dt)) : 0;
+    const pitchVel = dt > 0 ? Math.max(-8, Math.min(8, dPitchS / dt)) : 0;
+    const swayK = Math.min(1, dt * 10);
+    this.swayX += (Math.max(-0.02, Math.min(0.02, yawVel * 0.0035)) - this.swayX) * swayK;
+    this.swayY += (Math.max(-0.012, Math.min(0.012, -pitchVel * 0.0025)) - this.swayY) * swayK;
+    const swayScale = this.aiming ? 0.35 : 1;
     // View-model kickback recovery (fast exponential ease back to rest).
     this.gunKick *= Math.pow(0.0001, dt);
     if (this.gunKick < 0.0005) this.gunKick = 0;
     // Gun pose: hip (right-low) eases to ADS (centred, optic up)
-    // when aiming — a fast critically-damped-feeling lerp.
-    const gx = this.aiming ? bobX * 0.15 : 0.24 + bobX;
-    const gy = this.aiming ? -0.185 + bobY * 0.2 : -0.22 + bobY * 0.7;
-    const gk = 1 - Math.exp(-18 * dt);
+    // when aiming — a fast critically-damped-feeling lerp. The
+    // transition is asymmetric (V6-3): snapping UP to sights is
+    // quicker (rate 22) than lowering back to hip (rate 14).
+    const gx = (this.aiming ? bobX * 0.15 : 0.24 + bobX) + this.swayX * swayScale;
+    const gy = (this.aiming ? -0.185 + bobY * 0.2 : -0.22 + bobY * 0.7) + this.swayY * swayScale;
+    const gk = 1 - Math.exp(-(this.aiming ? 22 : 14) * dt);
     this.gun.position.x += (gx - this.gun.position.x) * gk;
     this.gun.position.y += (gy - this.gun.position.y) * gk;
     this.gun.position.z = (this.aiming ? -0.42 : -0.45) + this.gunKick;
