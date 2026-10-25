@@ -385,8 +385,11 @@ try {
   // V5 re-pin (Atlas): deliberate — SOLIDS 92 -> 111 (+11 Ops
   // Building, +8 Comms Shed), EXTRA 19 -> 22 (+3 motor-pool
   // fuel drums, hard cover only). Mirrors world.js exactly.
-  if (wd.SOLIDS.length === 111) ok('T1 worlddata SOLIDS === 111 (mirrors world.js solids)');
-  else fail(`T1 worlddata SOLIDS → ${wd.SOLIDS.length} (expected 111 — mirror world.js!)`);
+  // V6-3 re-pin (Atlas): deliberate — SOLIDS 111 -> 115 (+4 Ops
+  // Building interior partitions, Stage 1 enterable interiors),
+  // then 115 -> 147 (+32 HQ two-story enterable, same wave).
+  if (wd.SOLIDS.length === 147) ok('T1 worlddata SOLIDS === 147 (mirrors world.js solids)');
+  else fail(`T1 worlddata SOLIDS → ${wd.SOLIDS.length} (expected 147 — mirror world.js!)`);
   if (wd.EXTRA_COLLIDERS.length === 22) ok('T2 worlddata EXTRA_COLLIDERS === 22 (3 trees + 8 big bushes + 5 barrels + 3 wrecks + 3 drums)');
   else fail(`T2 worlddata EXTRA_COLLIDERS → ${wd.EXTRA_COLLIDERS.length} (expected 22)`);
   if (wd.SPAWN_POINTS.length === 12) ok('T3 worlddata SPAWN_POINTS === 12');
