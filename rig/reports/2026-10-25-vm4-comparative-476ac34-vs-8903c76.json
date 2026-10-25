@@ -1,0 +1,180 @@
+{
+  "vm": "vm4-comparative",
+  "a": {
+    "sha": "476ac34a46896acb31af1e1175f20217a90dea9a",
+    "subject": "v6(docs): Update 2 landed — ledger entry (before/after per map + §3.4 offsets named) + Update 2 report",
+    "smokePass": true,
+    "smokeMs": 17823,
+    "metricsMs": 2231,
+    "maps": {
+      "compound": {
+        "calls": 119,
+        "tris": 40476,
+        "shadow": 171,
+        "flatShare": 0.242,
+        "texturedShare": 0.581
+      },
+      "forest": {
+        "calls": 128,
+        "tris": 206302,
+        "shadow": 187,
+        "flatShare": 0.031,
+        "texturedShare": 0.945
+      },
+      "snow": {
+        "calls": 130,
+        "tris": 77720,
+        "shadow": 191,
+        "flatShare": 0.105,
+        "texturedShare": 0.825
+      },
+      "mars": {
+        "calls": 130,
+        "tris": 48470,
+        "shadow": 191,
+        "flatShare": 0.182,
+        "texturedShare": 0.676
+      }
+    }
+  },
+  "b": {
+    "sha": "8903c7663e706c393ba5f2c95538920aafc41fd0",
+    "subject": "v6(rig): the test rig — VM1 stability, VM2 balance, VM3 compatibility, VM4 comparative, VM5 backup + restore drill, bot swarm, 10-seat roster",
+    "smokePass": true,
+    "smokeMs": 21176,
+    "metricsMs": 3683,
+    "maps": {
+      "compound": {
+        "calls": 118,
+        "tris": 48042,
+        "shadow": 170,
+        "flatShare": 0.23,
+        "texturedShare": 0.584
+      },
+      "forest": {
+        "calls": 127,
+        "tris": 213868,
+        "shadow": 186,
+        "flatShare": 0.031,
+        "texturedShare": 0.943
+      },
+      "snow": {
+        "calls": 129,
+        "tris": 85286,
+        "shadow": 190,
+        "flatShare": 0.103,
+        "texturedShare": 0.822
+      },
+      "mars": {
+        "calls": 129,
+        "tris": 56036,
+        "shadow": 190,
+        "flatShare": 0.176,
+        "texturedShare": 0.675
+      }
+    }
+  },
+  "bars": {
+    "calls": 165,
+    "tris": 300000
+  },
+  "overall": "REGRESSION",
+  "rows": [
+    {
+      "map": "compound",
+      "a": {
+        "calls": 119,
+        "tris": 40476,
+        "shadow": 171,
+        "flatShare": 0.242,
+        "texturedShare": 0.581
+      },
+      "b": {
+        "calls": 118,
+        "tris": 48042,
+        "shadow": 170,
+        "flatShare": 0.23,
+        "texturedShare": 0.584
+      },
+      "dCalls": -1,
+      "dTris": 7566,
+      "dShadow": -1,
+      "dFlat": -0.012,
+      "dTex": 0.003,
+      "barBreak": false,
+      "verdict": "REGRESSION"
+    },
+    {
+      "map": "forest",
+      "a": {
+        "calls": 128,
+        "tris": 206302,
+        "shadow": 187,
+        "flatShare": 0.031,
+        "texturedShare": 0.945
+      },
+      "b": {
+        "calls": 127,
+        "tris": 213868,
+        "shadow": 186,
+        "flatShare": 0.031,
+        "texturedShare": 0.943
+      },
+      "dCalls": -1,
+      "dTris": 7566,
+      "dShadow": -1,
+      "dFlat": 0,
+      "dTex": -0.002,
+      "barBreak": false,
+      "verdict": "REGRESSION"
+    },
+    {
+      "map": "snow",
+      "a": {
+        "calls": 130,
+        "tris": 77720,
+        "shadow": 191,
+        "flatShare": 0.105,
+        "texturedShare": 0.825
+      },
+      "b": {
+        "calls": 129,
+        "tris": 85286,
+        "shadow": 190,
+        "flatShare": 0.103,
+        "texturedShare": 0.822
+      },
+      "dCalls": -1,
+      "dTris": 7566,
+      "dShadow": -1,
+      "dFlat": -0.002,
+      "dTex": -0.003,
+      "barBreak": false,
+      "verdict": "REGRESSION"
+    },
+    {
+      "map": "mars",
+      "a": {
+        "calls": 130,
+        "tris": 48470,
+        "shadow": 191,
+        "flatShare": 0.182,
+        "texturedShare": 0.676
+      },
+      "b": {
+        "calls": 129,
+        "tris": 56036,
+        "shadow": 190,
+        "flatShare": 0.176,
+        "texturedShare": 0.675
+      },
+      "dCalls": -1,
+      "dTris": 7566,
+      "dShadow": -1,
+      "dFlat": -0.006,
+      "dTex": -0.001,
+      "barBreak": false,
+      "verdict": "REGRESSION"
+    }
+  ]
+}
