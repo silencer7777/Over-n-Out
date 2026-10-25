@@ -253,6 +253,103 @@ function makeFoliageTextureLocal() {
     }
   });
 }
+// --- V6 (Atlas, Update 2): snow / ice / metal-panel / ------
+// regolith — local copies of the js/proctex.js recipes, same
+// reason as above (biomes.js imports only 'three').
+function makeSnowTextureLocal() {
+  return procTexture(256, 121211, (c, S, rng) => {
+    c.fillStyle = '#e9eef4'; c.fillRect(0, 0, S, S);
+    for (let i = 0; i < 24; i++) {
+      c.fillStyle = rng() > 0.45 ? `rgba(148,168,198,${0.04 + rng() * 0.06})` : `rgba(255,255,255,${0.05 + rng() * 0.06})`;
+      c.beginPath();
+      c.ellipse(rng() * S, rng() * S, 20 + rng() * 62, 10 + rng() * 30, rng() * Math.PI, 0, Math.PI * 2);
+      c.fill();
+    }
+    for (let i = 0; i < 1500; i++) {
+      c.fillStyle = rng() > 0.5 ? `rgba(0,0,0,${0.02 + rng() * 0.03})` : `rgba(255,255,255,${0.02 + rng() * 0.04})`;
+      c.fillRect(rng() * S, rng() * S, 1 + rng() * 2, 1 + rng() * 2);
+    }
+    for (let i = 0; i < 70; i++) {
+      c.fillStyle = `rgba(255,255,255,${0.5 + rng() * 0.5})`;
+      c.fillRect(rng() * S, rng() * S, 1.3, 1.3);
+    }
+  });
+}
+function makeIceTextureLocal() {
+  return procTexture(256, 343411, (c, S, rng) => {
+    c.fillStyle = '#dfeaf3'; c.fillRect(0, 0, S, S);
+    for (let i = 0; i < 14; i++) {
+      c.fillStyle = `rgba(116,158,204,${0.06 + rng() * 0.09})`;
+      c.beginPath();
+      c.ellipse(rng() * S, rng() * S, 16 + rng() * 54, 10 + rng() * 34, rng() * Math.PI, 0, Math.PI * 2);
+      c.fill();
+    }
+    for (let pass = 0; pass < 2; pass++) {
+      c.strokeStyle = pass === 0 ? 'rgba(96,128,168,0.28)' : 'rgba(255,255,255,0.5)';
+      c.lineWidth = pass === 0 ? 2 : 1;
+      for (let i = 0; i < 9; i++) {
+        let x = rng() * S, y = rng() * S;
+        c.beginPath(); c.moveTo(x, y);
+        const steps = 3 + Math.floor(rng() * 3);
+        for (let j = 0; j < steps; j++) { x += (rng() - 0.5) * 74; y += (rng() - 0.5) * 74; c.lineTo(x, y); }
+        c.stroke();
+      }
+    }
+    for (let i = 0; i < 500; i++) {
+      c.fillStyle = rng() > 0.5 ? `rgba(0,0,0,${0.016 + rng() * 0.024})` : `rgba(255,255,255,${0.016 + rng() * 0.03})`;
+      c.fillRect(rng() * S, rng() * S, 1 + rng() * 2, 1 + rng() * 2);
+    }
+  });
+}
+function makeMetalPanelTextureLocal() {
+  return procTexture(256, 661166, (c, S, rng) => {
+    c.fillStyle = '#ccd1d6'; c.fillRect(0, 0, S, S);
+    for (let py = 0; py < 2; py++) for (let px = 0; px < 2; px++) {
+      const v = 196 + Math.floor(rng() * 22);
+      c.fillStyle = `rgb(${v},${v + 3},${v + 7})`;
+      c.fillRect(px * 128 + 2, py * 128 + 2, 124, 124);
+    }
+    c.fillStyle = 'rgba(28,32,38,0.65)'; c.fillRect(126, 0, 4, S); c.fillRect(0, 126, S, 4);
+    c.fillStyle = 'rgba(255,255,255,0.14)'; c.fillRect(130, 0, 2, S); c.fillRect(0, 130, S, 2);
+    c.fillStyle = 'rgba(40,44,48,0.8)';
+    for (const [bx, by] of [[14, 14], [114, 14], [142, 14], [242, 14], [14, 114], [242, 114], [14, 142], [242, 142], [14, 242], [114, 242], [142, 242], [242, 242]]) {
+      c.beginPath(); c.arc(bx, by, 2.8, 0, Math.PI * 2); c.fill();
+    }
+    for (let i = 0; i < 12; i++) {
+      const rust = rng() > 0.55;
+      c.fillStyle = rust ? `rgba(140,84,44,${0.05 + rng() * 0.08})` : `rgba(22,22,20,${0.04 + rng() * 0.05})`;
+      const x = rng() * S; c.fillRect(x, rng() * 100, 2 + rng() * 4, 50 + rng() * 110);
+    }
+    for (let i = 0; i < 500; i++) {
+      c.fillStyle = rng() > 0.5 ? `rgba(0,0,0,${0.02 + rng() * 0.03})` : `rgba(255,255,255,${0.02 + rng() * 0.03})`;
+      c.fillRect(rng() * S, rng() * S, 1 + rng() * 2, 1 + rng() * 2);
+    }
+  });
+}
+function makeRegolithTextureLocal() {
+  return procTexture(256, 565611, (c, S, rng) => {
+    c.fillStyle = '#dccbb4'; c.fillRect(0, 0, S, S);
+    for (let i = 0; i < 9; i++) {
+      c.fillStyle = `rgba(150,98,58,${0.05 + rng() * 0.06})`;
+      c.fillRect(0, rng() * S, S, 3 + rng() * 9);
+    }
+    for (let i = 0; i < 26; i++) {
+      c.fillStyle = rng() > 0.5 ? `rgba(146,88,48,${0.05 + rng() * 0.07})` : `rgba(255,240,220,${0.04 + rng() * 0.05})`;
+      c.beginPath();
+      c.ellipse(rng() * S, rng() * S, 12 + rng() * 46, 8 + rng() * 26, rng() * Math.PI, 0, Math.PI * 2);
+      c.fill();
+    }
+    for (let i = 0; i < 220; i++) {
+      const v = 120 + Math.floor(rng() * 100);
+      c.fillStyle = `rgba(${v},${Math.floor(v * 0.72)},${Math.floor(v * 0.5)},0.8)`;
+      c.beginPath(); c.arc(rng() * S, rng() * S, 0.8 + rng() * 1.9, 0, Math.PI * 2); c.fill();
+    }
+    for (let i = 0; i < 1500; i++) {
+      c.fillStyle = rng() > 0.5 ? `rgba(0,0,0,${0.028 + rng() * 0.042})` : `rgba(255,255,255,${0.028 + rng() * 0.042})`;
+      c.fillRect(rng() * S, rng() * S, 1 + rng() * 2, 1 + rng() * 2);
+    }
+  });
+}
 // Smooth canopy masses use displacedSphere() at 10x8 segments
 // with smooth-shaded materials (below) — the V3-V5 7x6 flat-
 // shaded blobs were the "blocky" read.
@@ -537,9 +634,13 @@ function buildSnow(ctx) {
   group.userData.rockCount = rocks.length;
 
   const snowWhite = new THREE.Color(0xdfe8f2), snowShade = new THREE.Color(0xaebfd6);
+  // V6 (Update 2): drifts go smooth-shaded at canopy segment
+  // density with the snowpack texture — same geometry recipe
+  // family as the forest canopies. Positions/sizes/colliders
+  // are the shipped scatter, untouched.
   const driftIM = new THREE.InstancedMesh(
-    displacedSphere(1, 11.3, 0.16),
-    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, flatShading: true }),
+    displacedSphere(1, 11.3, 0.16, 10, 8),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, map: makeSnowTextureLocal() }),
     drifts.length
   );
   driftIM.castShadow = true; driftIM.receiveShadow = true; driftIM.frustumCulled = false;
@@ -563,9 +664,12 @@ function buildSnow(ctx) {
   group.userData.driftColliderCount = driftColliders;
 
   // Ice rocks — pale blue-grey dodecahedrons, visual only.
+  // V6 (Update 2): the crystalline facets STAY (facets are the
+  // ice read) but the surface gains the crack-network ice
+  // texture and a glossier finish than the matte snow.
   const rockIM = new THREE.InstancedMesh(
     new THREE.DodecahedronGeometry(0.3),
-    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, flatShading: true }),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.42, flatShading: true, map: makeIceTextureLocal() }),
     rocks.length
   );
   rockIM.castShadow = true; rockIM.receiveShadow = true; rockIM.frustumCulled = false;
@@ -584,9 +688,13 @@ function buildSnow(ctx) {
   // gameplay distance, drifts sit IN it instead of on concrete.
   // Group child only: clearBiome removes it with the group.
   {
+    // V6 (Update 2): the blanket wears the snowpack texture at
+    // ground scale (repeat 24) — grain instead of flat colour.
+    const blanketTex = makeSnowTextureLocal();
+    if (blanketTex) blanketTex.repeat.set(24, 24);
     const blanket = new THREE.Mesh(
       new THREE.CylinderGeometry(90, 90, 0.04, 48),
-      new THREE.MeshStandardMaterial({ color: 0xe8eef5, roughness: 0.94 }));
+      new THREE.MeshStandardMaterial({ color: 0xe8eef5, roughness: 0.94, map: blanketTex }));
     blanket.position.set(0, 0.02, 0);
     blanket.receiveShadow = true;
     group.add(blanket);
@@ -599,7 +707,10 @@ function buildSnow(ctx) {
   // collider (biome colliders are never walkable — the dome is
   // an obstacle, stated honestly; its top is not a floor).
   {
-    const domeMat = new THREE.MeshStandardMaterial({ color: 0xd7dee6, roughness: 0.85, flatShading: true });
+    // V6 (Update 2): the dome is a HABITAT dome — smooth-shaded
+    // with the metal-panel surface (seams + rivets), no longer a
+    // faceted shell. Still exactly 4 parts (B15 counts them).
+    const domeMat = new THREE.MeshStandardMaterial({ color: 0xd7dee6, roughness: 0.6, metalness: 0.35, map: makeMetalPanelTextureLocal() });
     const steel = new THREE.MeshStandardMaterial({ color: 0x707880, roughness: 0.5, metalness: 0.65 });
     const domeParts = [];
     const dome = new THREE.Mesh(displacedSphere(5.5, 21.7, 0.3, 10, 8), domeMat);
@@ -651,6 +762,91 @@ function buildSnow(ctx) {
     group.userData.iceDiscs = ICE_SPOTS.length;
   }
 
+  // --- Snow pines (V6, Update 2 — Board 006 §2.1 parity: the
+  // ledger's "snow-loaded pines"). A conifer stand planted
+  // AFTER every shipped scatter in this builder, from its OWN
+  // rng stream (separately seeded — the SNOW_SEED stream above
+  // is consumed exactly as shipped, so drift/rock placements
+  // are byte-identical). Clearances: the shared isClear set,
+  // >= 3.4 m pine-to-pine, drift stand-off by drift size,
+  // >= 1.8 m from ice rocks, clear of the ice discs (coords
+  // mirror the ice-field block above). Each pine takes the
+  // standard per-tree wiring — one trunk collider + one
+  // invisible hit-proxy (the forest B3/B4 rule family);
+  // foliage masses and snow caps carry neither.
+  {
+    const rng2 = makeRng(SNOW_SEED + 4242);
+    const PINE_DISCS = [[30, 40, 3.2], [44, 28, 2.6], [18, 52, 3.4], [52, 14, 2.4], [-34, 50, 2.8]];
+    const pines = [];
+    for (let tries = 0; pines.length < 30 && tries < 30 * 120; tries++) {
+      const band = BANDS[tries % BANDS.length];
+      const x = band.x0 + rng2() * (band.x1 - band.x0);
+      const z = band.z0 + rng2() * (band.z1 - band.z0);
+      if (!isClear(x, z, 0.6)) continue;
+      let ok = true;
+      for (const t of pines) if (Math.hypot(x - t.x, z - t.z) < 3.4) { ok = false; break; }
+      if (ok) for (const d of drifts) if (Math.hypot(x - d.x, z - d.z) < d.size + 1.7) { ok = false; break; }
+      if (ok) for (const r of rocks) if (Math.hypot(x - r.x, z - r.z) < 1.8) { ok = false; break; }
+      if (ok) for (const [ix, iz, ir] of PINE_DISCS) if (Math.hypot(x - ix, z - iz) < ir + 1.4) { ok = false; break; }
+      if (!ok) continue;
+      pines.push({ x, z, s: 0.85 + rng2() * 0.35, sy: 0.95 + rng2() * 0.35, rot: rng2() * Math.PI * 2 });
+    }
+    group.userData.pineCount = pines.length;
+
+    const pineFoliageMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, map: makeFoliageTextureLocal(), alphaTest: 0.42, side: THREE.DoubleSide });
+    const pineSnowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, map: makeSnowTextureLocal() });
+    const trunkIM = new THREE.InstancedMesh(taperedTrunkGeo(0.15, 0.36, 2.8, 2.9), barkMatShared(), pines.length);
+    trunkIM.castShadow = true; trunkIM.receiveShadow = true; trunkIM.frustumCulled = false;
+    // Four masses per tree: three descending tiers + crown.
+    const MASSES = 4;
+    const foliageIM = new THREE.InstancedMesh(displacedSphere(1, 5.9, 0.24, 10, 8), pineFoliageMat, pines.length * MASSES);
+    foliageIM.castShadow = true; foliageIM.frustumCulled = false;
+    const capIM = new THREE.InstancedMesh(displacedSphere(1, 8.3, 0.16, 8, 6), pineSnowMat, pines.length * MASSES);
+    capIM.castShadow = true; capIM.frustumCulled = false;
+    const deepPine = new THREE.Color(0x24382a), tipPine = new THREE.Color(0x46684a);
+    const snowLow = new THREE.Color(0xdfe8f2), snowHigh = new THREE.Color(0xffffff);
+    const proxyMat = new THREE.MeshBasicMaterial({ visible: false });
+    pines.forEach((t, i) => {
+      const trunkH = 2.8 * t.sy;
+      dummy.rotation.set(0, t.rot, 0);
+      dummy.position.set(t.x, trunkH / 2, t.z);
+      dummy.scale.set(t.s, t.sy, t.s);
+      dummy.updateMatrix(); trunkIM.setMatrixAt(i, dummy.matrix);
+      trunkIM.setColorAt(i, new THREE.Color(0x4c3a2a).offsetHSL(0, (rng2() - 0.5) * 0.05, (rng2() - 0.5) * 0.07));
+      for (let k = 0; k < MASSES; k++) {
+        const tier = k / (MASSES - 1);           // 0 = low skirt .. 1 = crown
+        const r = t.s * (1.30 - tier * 0.55);
+        const y = trunkH * 0.52 + tier * trunkH * 0.52;
+        const a = t.rot + k * 2.3 + rng2() * 0.6;
+        const ox = Math.cos(a) * 0.16 * t.s, oz = Math.sin(a) * 0.16 * t.s;
+        dummy.rotation.set(rng2() * 0.5, t.rot + k * 2.3, rng2() * 0.5);
+        dummy.position.set(t.x + ox, y, t.z + oz);
+        dummy.scale.set(r, r * 0.60, r * (0.88 + rng2() * 0.24));
+        dummy.updateMatrix(); foliageIM.setMatrixAt(i * MASSES + k, dummy.matrix);
+        foliageIM.setColorAt(i * MASSES + k, deepPine.clone().lerp(tipPine, 0.15 + tier * 0.5 + rng2() * 0.2));
+        // The snow load: a flatter, slightly smaller cap of
+        // snowpack riding each tier's top.
+        dummy.position.set(t.x + ox, y + r * 0.30, t.z + oz);
+        dummy.scale.set(r * 0.82, r * 0.30, r * 0.82 * (0.88 + rng2() * 0.24));
+        dummy.updateMatrix(); capIM.setMatrixAt(i * MASSES + k, dummy.matrix);
+        capIM.setColorAt(i * MASSES + k, snowLow.clone().lerp(snowHigh, rng2() * 0.7));
+      }
+      // Gameplay wiring, exactly the forest per-tree rule.
+      const h = trunkH, r = 0.45 * t.s;
+      const proxy = new THREE.Mesh(new THREE.CylinderGeometry(0.42 * t.s, 0.46 * t.s, h, 6), proxyMat);
+      proxy.position.set(t.x, h / 2, t.z);
+      group.add(proxy);
+      addedShootables.push(proxy); ctx.shootables.push(proxy);
+      const collider = new THREE.Box3(
+        new THREE.Vector3(t.x - r, 0, t.z - r), new THREE.Vector3(t.x + r, h, t.z + r));
+      addedColliders.push(collider); ctx.colliders.push(collider);
+    });
+    if (trunkIM.instanceColor) trunkIM.instanceColor.needsUpdate = true;
+    if (foliageIM.instanceColor) foliageIM.instanceColor.needsUpdate = true;
+    if (capIM.instanceColor) capIM.instanceColor.needsUpdate = true;
+    group.add(trunkIM); group.add(foliageIM); group.add(capIM);
+  }
+
   ctx.scene.add(group);
   return group;
 }
@@ -676,11 +872,19 @@ function buildMars(ctx) {
   const marsClear = (x, z, pad) => isClear(x, z, pad)
     && POIS.every(([px, pz, pr]) => Math.hypot(x - px, z - pz) >= pr + pad);
 
+  // V6 (Update 2): regolith texture instances — one tiled at
+  // ground scale (blanket / crater bowl), one at rock scale
+  // (rocks / rim / mesas). Texture repeat is per-instance, so
+  // the two scales need two canvases of the same recipe.
+  const regGroundTex = makeRegolithTextureLocal();
+  if (regGroundTex) regGroundTex.repeat.set(24, 24);
+  const regRockTex = makeRegolithTextureLocal();
+
   // Regolith blanket — one thin disc (r 90), rust over concrete.
   {
     const blanket = new THREE.Mesh(
       new THREE.CylinderGeometry(90, 90, 0.04, 48),
-      new THREE.MeshStandardMaterial({ color: 0x9c4a26, roughness: 1 }));
+      new THREE.MeshStandardMaterial({ color: 0x9c4a26, roughness: 1, map: regGroundTex }));
     blanket.position.set(0, 0.02, 0);
     blanket.receiveShadow = true;
     group.add(blanket);
@@ -702,9 +906,12 @@ function buildMars(ctx) {
   }
   const rocks = rockSpots.map((p) => ({ x: p.x, z: p.z, size: 0.7 + rng() * 1.3, rot: rng() * Math.PI * 2 }));
   const rustLow = new THREE.Color(0x8a4a28), rustHigh = new THREE.Color(0xbc7440);
+  // V6 (Update 2): rocks go smooth-shaded at 10x8 with the
+  // regolith surface — geometry/material only; the scatter
+  // stream and the >= 1.5 m collider rule are untouched.
   const rockIM = new THREE.InstancedMesh(
-    displacedSphere(1, 31.3, 0.22),
-    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, flatShading: true }),
+    displacedSphere(1, 31.3, 0.22, 10, 8),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, map: regRockTex }),
     rocks.length
   );
   rockIM.castShadow = true; rockIM.receiveShadow = true; rockIM.frustumCulled = false;
@@ -733,7 +940,7 @@ function buildMars(ctx) {
   {
     const bowl = new THREE.Mesh(
       new THREE.CylinderGeometry(6.4, 6.6, 0.05, 20),
-      new THREE.MeshStandardMaterial({ color: 0x6e3418, roughness: 1 }));
+      new THREE.MeshStandardMaterial({ color: 0x6e3418, roughness: 1, map: regGroundTex }));
     bowl.position.set(-30, 0.055, 52);
     bowl.receiveShadow = true;
     group.add(bowl);
@@ -743,8 +950,8 @@ function buildMars(ctx) {
       rim.push({ x: -30 + Math.cos(a) * 7, z: 52 + Math.sin(a) * 7, r: 1.2 + rng() * 1.1, rot: rng() * Math.PI * 2 });
     }
     const rimIM = new THREE.InstancedMesh(
-      displacedSphere(1, 41.1, 0.25),
-      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, flatShading: true }),
+      displacedSphere(1, 41.1, 0.25, 10, 8),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, map: regRockTex }),
       rim.length
     );
     rimIM.castShadow = true; rimIM.receiveShadow = true; rimIM.frustumCulled = false;
@@ -771,26 +978,32 @@ function buildMars(ctx) {
   // Mesas — three flattened rust buttes (merged-material
   // obstacles with tracked colliders; smooth cover at ring scale).
   {
-    const mesaMat = new THREE.MeshStandardMaterial({ color: 0x9c5636, roughness: 1, flatShading: true });
+    // V6 (Update 2): mesas go smooth at 12x9 with the regolith
+    // surface + per-instance tint (own tiny rng — the MARS_SEED
+    // stream is not touched). Colliders unchanged.
+    const mesaMat = new THREE.MeshStandardMaterial({ color: 0x9c5636, roughness: 1, map: regRockTex });
     const MESAS = [[-54, 34, 7], [55, -20, 6], [24, 56, 6]];
     // V5 RECLAIM (Odin audit: Mars owed −2): the three mesas
     // are ONE InstancedMesh (shared displaced-sphere geometry,
     // per-instance transform; per-mesa displacement seeds gave
     // variety the shared silhouette + rotation still reads).
     // Colliders unchanged. 3 calls -> 1.
-    const mesaIM = new THREE.InstancedMesh(displacedSphere(1, 51.7, 0.16, 9, 7), mesaMat, MESAS.length);
+    const mesaIM = new THREE.InstancedMesh(displacedSphere(1, 51.7, 0.16, 12, 9), mesaMat, MESAS.length);
     const dummy = new THREE.Object3D();
+    const mesaRng = makeRng(MARS_SEED + 77);
     MESAS.forEach(([x, z, r], i) => {
       dummy.position.set(x, -r * 0.10, z);
       dummy.scale.set(r, r * 0.34, r * 0.9);
       dummy.rotation.set(0, i * 1.13, 0);
       dummy.updateMatrix();
       mesaIM.setMatrixAt(i, dummy.matrix);
+      mesaIM.setColorAt(i, new THREE.Color(0xffffff).offsetHSL(0, (mesaRng() - 0.5) * 0.03, (mesaRng() - 0.5) * 0.08));
       const collider = new THREE.Box3(
         new THREE.Vector3(x - r * 0.82, 0, z - r * 0.82),
         new THREE.Vector3(x + r * 0.82, r * 0.30, z + r * 0.82));
       addedColliders.push(collider); ctx.colliders.push(collider);
     });
+    if (mesaIM.instanceColor) mesaIM.instanceColor.needsUpdate = true;
     mesaIM.castShadow = true; mesaIM.receiveShadow = true;
     group.add(mesaIM);
     addedShootables.push(mesaIM); ctx.shootables.push(mesaIM);
@@ -806,8 +1019,11 @@ function buildMars(ctx) {
   // Base + mast colliders tracked.
   {
     const steel = new THREE.MeshStandardMaterial({ color: 0x707880, roughness: 0.5, metalness: 0.65 });
+    // V6 (Update 2): the spire base wears habitat paneling
+    // (seams + rivets) — same 6 parts, B17 counts them.
+    const panelSteel = new THREE.MeshStandardMaterial({ color: 0x9aa1a9, roughness: 0.5, metalness: 0.6, map: makeMetalPanelTextureLocal() });
     const spireParts = [];
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.6, 1.2, 10), steel);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.6, 1.2, 10), panelSteel);
     base.position.set(50, 0.6, -52);
     spireParts.push(base);
     const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.24, 13, 7), steel);
