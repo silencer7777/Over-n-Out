@@ -117,6 +117,20 @@ const resultsEl = $('results');
 const resultsBodyEl = $('results-body');
 const onlineNameEl = $('online-name'), onlineRoomEl = $('online-room'), onlineUrlEl = $('online-url');
 const onlineBtn = $('online-btn'), onlineStatusEl = $('online-status');
+const menuPageMain = $('menu-page-main'), menuPageMore = $('menu-page-more');
+const menuMoreBtn = $('menu-more-btn'), menuBackBtn = $('menu-back-btn');
+
+// V6-3 menu pages (Directive V6-3): page 1 is the play path,
+// page 2 ("MORE OPTIONS") holds settings depth, the story
+// transmission and the controls reference. Every return to the
+// menu lands on page 1 so DEPLOY / results are front and center.
+function showMenuPage(which) {
+  if (menuPageMain) menuPageMain.classList.toggle('hidden', which !== 'main');
+  if (menuPageMore) menuPageMore.classList.toggle('hidden', which === 'main');
+  menu.scrollTop = 0;
+}
+if (menuMoreBtn) menuMoreBtn.addEventListener('click', () => showMenuPage('more'));
+if (menuBackBtn) menuBackBtn.addEventListener('click', () => showMenuPage('main'));
 
 // Prefill the server field with the last address used (test-night
 // tunnel URLs change per session; this is a convenience, not a
@@ -1011,6 +1025,7 @@ function endMatch(result) {
   }
   playBtn.textContent = '↻  REDEPLOY';
   menu.classList.remove('hidden');
+  showMenuPage('main');
   hud.classList.add('hidden');
   refreshProfileLine();
   renderClassTabs();
@@ -1092,6 +1107,7 @@ document.addEventListener('pointerlockchange', () => {
     menuMsg.textContent = 'Paused — hostiles are waiting.';
     playBtn.textContent = '▶  RESUME';
     menu.classList.remove('hidden');
+    showMenuPage('main');
     state = 'paused';
   }
   else if (!locked && state === 'online') {
@@ -1177,6 +1193,7 @@ function touchPause() {
     menuMsg.textContent = 'Paused — hostiles are waiting.';
     playBtn.textContent = '▶  RESUME';
     menu.classList.remove('hidden');
+    showMenuPage('main');
     state = 'paused';
   }
   else if (state === 'online') {
@@ -1329,6 +1346,7 @@ function leaveOnline(msg) {
   if (session) { session.close(); session = null; }
   if (state === 'online') state = 'menu';
   menu.classList.remove('hidden');
+  showMenuPage('main');
   hud.classList.add('hidden');
   if (msg) setOnlineStatus(msg);
 }
