@@ -255,6 +255,83 @@ export function makeBrickTexture() {
   });
 }
 
+// --- Snowpack: soft blue-grey shading, fine grain, glints. --
+// (V6 Update 2: Snow Station parity.) Drawn near-white on
+// purpose — material colour and instance colour do the tinting.
+export function makeSnowTexture() {
+  return canvasTexture(256, 121211, (c, S, rng) => {
+    c.fillStyle = '#e9eef4'; c.fillRect(0, 0, S, S);
+    // Soft drift shading: broad low-contrast blue-grey masses.
+    for (let i = 0; i < 24; i++) {
+      c.fillStyle = rng() > 0.45 ? `rgba(148,168,198,${0.04 + rng() * 0.06})` : `rgba(255,255,255,${0.05 + rng() * 0.06})`;
+      c.beginPath();
+      c.ellipse(rng() * S, rng() * S, 20 + rng() * 62, 10 + rng() * 30, rng() * Math.PI, 0, Math.PI * 2);
+      c.fill();
+    }
+    speckle(c, S, rng, 1500, 0.05);
+    // Sparkle glints: sparse hard white points.
+    for (let i = 0; i < 70; i++) {
+      c.fillStyle = `rgba(255,255,255,${0.5 + rng() * 0.5})`;
+      c.fillRect(rng() * S, rng() * S, 1.3, 1.3);
+    }
+  });
+}
+
+// --- Ice: pale blue masses, hairline crack network. ---------
+// (V6 Update 2.) The cracks are drawn light over a mid base so
+// the sheet reads frozen at glancing angles under any tint.
+export function makeIceTexture() {
+  return canvasTexture(256, 343411, (c, S, rng) => {
+    c.fillStyle = '#dfeaf3'; c.fillRect(0, 0, S, S);
+    for (let i = 0; i < 14; i++) {
+      c.fillStyle = `rgba(116,158,204,${0.06 + rng() * 0.09})`;
+      c.beginPath();
+      c.ellipse(rng() * S, rng() * S, 16 + rng() * 54, 10 + rng() * 34, rng() * Math.PI, 0, Math.PI * 2);
+      c.fill();
+    }
+    // Crack polylines: bright cores with a soft blue shadow pass.
+    for (let pass = 0; pass < 2; pass++) {
+      c.strokeStyle = pass === 0 ? 'rgba(96,128,168,0.28)' : 'rgba(255,255,255,0.5)';
+      c.lineWidth = pass === 0 ? 2 : 1;
+      for (let i = 0; i < 9; i++) {
+        let x = rng() * S, y = rng() * S;
+        c.beginPath(); c.moveTo(x, y);
+        const steps = 3 + Math.floor(rng() * 3);
+        for (let j = 0; j < steps; j++) { x += (rng() - 0.5) * 74; y += (rng() - 0.5) * 74; c.lineTo(x, y); }
+        c.stroke();
+      }
+    }
+    speckle(c, S, rng, 500, 0.04);
+  });
+}
+
+// --- Regolith: rust strata, heavy speckle, pebbles. ---------
+// (V6 Update 2: Mars Uplink parity.) Light tan base — the
+// shipped rust palettes (mesa/rock/blanket colours) multiply
+// through it, exactly like dirt under the compound's tints.
+export function makeRegolithTexture() {
+  return canvasTexture(256, 565611, (c, S, rng) => {
+    c.fillStyle = '#dccbb4'; c.fillRect(0, 0, S, S);
+    // Faint horizontal strata bands (sediment read at distance).
+    for (let i = 0; i < 9; i++) {
+      c.fillStyle = `rgba(150,98,58,${0.05 + rng() * 0.06})`;
+      c.fillRect(0, rng() * S, S, 3 + rng() * 9);
+    }
+    for (let i = 0; i < 26; i++) {
+      c.fillStyle = rng() > 0.5 ? `rgba(146,88,48,${0.05 + rng() * 0.07})` : `rgba(255,240,220,${0.04 + rng() * 0.05})`;
+      c.beginPath();
+      c.ellipse(rng() * S, rng() * S, 12 + rng() * 46, 8 + rng() * 26, rng() * Math.PI, 0, Math.PI * 2);
+      c.fill();
+    }
+    for (let i = 0; i < 220; i++) { // pebbles
+      const v = 120 + Math.floor(rng() * 100);
+      c.fillStyle = `rgba(${v},${Math.floor(v * 0.72)},${Math.floor(v * 0.5)},0.8)`;
+      c.beginPath(); c.arc(rng() * S, rng() * S, 0.8 + rng() * 1.9, 0, Math.PI * 2); c.fill();
+    }
+    speckle(c, S, rng, 1500, 0.07);
+  });
+}
+
 // ============================================================
 // Organic geometry
 // ============================================================
