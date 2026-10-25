@@ -209,7 +209,7 @@ function buildForestLayout(scene) {
   // timber/crates, panelled metal. Geometry (the SOLIDS) is
   // byte-identical; only the bucket materials changed.
   const forestPlank = MAT_PLANK();
-  solidsMeshes(D, { earth: 0x5d5240, timber: 0x6b4f30, crate: 0x8a6b42, metal: 0x707880 }, group, shootables,
+  solidsMeshes(D, { earth: 0x63553a, timber: 0x75552c, crate: 0x99753f, metal: 0x6d7c8c }, group, shootables, // V6-3 vivid layout palette
     { earth: MAT_DIRT(), timber: forestPlank, crate: forestPlank, metal: MAT_METALPANEL() });
 
   // Standing-mast extras + console (merged, metal bucket).
@@ -430,7 +430,7 @@ function buildSnowLayout(scene) {
   // Geometry (the SOLIDS) is byte-identical; bucket materials
   // only.
   const snowPlank = MAT_PLANK();
-  solidsMeshes(D, { timber: 0x74522f, crate: 0x8a6b42, snowroof: 0xdfe7ee, drift: 0xe8eef4, metal: 0x707880 }, group, shootables,
+  solidsMeshes(D, { timber: 0x7d572b, crate: 0x99753f, snowroof: 0xdfe7ee, drift: 0xe8eef4, metal: 0x6d7c8c }, group, shootables, // V6-3 vivid layout palette
     { timber: snowPlank, crate: snowPlank, snowroof: MAT_ROOF(), drift: MAT_SNOW(), metal: MAT_METALPANEL() });
 
   // Hut dressing: doors, chimneys, barrel stoves (merged std).
@@ -598,7 +598,7 @@ function buildMarsLayout(scene) {
 
   // V6 (Update 2): mars solids wear real surfaces — regolith
   // terraces/skirts, panelled metal. SOLIDS byte-identical.
-  solidsMeshes(D, { regolith: 0x9c6642, metal: 0x8a8f96 }, group, shootables,
+  solidsMeshes(D, { regolith: 0xa86c3c, metal: 0x87919c }, group, shootables, // V6-3 vivid layout palette
     { regolith: MAT_REGOLITH(), metal: MAT_METALPANEL() });
 
   // Uplink spire (merged): tapered mast, crossarms, dish,
