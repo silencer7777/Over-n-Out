@@ -147,3 +147,119 @@ only when they cost the graphics mission nothing:
   window programs are one merged mesh each. Report:
   `docs/sessions/v6-update-02-report.md`. Not pushed — ships in
   the next push on Brett's tap.
+
+## Directive V6-3 wave (Oct 25) — Atlas (worlds)
+
+- **Stage 1 ENTERABLE INTERIORS LANDED** (commits 0a9068d,
+  90e0c1f; local only, not pushed). Two deliverables on the
+  Compound:
+  - **Ops Building → 3-room interior** (append-only): two
+    partition walls with 1.4 m door gaps carve the shipped shell
+    into west office / NE comms / SE storage. Every shipped solid
+    byte-identical; partitions are ordinary wallMat solids,
+    mirrored 1:1 in worlddata (SOLIDS 111 → 115).
+  - **HQ — NEW two-story enterable** in the SW inner court
+    (footprint x −22..−2, z 37.5..46.5; the court was verified
+    empty — no collider/spawn/zone touched it; **new construction,
+    not a replacement**). Ground floor: bunk room (stair along
+    its north wall) / NE ops / SE entry, doors S (1.6 m) + N
+    (1.4 m). Upper floor: overwatch / NE / SE rooms on the plate
+    (top 3.125), partitions mirrored, railing-guarded stairwell,
+    roof lid 6.25. 6 rooms + stairwell; interior cover crates
+    collider-true on both floors. Facade program rides the U1
+    merged meshes: 11 windows + 2 framed doors + parapet + corner
+    boards + floor band. Compound facade totals now **20 windows
+    / 4 framed doors — the Board's Update-6 lines, met in V6-3**.
+  - **The kit** (in-code, world.js HQ block): `wallRun` plan per
+    level with its OWN openings (doors are a ground-floor plan
+    feature; upper floors run continuous), `floorPlate` segments
+    around stairwell holes, `stairRun` at the shipped 0.575 rise
+    with the top step widened into a flush landing, `railing`
+    solids on well edges. Pitch 3.125 (2.875 walls + 0.25 slab).
+    Levels stack by repeating the plan at yBase += 3.125 — a slim
+    tower is a small plan repeated, a wide block is this plan
+    repeated; **10 stories needs no new primitive** (Stage 2+).
+  - **§3.4 offsets:** all 36 new solids ride EXISTING material
+    buckets (wallMat/deckMat/slabMat/crateMat/roofTexMat) → **+0
+    draw calls**; the HQ facade rides the five merged U1 meshes →
+    +0. The wave's one net call change is **−1**: the shipped
+    2-mesh puddle pair became one merged mesh (see Weather).
+    SOLIDS 111 → 147 total (T1 re-pinned per commit).
+  - **Disclosure:** the HQ footprint joined landscaping
+    `clearRects`; the rejection-sampled tuft/rock scatter
+    reshuffles (decor only — tufts/rocks carry no colliders and
+    no data mirror). One soft bush (−18, 36) now sits against the
+    HQ's north wall; it clears the wall face and is unchanged.
+  - **Gates:** reachability gained floor-aware indoor probes —
+    Ops route (S door → SE → NE → west office), HQ ground rooms,
+    HQ stair chain 0 → 0.575 → 1.15 → 1.725 → 2.3 → 2.875 →
+    plate 3.125, upper rooms/gaps/railing/well-drop/roof-lid,
+    spawn (0, 44) clear. All green; V5 probes unchanged.
+- **VIVID PASS LANDED** (12d388b): saturation on surfaces only —
+  compound ground slate, steel-blue walls/decks, amber/steel
+  crates, saturated canopy + tuft greens, warmer bark; proctex
+  brick/metal/roof/foliage painters; biome forest/pine/ice/Mars
+  rust families; layout bucket palettes (earth/timber/crate/
+  metal/regolith). **Lighting integrity: sha a40a3f79c85670a6,
+  exposure 1.10, shadow 4096 — UNTOUCHED (harness-verified).**
+- **WEATHER READS LANDED** (8234293): visuals only. Compound
+  puddles 2 → 7 in ONE merged mesh (net −1 call, the §3.4
+  offset named above), darker/wetter; all biome clients inherit
+  (shared base). Snow: wind-scour streaks + glints 70 → 140 in
+  the snowpack painter (proctex + biomes local in step). Mars:
+  wind-blown dust streaks in the regolith painter (both copies).
+  Falling precip needs a main.js frame hook — specced for Vega
+  in the Atlas report, not faked on this surface.
+- **Metrics (harness, this wave):** compound 119 → **118 calls**
+  / 40,476 → **48,042 tris** (flat 0.242 → 0.23); forest 128 →
+  **127** / 206,302 → **213,868**; snow 130 → **129** / 77,720 →
+  **85,286** (shadow est. 191 → **190**); mars 130 → **129** /
+  48,470 → **56,036** (shadow est. 191 → **190**). The +7,566
+  tris on every client is the HQ in the shared base (identical
+  delta ×4 — proof of source). All sustained calls ≤ 129 vs the
+  165 veto; all tris ≤ 300k (forest 213.9k = 86k headroom; the
+  forest *planning* line is exceeded by shared-base content, not
+  forest dressing). Layouts: geometry untouched (palette only).
+  §2.5 flat-surface strikes: unchanged pre-existing warnings
+  (ground-plane mesh), binding at Update 5 as scheduled.
+
+---
+
+## Rig — the test infrastructure (Oct 25, 2026, Rig Engineer, owner order)
+
+The owner commissioned five test environments + a 10-agent roster + a
+100-bot test team, all in-repo under `rig/` ("all files kept together").
+Honest construction, stated to the owner up front: the "VMs" are five
+isolated worktree-sandbox environments with dedicated runners (not OS
+VMs), and the "100 bots" are a parallel-match soak swarm (the sim
+fields ≤9 bots/match; the swarm runs many matches at once and reports
+bot lives + concurrent-bot ceiling, never a bare "100").
+
+- **VM1 Stability** (`rig/vm1-stability/`) — full gate suite + repeated
+  soak/ws-soak on a pinned commit. Proof-of-life on 476ac34: 6/6 PASS.
+- **VM2 Balance** (`rig/vm2-balance/`) — balance-probe TTK vs the V5
+  baseline + bot-vs-field win-rate matrix (round modes × maps × weapon
+  profiles, shared `driver.mjs`).
+- **VM3 Compatibility** (`rig/vm3-compatibility/`) — the commit's real
+  server across 6 device profiles + mobile-check. Proof-of-life on
+  476ac34: 6/6 profiles, mobile-check 40/40.
+- **VM4 Comparative** (`rig/vm4-comparative/`) — v6-metrics A/B between
+  two commits with bar-based verdicts (≤165 calls, ≤300k tris).
+- **VM5 Backup** (`rig/vm5-backup/`) — git-archive snapshot + per-file
+  sha256 manifest in `rig/backups/` (archives stay in scratch) +
+  restore drill. Proof on 476ac34: 101 files checksummed, drill
+  RESTORE PROVEN (archive hash ✓, 101/101 files ✓, restored smoke ✓).
+- **Swarm** (`rig/swarm/`) — parallel headless matches (2 scripted
+  players + bot fill each). Validated on this 2-core box: P=2/3/4 all
+  clean (0 errors, 0 crashes); **P=4 is the validated max** (≈32
+  concurrent bots + 8 scripted); scales with cores.
+- **Roster** — the 10 seats with surfaces + one-pen rule:
+  `rig/agents/ROSTER.md`.
+- **Found on day one (rig-relevant):** tools/smoke.mjs boots on FIXED
+  port 8199; a restore-drill smoke failed once under a port collision
+  and passed identically on re-run. Rig runners that invoke smoke now
+  wait for port 8199 (`riglib.waitForPortFree`) and the drill retries
+  once, on the record. Worth a Vega look when convenient.
+- Full first battery (owner-authorized unattended run, Oct 25):
+  `docs/sessions/rig-first-battery-report.md` + dated outputs in
+  `rig/reports/`. Rig commits are local `v6(rig):`; nothing pushed.
