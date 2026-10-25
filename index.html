@@ -40,57 +40,67 @@
   <div id="flash-overlay"></div>
 </div>
 
-<!-- MENU / PAUSE / DEATH overlay -->
+<!-- MENU / PAUSE / DEATH overlay — two pages (V6-3 declutter):
+     page 1 is the play path only; page 2 holds settings depth,
+     the story transmission and the controls reference. Nothing was
+     removed; both pages live in the DOM so every id stays served. -->
 <div id="menu">
-  <h1>OVER <span>N'</span> OUT</h1>
-  <p class="tag">TACTICAL BROWSER FPS · v0.6.0-dev</p>
-  <p id="menu-msg">Hostile waves inbound. Hold the compound.</p>
-  <div id="story-panel"><div class="story-label">TRANSMISSION — OUTPOST MERIDIAN</div><p id="story-text"></p></div>
-  <div id="results" class="hidden"><div class="story-label">AFTER ACTION — XP</div><div id="results-body"></div></div>
-  <div id="profile-line">LEVEL 1 · 0 XP</div>
-  <div id="mode-pick"><label for="mode-select">MISSION</label><select id="mode-select"><option value="waves" selected>WAVE DEFENSE — hold the compound</option><option value="tdm">TEAM DEATHMATCH — first to 30</option><option value="domination">DOMINATION — hold the zones</option><option value="assault">RELAY ASSAULT — scramble the Carrier relay</option></select></div>
-  <div id="mode-goal"></div>
-  <div id="loadout">
-    <div class="loadout-label">LOADOUT — CLASS <span id="class-level-note"></span></div>
-    <div class="loadout-row" id="class-tabs"></div>
-    <div class="loadout-row">
-      <button class="wpn selected" data-weapon="ar">ASSAULT RIFLE</button>
-      <button class="wpn" data-weapon="smg">SMG</button>
-      <button class="wpn" data-weapon="shotgun">SHOTGUN</button>
-      <button class="wpn" data-weapon="dmr">DMR</button>
-      <button class="wpn" data-weapon="pistol">PISTOL</button>
+  <div id="menu-page-main" class="menu-page">
+    <h1>OVER <span>N'</span> OUT</h1>
+    <p class="tag">TACTICAL BROWSER FPS · v0.6.0-dev</p>
+    <p id="menu-msg">Hostile waves inbound. Hold the compound.</p>
+    <div id="results" class="hidden"><div class="story-label">AFTER ACTION — XP</div><div id="results-body"></div></div>
+    <div id="profile-line">LEVEL 1 · 0 XP</div>
+    <div id="mode-pick"><label for="mode-select">MISSION</label><select id="mode-select"><option value="waves" selected>WAVE DEFENSE — hold the compound</option><option value="tdm">TEAM DEATHMATCH — first to 30</option><option value="domination">DOMINATION — hold the zones</option><option value="assault">RELAY ASSAULT — scramble the Carrier relay</option></select></div>
+    <div id="mode-goal"></div>
+    <div id="biome-pick"><label for="biome-select">LEVEL</label><select id="biome-select"><option value="compound" selected>THE COMPOUND — OUTPOST MERIDIAN</option><option value="forest">DENSE FOREST — MERIDIAN RELAY</option><option value="snow">SNOW STATION — RELAY NORTH</option><option value="mars">MARS UPLINK — SURFACE (LOW-G)</option></select></div>
+    <div id="loadout">
+      <div class="loadout-label">LOADOUT — CLASS <span id="class-level-note"></span></div>
+      <div class="loadout-row" id="class-tabs"></div>
+      <div class="loadout-row">
+        <button class="wpn selected" data-weapon="ar">ASSAULT RIFLE</button>
+        <button class="wpn" data-weapon="smg">SMG</button>
+        <button class="wpn" data-weapon="shotgun">SHOTGUN</button>
+        <button class="wpn" data-weapon="dmr">DMR</button>
+        <button class="wpn" data-weapon="pistol">PISTOL</button>
+      </div>
+      <div id="att-pickers"></div>
+      <div id="gear-line">LETHAL — FRAG GRENADE · TACTICAL — FLASHBANG</div>
     </div>
-    <div id="att-pickers"></div>
-    <div id="gear-line">LETHAL — FRAG GRENADE · TACTICAL — FLASHBANG</div>
-  </div>
-  <div id="settings"><label for="sens-slider">MOUSE SENSITIVITY</label><input type="range" id="sens-slider" min="0.4" max="2.5" step="0.05" value="1"><span id="sens-val">1.00</span></div>
-  <div id="biome-pick"><label for="biome-select">LEVEL</label><select id="biome-select"><option value="compound" selected>THE COMPOUND — OUTPOST MERIDIAN</option><option value="forest">DENSE FOREST — MERIDIAN RELAY</option><option value="snow">SNOW STATION — RELAY NORTH</option><option value="mars">MARS UPLINK — SURFACE (LOW-G)</option></select></div>
-  <div id="online-panel">
-    <div class="loadout-label">ONLINE — CO-OP SESSION</div>
-    <div class="online-row">
-      <input type="text" id="online-name" maxlength="24" placeholder="CALLSIGN">
-      <input type="text" id="online-room" maxlength="4" placeholder="ROOM">
-      <input type="text" id="online-url" placeholder="SERVER — paste the full tunnel URL (https://….trycloudflare.com) or leave blank">
+    <div id="online-panel">
+      <div class="loadout-label">ONLINE — CO-OP SESSION</div>
+      <div class="online-row">
+        <input type="text" id="online-name" maxlength="24" placeholder="CALLSIGN">
+        <input type="text" id="online-room" maxlength="4" placeholder="ROOM">
+        <input type="text" id="online-url" placeholder="SERVER — paste the full tunnel URL (https://….trycloudflare.com) or leave blank">
+      </div>
+      <div class="online-row"><button id="online-btn">🌐 &nbsp;JOIN ONLINE</button><span id="online-status">Offline — solo deploy below.</span></div>
     </div>
-    <div class="online-row"><button id="online-btn">🌐 &nbsp;JOIN ONLINE</button><span id="online-status">Offline — solo deploy below.</span></div>
+    <button id="play-btn">▶ &nbsp;DEPLOY</button>
+    <button id="menu-more-btn" type="button">⚙ &nbsp;MORE OPTIONS — SETTINGS · STORY · CONTROLS</button>
+    <p class="fine">One build for desktop + phone — on touch screens, on-screen controls appear automatically when you deploy.</p>
   </div>
-  <button id="play-btn">▶ &nbsp;DEPLOY</button>
-  <div class="controls">
-    <div><b>W A S D</b> Move</div>
-    <div><b>MOUSE</b> Aim</div>
-    <div><b>CLICK</b> Fire</div>
-    <div><b>RIGHT-CLICK</b> Aim down sights</div>
-    <div><b>SHIFT</b> Sprint</div>
-    <div><b>SPACE</b> Jump</div>
-    <div><b>R</b> Reload</div>
-    <div><b>G</b> Frag grenade</div>
-    <div><b>T</b> Flashbang</div>
-    <div><b>F</b> Inspect weapon</div>
-    <div><b>1–5</b> Switch weapon</div>
-    <div><b>F9</b> FPS meter</div>
-    <div><b>SENS</b> Mouse sensitivity — slider above</div>
+  <div id="menu-page-more" class="menu-page hidden">
+    <div class="menu-page-title">MORE OPTIONS</div>
+    <div id="story-panel"><div class="story-label">TRANSMISSION — OUTPOST MERIDIAN</div><p id="story-text"></p></div>
+    <div id="settings"><label for="sens-slider">MOUSE SENSITIVITY</label><input type="range" id="sens-slider" min="0.4" max="2.5" step="0.05" value="1"><span id="sens-val">1.00</span></div>
+    <div class="controls">
+      <div><b>W A S D</b> Move</div>
+      <div><b>MOUSE</b> Aim</div>
+      <div><b>CLICK</b> Fire</div>
+      <div><b>RIGHT-CLICK</b> Aim down sights</div>
+      <div><b>SHIFT</b> Sprint</div>
+      <div><b>SPACE</b> Jump</div>
+      <div><b>R</b> Reload</div>
+      <div><b>G</b> Frag grenade</div>
+      <div><b>T</b> Flashbang</div>
+      <div><b>F</b> Inspect weapon</div>
+      <div><b>1–5</b> Switch weapon</div>
+      <div><b>F9</b> FPS meter</div>
+      <div><b>SENS</b> Mouse sensitivity — slider above</div>
+    </div>
+    <button id="menu-back-btn" type="button">← &nbsp;BACK TO DEPLOY</button>
   </div>
-  <p class="fine">One build for desktop + phone — on touch screens, on-screen controls appear automatically when you deploy.</p>
 </div>
 
 <script type="importmap">
