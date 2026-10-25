@@ -1,0 +1,154 @@
+{
+  "vm": "vm1-stability",
+  "commit": "8903c7663e706c393ba5f2c95538920aafc41fd0",
+  "subject": "v6(rig): the test rig — VM1 stability, VM2 balance, VM3 compatibility, VM4 comparative, VM5 backup + restore drill, bot swarm, 10-seat roster",
+  "soakReps": 10,
+  "wsReps": 2,
+  "verdict": "STABLE",
+  "results": [
+    {
+      "gate": "smoke",
+      "tool": "tools/smoke.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 22592,
+      "checks": 264,
+      "timedOut": false
+    },
+    {
+      "gate": "biome-check",
+      "tool": "tools/biome-check.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 974,
+      "checks": 50,
+      "timedOut": false
+    },
+    {
+      "gate": "reachability",
+      "tool": "tools/reachability.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 195,
+      "checks": 36,
+      "timedOut": false
+    },
+    {
+      "gate": "reachability-maps",
+      "tool": "tools/reachability-maps.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 1536,
+      "checks": 3,
+      "timedOut": false
+    },
+    {
+      "gate": "soak #1",
+      "tool": "tools/soak.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 1238,
+      "checks": 10,
+      "timedOut": false
+    },
+    {
+      "gate": "soak #2",
+      "tool": "tools/soak.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 1206,
+      "checks": 10,
+      "timedOut": false
+    },
+    {
+      "gate": "soak #3",
+      "tool": "tools/soak.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 1256,
+      "checks": 10,
+      "timedOut": false
+    },
+    {
+      "gate": "soak #4",
+      "tool": "tools/soak.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 1093,
+      "checks": 10,
+      "timedOut": false
+    },
+    {
+      "gate": "soak #5",
+      "tool": "tools/soak.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 1228,
+      "checks": 10,
+      "timedOut": false
+    },
+    {
+      "gate": "soak #6",
+      "tool": "tools/soak.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 1122,
+      "checks": 10,
+      "timedOut": false
+    },
+    {
+      "gate": "soak #7",
+      "tool": "tools/soak.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 1531,
+      "checks": 10,
+      "timedOut": false
+    },
+    {
+      "gate": "soak #8",
+      "tool": "tools/soak.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 1767,
+      "checks": 10,
+      "timedOut": false
+    },
+    {
+      "gate": "soak #9",
+      "tool": "tools/soak.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 2102,
+      "checks": 10,
+      "timedOut": false
+    },
+    {
+      "gate": "soak #10",
+      "tool": "tools/soak.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 1317,
+      "checks": 10,
+      "timedOut": false
+    },
+    {
+      "gate": "ws-soak #1",
+      "tool": "tools/ws-soak.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 4207,
+      "checks": 27,
+      "timedOut": false
+    },
+    {
+      "gate": "ws-soak #2",
+      "tool": "tools/ws-soak.mjs",
+      "pass": true,
+      "code": 0,
+      "ms": 4223,
+      "checks": 27,
+      "timedOut": false
+    }
+  ]
+}
