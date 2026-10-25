@@ -1,0 +1,235 @@
+{
+  "vm": "vm3-compatibility",
+  "commit": "476ac34a46896acb31af1e1175f20217a90dea9a",
+  "subject": "v6(docs): Update 2 landed — ledger entry (before/after per map + §3.4 offsets named) + Update 2 report",
+  "verdict": "COMPATIBLE",
+  "results": [
+    {
+      "profile": "desktop-1920",
+      "viewport": "1920x1080",
+      "routesOk": true,
+      "routeResults": [
+        {
+          "route": "/",
+          "status": 200,
+          "bytes": 4865
+        },
+        {
+          "route": "/js/main.js",
+          "status": 200,
+          "bytes": 88334
+        },
+        {
+          "route": "/js/touchcontrols.js",
+          "status": 200,
+          "bytes": 13636
+        },
+        {
+          "route": "/js/online.js",
+          "status": 200,
+          "bytes": 10393
+        },
+        {
+          "route": "/css/style.css",
+          "status": 200,
+          "bytes": 14140
+        }
+      ],
+      "touchDetected": false,
+      "expectTouch": false,
+      "touchOk": true,
+      "pass": true,
+      "ms": 118
+    },
+    {
+      "profile": "laptop-1366",
+      "viewport": "1366x768",
+      "routesOk": true,
+      "routeResults": [
+        {
+          "route": "/",
+          "status": 200,
+          "bytes": 4865
+        },
+        {
+          "route": "/js/main.js",
+          "status": 200,
+          "bytes": 88334
+        },
+        {
+          "route": "/js/touchcontrols.js",
+          "status": 200,
+          "bytes": 13636
+        },
+        {
+          "route": "/js/online.js",
+          "status": 200,
+          "bytes": 10393
+        },
+        {
+          "route": "/css/style.css",
+          "status": 200,
+          "bytes": 14140
+        }
+      ],
+      "touchDetected": false,
+      "expectTouch": false,
+      "touchOk": true,
+      "pass": true,
+      "ms": 83
+    },
+    {
+      "profile": "touch-laptop-1440",
+      "viewport": "1440x900",
+      "routesOk": true,
+      "routeResults": [
+        {
+          "route": "/",
+          "status": 200,
+          "bytes": 4865
+        },
+        {
+          "route": "/js/main.js",
+          "status": 200,
+          "bytes": 88334
+        },
+        {
+          "route": "/js/touchcontrols.js",
+          "status": 200,
+          "bytes": 13636
+        },
+        {
+          "route": "/js/online.js",
+          "status": 200,
+          "bytes": 10393
+        },
+        {
+          "route": "/css/style.css",
+          "status": 200,
+          "bytes": 14140
+        }
+      ],
+      "touchDetected": false,
+      "expectTouch": false,
+      "touchOk": true,
+      "pass": true,
+      "ms": 50
+    },
+    {
+      "profile": "iphone-17-pro",
+      "viewport": "390x844",
+      "routesOk": true,
+      "routeResults": [
+        {
+          "route": "/",
+          "status": 200,
+          "bytes": 4865
+        },
+        {
+          "route": "/js/main.js",
+          "status": 200,
+          "bytes": 88334
+        },
+        {
+          "route": "/js/touchcontrols.js",
+          "status": 200,
+          "bytes": 13636
+        },
+        {
+          "route": "/js/online.js",
+          "status": 200,
+          "bytes": 10393
+        },
+        {
+          "route": "/css/style.css",
+          "status": 200,
+          "bytes": 14140
+        }
+      ],
+      "touchDetected": true,
+      "expectTouch": true,
+      "touchOk": true,
+      "pass": true,
+      "ms": 23
+    },
+    {
+      "profile": "android-phone",
+      "viewport": "412x915",
+      "routesOk": true,
+      "routeResults": [
+        {
+          "route": "/",
+          "status": 200,
+          "bytes": 4865
+        },
+        {
+          "route": "/js/main.js",
+          "status": 200,
+          "bytes": 88334
+        },
+        {
+          "route": "/js/touchcontrols.js",
+          "status": 200,
+          "bytes": 13636
+        },
+        {
+          "route": "/js/online.js",
+          "status": 200,
+          "bytes": 10393
+        },
+        {
+          "route": "/css/style.css",
+          "status": 200,
+          "bytes": 14140
+        }
+      ],
+      "touchDetected": true,
+      "expectTouch": true,
+      "touchOk": true,
+      "pass": true,
+      "ms": 17
+    },
+    {
+      "profile": "tablet-1180",
+      "viewport": "820x1180",
+      "routesOk": true,
+      "routeResults": [
+        {
+          "route": "/",
+          "status": 200,
+          "bytes": 4865
+        },
+        {
+          "route": "/js/main.js",
+          "status": 200,
+          "bytes": 88334
+        },
+        {
+          "route": "/js/touchcontrols.js",
+          "status": 200,
+          "bytes": 13636
+        },
+        {
+          "route": "/js/online.js",
+          "status": 200,
+          "bytes": 10393
+        },
+        {
+          "route": "/css/style.css",
+          "status": 200,
+          "bytes": 14140
+        }
+      ],
+      "touchDetected": true,
+      "expectTouch": true,
+      "touchOk": true,
+      "pass": true,
+      "ms": 17
+    }
+  ],
+  "mobileCheck": {
+    "pass": true,
+    "checks": 40,
+    "fails": 0
+  }
+}
