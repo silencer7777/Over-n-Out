@@ -8,6 +8,8 @@ import { getCamo } from './camo.js';
 const _v = new THREE.Vector3();
 const _ray = new THREE.Raycaster();
 const _move = new THREE.Vector3();
+const _desired = new THREE.Vector3();
+const _dv = new THREE.Vector3();
 const _perp = new THREE.Vector3();
 const _sightTarget = new THREE.Vector3();
 const _eye = new THREE.Vector3();
@@ -80,7 +82,43 @@ const MOVEMENT = {
 // emissive floor (0x180505) so a bot in full shadow never crushes
 // to pure black, and the suit reds are lifted a step. Zero draw
 // calls, zero per-frame cost — it is the same one material.
-const BOT_BODY_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.05, emissive: 0x180505 });
+// V6-3 FABRIC GRAIN (Board 006 §2.4: "fabric-ish texture
+// variation on uniforms"): one tiny procedural weave/noise canvas
+// shared by every bot via the single body material, so the merged
+// parts stop reading as flat plastic. Painted near-white on
+// purpose (proctex discipline): vertex colours multiply through,
+// so palettes and camo tones keep their hue — the map only adds
+// grain. Guarded exactly like js/proctex.js: no document (tools,
+// headless) -> null -> material runs untextured. One-time 128²
+// upload, zero draw calls, zero per-frame cost.
+function makeFabricTexture() {
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function') return null;
+  try {
+    const S = 128;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = S;
+    const c = cv.getContext('2d');
+    if (!c) return null;
+    c.fillStyle = '#f5f5f5';
+    c.fillRect(0, 0, S, S);
+    let s = 987654321;
+    const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    for (let i = 0; i < 2400; i++) {
+      const g = 198 + Math.floor(rnd() * 57);
+      c.fillStyle = `rgba(${g},${g},${g},${0.14 + rnd() * 0.2})`;
+      c.fillRect(rnd() * S, rnd() * S, 1 + rnd() * 2, 1);
+    }
+    c.fillStyle = 'rgba(110,110,110,0.05)';
+    for (let y = 0; y < S; y += 3) c.fillRect(0, y, S, 1);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(2, 2);
+    if ('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  } catch { return null; }
+}
+const BOT_FABRIC_TEX = makeFabricTexture();
+const BOT_BODY_MAT = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.05, emissive: 0x180505, map: BOT_FABRIC_TEX });
 // SOLDIER UNIFORM DISCIPLINE (V4, Atlas — Board 004 §8): the V3
 // figure wore a flat red-brown suit. V4 puts it in CAMOUFLAGE
 // (three woodland tones split across the merged parts, so the
@@ -123,10 +161,42 @@ function composePalette(team, camoId) {
   const u = getCamo(camoId).uniform;
   return { ...base, camo: u.camo, camoLight: u.camoLight, camoDark: u.camoDark };
 }
+// V6-3 PER-SOLDIER VARIATION (Directive V6-3: "more human like"):
+// no two soldiers in a squad are the same person. Each bot rolls a
+// skin tone from a human range and a small luminance jitter on its
+// cloth + gear tones (uniform wear). COLOUR ONLY — geometry, part
+// counts and the camo cost matrix are untouched (the harness proof
+// still audits identical calls/tris for every camo × faction), and
+// the FACTION fields (accent rig, armband, shoulder pads, visor)
+// are never jittered: friend-vs-hostile readability is law. The
+// composed palette is cloned first — the shared BOT_PALETTES /
+// camo.js objects are never mutated.
+const SKIN_TONES = [0xc9a189, 0xe0bda0, 0xa9745a, 0x8a5a3b, 0x7c4b32];
+function _shade(hex, f) {
+  const c = new THREE.Color(hex);
+  c.multiplyScalar(f);
+  return c.getHex();
+}
+function botVariantPalette(base) {
+  const pal = { ...base };
+  pal.skin = SKIN_TONES[Math.floor(Math.random() * SKIN_TONES.length)];
+  const wear = 0.93 + Math.random() * 0.12;
+  pal.camo = _shade(pal.camo, wear);
+  pal.camoLight = _shade(pal.camoLight, wear);
+  pal.camoDark = _shade(pal.camoDark, wear);
+  const gearF = 0.95 + Math.random() * 0.09;
+  pal.gear = _shade(pal.gear, gearF);
+  pal.gearLight = _shade(pal.gearLight, gearF);
+  return pal;
+}
 const _box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const _cylY = (r, len, seg = 8) => new THREE.CylinderGeometry(r, r, len, seg);
-function _part(list, geo, color, x, y, z, rx = 0, ry = 0, rz = 0) {
-  list.push({ geo, color, x, y, z, rx, ry, rz });
+// V6-3 rounded forms (Board 006 §2.4: the part-kit read dies):
+// tapered cylinders for limbs, low-seg spheres for joints/boots.
+const _cylT = (rTop, rBottom, len, seg = 9) => new THREE.CylinderGeometry(rTop, rBottom, len, seg);
+const _sph = (r, w = 8, h = 6) => new THREE.SphereGeometry(r, w, h);
+function _part(list, geo, color, x, y, z, rx = 0, ry = 0, rz = 0, sx, sy, sz) {
+  list.push({ geo, color, x, y, z, rx, ry, rz, sx, sy, sz });
 }
 
 function buildBotLegs(pal = BOT_PALETTES.hostile) {
@@ -134,8 +204,8 @@ function buildBotLegs(pal = BOT_PALETTES.hostile) {
   for (const s of [-1, 1]) {
     _part(L, _box(0.21, 0.78, 0.25), pal.camoDark, s * 0.145, 0.48, 0);           // leg (camo trouser) — HIT CORE, byte-identical
     _part(L, _box(0.22, 0.15, 0.37), pal.boot, s * 0.145, 0.075, -0.045);         // boot
-    _part(L, _box(0.20, 0.09, 0.13), pal.boot, s * 0.145, 0.045, -0.20);          // boot toe (V5 people-like: a foot, not a block)
-    _part(L, _box(0.17, 0.19, 0.06), pal.gear, s * 0.145, 0.52, -0.145);           // knee pad
+    _part(L, _sph(0.105, 7, 5), pal.boot, s * 0.145, 0.0525, -0.175, 0, 0, 0, 0.95, 0.5, 0.86); // boot toe (V6-3: rounded foot; front reach matched to the old block, -0.265)
+    _part(L, _sph(0.105, 8, 6), pal.gear, s * 0.145, 0.52, -0.13, 0, 0, 0, 0.82, 0.95, 0.45);   // knee pad (V6-3: domed; front reach matched to the old pad)
     _part(L, _box(0.19, 0.30, 0.05), pal.gear, s * 0.145, 0.30, -0.135);           // shin guard (V4 kit)
     _part(L, _box(0.22, 0.10, 0.25), pal.camo, s * 0.145, 0.90, 0);                 // thigh pocket block (V5: trimmed)
   }
@@ -161,19 +231,20 @@ function buildBotTorso(pal = BOT_PALETTES.hostile) {
   }
   _part(L, _cylY(0.07, 0.14), pal.skin, 0, 1.50, 0);                                // neck (V5 people-like: a head sits on a neck, not a collar block)
   _part(L, _box(0.26, 0.10, 0.26), pal.gear, 0, 1.49, 0);                          // collar / neck guard (V5: slimmed)
+  _part(L, _sph(0.15, 8, 6), pal.camo, 0, 1.465, 0.01, 0, 0, 0, 1.6, 0.45, 0.9);    // trapezius (V6-3: the neck slopes into the shoulders — no more head-on-a-box)
   for (const s of [-1, 1]) {
-    _part(L, _box(0.22, 0.19, 0.28), s < 0 ? pal.camoLight : pal.camo, s * 0.435, 1.39, 0, 0, 0, s < 0 ? 0.10 : -0.10); // shoulder / deltoid (V5: narrower, sloped — shoulders roll, they don't shelf)
+    _part(L, _sph(0.15, 8, 6), s < 0 ? pal.camoLight : pal.camo, s * 0.42, 1.40, 0, 0, 0, 0, 0.85, 0.7, 1.0); // shoulder / deltoid (V6-3: a ball of muscle, not a sloped shelf; outer reach + sole matched to the old block)
     _part(L, _box(0.14, 0.18, 0.19), pal.accent, s * 0.44, 1.45, 0);                // shoulder pad — FACTION colour
   }
-  _part(L, _box(0.135, 0.42, 0.155), pal.dark, -0.455, 1.13, 0, 0, 0, 0.06);        // left upper arm (V5: slimmer, slight natural hang)
+  _part(L, _cylT(0.078, 0.066, 0.42, 9), pal.dark, -0.455, 1.13, 0, 0, 0, 0.06);    // left upper arm (V6-3: tapered limb, thick at the shoulder, slim at the elbow)
   _part(L, _box(0.155, 0.09, 0.175), pal.accent, -0.455, 1.27, 0);                  // faction armband, left arm (V4)
-  _part(L, _box(0.135, 0.40, 0.155), pal.dark, 0.44, 1.15, -0.09, 0.5);             // right upper arm (forward)
+  _part(L, _cylT(0.078, 0.066, 0.40, 9), pal.dark, 0.44, 1.15, -0.09, 0.5);         // right upper arm (forward) (V6-3: tapered limb)
   _part(L, _box(0.115, 0.115, 0.40), pal.dark, 0.35, 1.17, -0.30);                  // right forearm (to gun) (V5: tapered)
   _part(L, _box(0.115, 0.115, 0.36), pal.dark, -0.33, 1.10, -0.24, 0.25);           // left forearm (support hand)
-  _part(L, _box(0.095, 0.095, 0.095), pal.dark, 0.36, 1.16, -0.52);                 // right glove (V5: hand-sized)
-  _part(L, _box(0.095, 0.095, 0.095), pal.dark, -0.37, 1.08, -0.44);                // left glove
-  _part(L, _box(0.15, 0.08, 0.17), pal.gear, 0.44, 1.30, -0.16);                    // right elbow pad (V4 kit)
-  _part(L, _box(0.15, 0.08, 0.17), pal.gear, -0.455, 1.02, 0.02);                  // left elbow pad (V4 kit)
+  _part(L, _sph(0.06, 7, 5), pal.dark, 0.36, 1.16, -0.52, 0, 0, 0, 0.95, 0.85, 1.3);  // right glove (V6-3: a rounded fist, not a die)
+  _part(L, _sph(0.06, 7, 5), pal.dark, -0.37, 1.08, -0.44, 0, 0, 0, 0.95, 0.85, 1.3); // left glove (V6-3: rounded fist)
+  _part(L, _sph(0.085, 7, 5), pal.gear, 0.44, 1.30, -0.16, 0, 0, 0, 0.95, 0.55, 1.05); // right elbow pad (V6-3: domed)
+  _part(L, _sph(0.085, 7, 5), pal.gear, -0.455, 1.02, 0.02, 0, 0, 0, 0.95, 0.55, 1.05); // left elbow pad (V6-3: domed)
   _part(L, _box(0.43, 0.52, 0.18), pal.gear, 0, 1.17, 0.29, 0.02);                  // backpack (V5: slimmer, slight kit hunch)
   _part(L, _box(0.32, 0.24, 0.06), pal.gearLight, 0, 1.02, 0.40);                   // pack pouch
   _part(L, _cylY(0.008, 0.52), pal.steel, 0.16, 1.70, 0.30);                        // antenna
@@ -190,7 +261,7 @@ function buildBotHead(pal = BOT_PALETTES.hostile) {
   _part(L, _box(0.07, 0.11, 0.13), pal.gear, -0.205, 1.68, 0.01);                   // headset cup, left (V5 people-like: comms on a person)
   _part(L, _cylY(0.008, 0.15, 6), pal.steel, -0.155, 1.615, -0.115, 1.15, 0, 0.5);  // boom mic, arcing to the mouth (V5)
   _part(L, _box(0.31, 0.13, 0.06), pal.gear, 0, 1.545, -0.185);                     // jaw guard
-  _part(L, _box(0.36, 0.10, 0.38), pal.camoDark, 0, 1.565, 0.01);                   // neck / balaclava
+  _part(L, _cylT(0.185, 0.195, 0.10, 12), pal.camoDark, 0, 1.565, 0.01);            // neck / balaclava (V6-3: a round neck ring, not a slab)
   const head = new THREE.Mesh(mergeColoredParts(L), BOT_BODY_MAT);
   head.userData.part = 'head';
   return head;
@@ -274,13 +345,20 @@ export class Bot {
     this.slideSign = 1;
     this.slideFails = 0;
     this.resetTarget = null;
+    // --- V6-3 movement smoothing state (client feel only; the
+    // un-wedge state machine above is untouched) ---
+    this.vel = new THREE.Vector3();    // eased horizontal velocity
+    this.faceYaw = null;               // eased facing (seeds on first update)
+    this.strafeBlend = this.strafeDir; // eased strafe direction (-1..1)
+    this.bobPhase = Math.random() * Math.PI * 2;
+    this.bobY = 0; this.leanX = 0; this.rollZ = 0;
 
     const root = new THREE.Group();
     // Character realism build (see BOT_BODY_MAT note above): three
     // merged hit-region meshes + visor + the realistic merged gun
     // from js/gunmodels.js (scope included in the DMR geometry —
     // no separate scope mesh any more).
-    const pal = composePalette(team, camoId);
+    const pal = botVariantPalette(composePalette(team, camoId));
     this.team = team;
     this.camoId = camoId;
     const legs = buildBotLegs(pal);
@@ -307,6 +385,11 @@ export class Bot {
     this.hpFg = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x51ff7a, depthTest: false }));
     this.hpFg.scale.set(0.94, 0.09, 1); this.hpFg.position.y = 2.05;
     root.add(bg, this.hpFg);
+    // V6-3: stride-bob registry — every visual child rides the bob
+    // together (offsets from these base heights; root position is
+    // the sim truth and never bobs).
+    this._bobKids = [legs, torso, head, visor, gun, bg, this.hpFg];
+    this._bobBase = this._bobKids.map(o => o.position.y);
 
     root.position.copy(spawnPos);
     this.stuckAnchor.copy(spawnPos);
@@ -381,8 +464,16 @@ export class Bot {
     const dist = _v.length();
     _v.normalize();
 
-    // Face the player
-    this.root.rotation.y = Math.atan2(_v.x, _v.z) + Math.PI;
+    // Face the player — V6-3: the turn is eased (rate-capped
+    // exponential on the shortest arc), so a bot swings its body
+    // around like a person instead of snapping like a turret.
+    // Facing is visual only: hit chance runs on distance + LOS.
+    const targetYaw = Math.atan2(_v.x, _v.z) + Math.PI;
+    if (this.faceYaw === null) this.faceYaw = targetYaw;
+    let dyaw = targetYaw - this.faceYaw;
+    dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw));
+    this.faceYaw += THREE.MathUtils.clamp(dyaw * (1 - Math.exp(-11 * dt)), -10.5 * dt, 10.5 * dt);
+    this.root.rotation.y = this.faceYaw;
 
     // --- player speed estimate (horizontal) for the moving-target penalty.
     // Smoothed + capped so a single-frame jump/reset can't spike the estimate.
@@ -402,23 +493,29 @@ export class Bot {
     // Aim was already reset in damage(); the slight tilt eases out with it.
     if (this.flinchT > 0) {
       this.flinchT -= dt;
+      this.vel.multiplyScalar(Math.max(0, 1 - 12 * dt)); // V6-3: a flinch bleeds off stride — no stored-speed lurch when it ends
       const k = Math.max(0, this.flinchT / this.flinchDuration);
       this.root.rotation.x = -0.16 * k;
       if (this.flinchT <= 0) { this.flinchT = 0; this.root.rotation.x = 0; }
       return true;
     }
-    if (this.root.rotation.x !== 0) this.root.rotation.x = 0;
+    // (V6-3: root.rotation.x is owned by the stride-lean block
+    // below — it eases from any flinch residue to the lean angle
+    // every frame, so no hard reset is needed here any more.)
 
     // --- movement: close in, strafe at mid range, back off if point blank
     // (per-weapon table replaces the Session 1 constants)
     const moveCfg = MOVEMENT[this.weaponId] || MOVEMENT.ar;
     this.strafeT -= dt;
     if (this.strafeT <= 0) { this.strafeT = 1 + Math.random() * 2; this.strafeDir *= -1; }
+    // V6-3: a strafe flip eases through zero (blend chases the
+    // sign) instead of reversing the velocity vector in one frame.
+    this.strafeBlend += (this.strafeDir - this.strafeBlend) * Math.min(1, dt * 5);
     _move.set(0, 0, 0);
     if (dist > moveCfg.close) _move.add(_v);
     else if (dist < moveCfg.backoff) _move.addScaledVector(_v, -0.7);
     _perp.set(-_v.z, 0, _v.x);
-    if (dist <= moveCfg.strafeMax && dist >= moveCfg.strafeMin) _move.addScaledVector(_perp, this.strafeDir * 0.8);
+    if (dist <= moveCfg.strafeMax && dist >= moveCfg.strafeMin) _move.addScaledVector(_perp, this.strafeBlend * 0.8);
     // --- un-wedge override (Havoc pack §6): a stuck bot shoulders
     // along the wall (perpendicular slide, slight close-in) or, after
     // two failed slides, routes back to the nearest spawn lane.
@@ -430,14 +527,51 @@ export class Bot {
       // (V5 fix, Havoc recheck §3): LOS, completion, >= 2 m progress.
       if (_move.length() < 1.5) { this.slideMode = 0; this.resetTarget = null; this.slideFails = 0; }
     }
+    const sp = this.speed * moveCfg.speedMult;
+    _desired.set(0, 0, 0);
     if (_move.lengthSq() > 0) {
       _move.normalize();
-      p.addScaledVector(_move, this.speed * moveCfg.speedMult * dt);
+      _desired.copy(_move).multiplyScalar(sp);
+    }
+    // V6-3 velocity easing: velocity chases the desired velocity
+    // with the same vector-clamp law the player uses (js/player.js),
+    // so bot starts, stops, strafes and slide redirects ramp like a
+    // body with mass instead of snapping to full speed. TOP SPEEDS
+    // ARE UNTOUCHED (sp above is the V5 number — Havoc's domain);
+    // the un-wedge state machine, its counters and the progress
+    // sampling all stay exactly as shipped — only the applied
+    // velocity relaxes, and the wedge detector reads position
+    // deltas, which still move every frame a slide is engaged.
+    _dv.subVectors(_desired, this.vel);
+    const accel = this.slideMode ? 30 : (_desired.lengthSq() > 0 ? 15 : 20);
+    const maxD = accel * dt;
+    if (_dv.lengthSq() > maxD * maxD) this.vel.addScaledVector(_dv.normalize(), maxD);
+    else this.vel.copy(_desired);
+    if (this.vel.lengthSq() > 0 || _desired.lengthSq() > 0) {
+      p.addScaledVector(this.vel, dt);
       collide(p, this.radius, this.world.colliders, this.world.bounds, p.y);
     }
     // Floor: bots live on the height-aware ground (no jumping; the step
     // rule in groundHeightAt prevents snapping up through floors).
     if (this.world.groundHeightAt) p.y = this.world.groundHeightAt(p.x, p.z, p.y);
+
+    // --- V6-3 stride bob + lean (visual only; root position is
+    // untouched). Phase advances with actual velocity so the gait
+    // matches the stride (2·pi per ~1.45 m travelled); sway and the
+    // cycle dip scale with the speed fraction so a strafe reads
+    // slower than a charge. The whole kit rides together through
+    // the constructor's bob registry — positions are base + bob,
+    // never accumulating.
+    const hSpeed = Math.hypot(this.vel.x, this.vel.z);
+    const speedFrac = this.speed > 0 ? Math.min(1, hSpeed / this.speed) : 0;
+    this.bobPhase += dt * hSpeed * 4.35;
+    const k = Math.min(1, dt * 13);
+    this.bobY += (Math.sin(this.bobPhase) * 0.02 * speedFrac - this.bobY) * k;
+    this.rollZ += (Math.sin(this.bobPhase) * 0.013 * speedFrac - this.rollZ) * k;
+    this.leanX += (0.045 * speedFrac - this.leanX) * k;
+    for (let i = 0; i < this._bobKids.length; i++) this._bobKids[i].position.y = this._bobBase[i] + this.bobY;
+    this.root.rotation.z = this.rollZ;
+    this.root.rotation.x = this.leanX;
 
     // --- visibility / aim-up. LOS is staggered: the raycast runs at most
     // every 3rd frame per bot, offset by a per-bot phase; between checks
