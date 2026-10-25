@@ -126,7 +126,7 @@ export function buildWorld(scene) {
     // Deterministic pseudo-random so the wear pattern is stable between loads.
     let seed = 1234567;
     const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-    c.fillStyle = '#3a4149'; c.fillRect(0, 0, 512, 512);
+    c.fillStyle = '#35424e'; c.fillRect(0, 0, 512, 512); // V6-3 vivid: deeper blue-slate base
     // Wear layer (under the paint): large darker patches + subtle light scuffs.
     for (let i = 0; i < 26; i++) {
       c.fillStyle = rand() > 0.35 ? `rgba(0,0,0,${0.04 + rand() * 0.07})` : `rgba(255,255,255,${0.02 + rand() * 0.03})`;
@@ -252,13 +252,15 @@ export function buildWorld(scene) {
   const crateTex = makeCrateTexture();
   const wallTex = makeWallTexture();
   // Frame cost: shared crateTex serves both crate materials (one upload, two tints); wallTex is one upload. Colour tints are the original values, multiplied by the light map.
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x55606c, map: wallTex, roughness: 0.85 });
-  const crateMat = new THREE.MeshStandardMaterial({ color: 0x6d5a33, map: crateTex, roughness: 0.9 });
-  const crateMat2 = new THREE.MeshStandardMaterial({ color: 0x44586b, map: crateTex, roughness: 0.9 });
+  // V6-3 VIVID (Atlas): saturation pass on surface colours only —
+  // lighting rig untouched (integrity hash still a40a3f79c85670a6).
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x4d6076, map: wallTex, roughness: 0.85 });
+  const crateMat = new THREE.MeshStandardMaterial({ color: 0x7d6027, map: crateTex, roughness: 0.9 });
+  const crateMat2 = new THREE.MeshStandardMaterial({ color: 0x33517c, map: crateTex, roughness: 0.9 });
   const pillarMat = new THREE.MeshStandardMaterial({ color: 0x707a86, roughness: 0.8, emissive: 0x0d2b16 });
 
-  const deckMat = new THREE.MeshStandardMaterial({ color: 0x4b5158, roughness: 0.9 });
-  const slabMat = new THREE.MeshStandardMaterial({ color: 0x5d666f, roughness: 0.85 });
+  const deckMat = new THREE.MeshStandardMaterial({ color: 0x424e5c, roughness: 0.9 });
+  const slabMat = new THREE.MeshStandardMaterial({ color: 0x57687a, roughness: 0.85 });
   // V6 (Atlas): standing-seam roofing for the two built roofs
   // (Ops Building + Comms Shed) — same solids, textured skin.
   const roofTexMat = new THREE.MeshStandardMaterial({ color: 0x707880, map: makeRoofTexture(), roughness: 0.9 });
@@ -581,6 +583,25 @@ export function buildWorld(scene) {
   solid(-29, 46, 2.2, 2.2, 2.2, crateMat2);            // interior stack
   solid(-25.6, 44, 2.2, 1.15, 2.2, crateMat);          // exterior stack 1
   solid(-25.6, 41.6, 2.2, 2.3, 2.2, crateMat2);        // exterior stack 2
+  // V6-3 ENTERABLE INTERIORS, Stage 1 (Atlas): the Ops Building
+  // becomes a true 3-room interior. APPEND-ONLY — every shipped
+  // solid above is untouched; two partition walls with 1.4 m
+  // door gaps carve the open shell into a west office (keeps
+  // the hop crate), a NE comms room and a SE storage room
+  // (keeps the 2.2 stack). Partitions are ordinary wallMat
+  // solids — collider-true, mirrored 1:1 in worlddata.js in
+  // this same commit (smoke T1 re-pinned 111 -> 115 for exactly
+  // these four). Route: south door -> SE storage -> gap B ->
+  // NE comms -> gap A -> west office; the east door enters NE
+  // comms directly. Partition B sits at z 44.0, north of the
+  // storage stack (z 44.9..), and its gap (x -30.6..-29.2)
+  // keeps the V5 interior probe point (-30.2, 44) open.
+  // This wallRun-with-door-gap is the interior primitive of
+  // the Stage-1 kit exercised at full scale by the HQ below.
+  solid(-32, 41.85, 0.3, 3.2, 3.1, wallMat);           // partition A north run (gap z 43.4..44.8)
+  solid(-32, 46.25, 0.3, 3.2, 2.9, wallMat);           // partition A south run
+  solid(-31.225, 44, 1.25, 3.2, 0.3, wallMat);         // partition B west run (gap x -30.6..-29.2)
+  solid(-28.15, 44, 1.9, 3.2, 0.3, wallMat);            // partition B east run
   // Comms Shed (S ring, (24, 56)) — guards the ruin gap lane
   // [24,30]: three walls, open south, roof + awning on posts,
   // a guyed mast at its corner.
@@ -592,10 +613,84 @@ export function buildWorld(scene) {
   solid(26.5, 59.5, 0.18, 2.2, 0.18, deckMat);         // awning post E
   elevated(24, 2.2, 59.3, 6, 0.12, 1.8, slabMat);      // awning slab (top 2.32)
   solid(27.6, 53.2, 0.14, 5.2, 0.14, deckMat);         // corner mast
+  // ============ V6-3 HQ — TWO-STORY ENTERABLE (Atlas) ============
+  // Stage 1's proof building, raised in the SW inner court
+  // (footprint x -22..-2, z 37.5..46.5; the court was empty —
+  // verified: no collider, spawn, zone or cache touches it).
+  // THE KIT, as shipped here (all primitives are the ordinary
+  // solid()/elevated() boxes above, so every part is collider-
+  // true and mirrored 1:1 in worlddata.js, +32 SOLIDS):
+  //   wallRun(plan, level)  — a level's wall plan is a segment
+  //     list; each level declares its OWN openings (ground floor
+  //     gets the doors, upper floors run continuous). Stacking
+  //     levels is repeating the plan at yBase += floorH.
+  //   floorPlate(holes)     — slab segments around stairwell
+  //     openings; floor-to-floor 2.875 + 0.25 slab = 3.125.
+  //   stairRun()            — full-height steps at the shipped
+  //     0.575 rise (the step the movement model already climbs
+  //     everywhere); top step widened into the landing so the
+  //     well edge is flush — no gap to fall through.
+  //   railing()             — 1.0 m solid rail on the slab edge
+  //     along the well (standable, like shipped parapets).
+  // Because levels are just plans at heights, the same kit
+  // stacks: a slim tower = small plan repeated, a wide block =
+  // this plan repeated — 10 stories needs no new primitive,
+  // only more segments (Stage 2+ work, per the charter).
+  // Ground floor: west bunk room (stair along its north wall),
+  // NE ops room, SE entry room (south door). Upper floor mirrors
+  // the partitions: overwatch west / NE / SE rooms.
+  const HQ_FLOOR_H = 2.875, HQ_SLAB_T = 3.125; // floor-to-floor + slab = pitch 3.125
+  // -- ground-floor walls (h 2.875): south door x -13.6..-12,
+  //    north door x -6.4..-5.
+  solid(-14.2, 37.5, 15.6, HQ_FLOOR_H, 0.3, wallMat);   // north wall W (to door)
+  solid(-3.5, 37.5, 3, HQ_FLOOR_H, 0.3, wallMat);      // north wall E
+  solid(-17.8, 46.5, 8.4, HQ_FLOOR_H, 0.3, wallMat);   // south wall W
+  solid(-7, 46.5, 10, HQ_FLOOR_H, 0.3, wallMat);       // south wall E (from door)
+  solid(-22, 42, 0.3, HQ_FLOOR_H, 8.7, wallMat);       // west wall
+  solid(-2, 42, 0.3, HQ_FLOOR_H, 8.7, wallMat);        // east wall
+  // -- floor plate (top 3.125) with the stairwell opening
+  //    (x -21.85..-15, z 37.65..39.5) left open.
+  elevated(-12, HQ_FLOOR_H, 43, 20, 0.25, 7, deckMat);      // main plate
+  elevated(-8.5, HQ_FLOOR_H, 38.5, 13, 0.25, 2, deckMat);   // north strip E of well
+  // -- upper walls: same footprint, NO door openings.
+  elevated(-12, HQ_SLAB_T, 37.5, 20, HQ_FLOOR_H, 0.3, wallMat);  // north
+  elevated(-12, HQ_SLAB_T, 46.5, 20, HQ_FLOOR_H, 0.3, wallMat);  // south
+  elevated(-22, HQ_SLAB_T, 42, 0.3, HQ_FLOOR_H, 8.7, wallMat);   // west
+  elevated(-2, HQ_SLAB_T, 42, 0.3, HQ_FLOOR_H, 8.7, wallMat);    // east
+  // -- roof slab (top 6.25), Ops-style overhang.
+  elevated(-12, 6.0, 42, 20.6, 0.25, 9.6, roofTexMat);
+  // -- interior partitions, BOTH floors (gap = 1.4 m doors):
+  //    P1 along x -14 (gap z 41.3..42.7), P2 along z 41 in the
+  //    east half (gap x -8.6..-7.2).
+  solid(-14, 39.475, 0.3, HQ_FLOOR_H, 3.65, wallMat);
+  solid(-14, 44.525, 0.3, HQ_FLOOR_H, 3.65, wallMat);
+  solid(-11.225, 41, 5.25, HQ_FLOOR_H, 0.3, wallMat);
+  solid(-4.75, 41, 4.9, HQ_FLOOR_H, 0.3, wallMat);
+  elevated(-14, HQ_SLAB_T, 39.475, 0.3, HQ_FLOOR_H, 3.65, wallMat);
+  elevated(-14, HQ_SLAB_T, 44.525, 0.3, HQ_FLOOR_H, 3.65, wallMat);
+  elevated(-11.225, HQ_SLAB_T, 41, 5.25, HQ_FLOOR_H, 0.3, wallMat);
+  elevated(-4.75, HQ_SLAB_T, 41, 4.9, HQ_FLOOR_H, 0.3, wallMat);
+  // -- stair run: climbs +x along the west room's north wall,
+  //    5 rises of 0.575; the top step is the landing (flush
+  //    with the well's east edge at x -15).
+  solid(-20.4, 38.6, 1.0, 0.575, 1.7, deckMat);
+  solid(-19.4, 38.6, 1.0, 1.15, 1.7, deckMat);
+  solid(-18.4, 38.6, 1.0, 1.725, 1.7, deckMat);
+  solid(-17.4, 38.6, 1.0, 2.3, 1.7, deckMat);
+  solid(-15.95, 38.6, 1.9, 2.875, 1.7, deckMat);       // landing step
+  // -- railing along the well's south edge (upper floor).
+  elevated(-18.425, HQ_SLAB_T, 39.56, 6.85, 1.0, 0.12, slabMat);
+  // -- interior cover (collider-true crates): ground west
+  //    stack, NE + SE singles; upstairs west + NE singles.
+  solid(-20.3, 44.8, 2.2, 2.2, 2.2, crateMat2);
+  solid(-4.3, 39.2, 2.2, 1.15, 2.2, crateMat);
+  solid(-4.3, 44.3, 2.2, 1.15, 2.2, crateMat);
+  elevated(-20.3, HQ_SLAB_T, 44.8, 2.2, 1.15, 2.2, crateMat);
+  elevated(-4.3, HQ_SLAB_T, 39.2, 2.2, 1.15, 2.2, crateMat2);
   // Motor-pool fuel drums (merged; EXTRA colliders in
   // worlddata — hard cover, not explosive) + ring dressing:
-  // instanced rubble along the ruin gaps and two dark
-  // puddles on the lanes (visual only, stated plainly).
+  // instanced rubble along the ruin gaps and the merged
+  // puddle sheet on the lanes (visual only, stated plainly).
   {
     const P = [];
     for (const [x, z] of [[36.5, 58.5], [37.8, 59.3], [35.6, 59.9]]) {
@@ -625,14 +720,21 @@ export function buildWorld(scene) {
     rubble.receiveShadow = true;
     scene.add(rubble);
 
-    const puddleMat = new THREE.MeshStandardMaterial({ color: 0x22242a, roughness: 0.15, metalness: 0.1 });
-    for (const [x, z, r] of [[-12, 32, 2.2], [14, 55, 1.6]]) {
-      const p = new THREE.Mesh(new THREE.CircleGeometry(r, 18), puddleMat);
-      p.rotation.x = -Math.PI / 2;
-      p.position.set(x, 0.015, z);
-      p.receiveShadow = true;
-      scene.add(p);
+    // V6-3 WEATHER (Atlas): the compound's wet read. The two
+    // shipped puddles become SEVEN, merged into ONE mesh (the
+    // shipped pair cost two draw calls — this is a net -1 call,
+    // the §3.4 offset for the wave's dressing). Wetter material:
+    // darker, lower roughness — standing water after rain on
+    // every lane + a drip pool on the HQ's south apron. Visual
+    // only, exactly as before: no colliders, no walkables.
+    const wetParts = [];
+    for (const [x, z, r] of [[-12, 32, 2.2], [14, 55, 1.6], [24, 20, 1.8], [-38, -8, 1.9], [6, -38, 2.0], [48, 20, 1.8], [-12, 50, 1.5]]) {
+      wetParts.push({ geo: new THREE.CircleGeometry(r, 18), color: 0x1d2026, x, y: 0.015, z, rx: -Math.PI / 2 });
     }
+    const puddles = new THREE.Mesh(mergeColoredParts(wetParts),
+      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.12, metalness: 0.05 }));
+    puddles.receiveShadow = true;
+    scene.add(puddles);
   }
 
   // ================= V6 BUILDING FACADES (Atlas, Update 1) =================
@@ -713,6 +815,40 @@ export function buildWorld(scene) {
     // Flat junction boxes (metal bucket).
     PM.push({ geo: new THREE.BoxGeometry(0.5, 0.7, 0.07), color: 0xb9c0c7, x: -27.6, y: 1.3, z: 39.96 });
     PM.push({ geo: new THREE.BoxGeometry(0.07, 0.5, 0.4), color: 0x9aa1a9, x: -37.03, y: 1.1, z: 44 });
+    // ---- HQ (V6-3, centre -12, 42; two-story enterable) ----
+    // Same discipline: flat on the new walls, into the same
+    // five merged meshes (+0 draw calls). 11 windows (6 ground,
+    // 5 upper) + 2 framed doors on top of the Ops Building's 7.
+    // Parapet caps on the roof edge (top 6.25).
+    t_(new THREE.BoxGeometry(20.6, 0.28, 0.30), trimA, -12, 6.39, 37.35);
+    t_(new THREE.BoxGeometry(20.6, 0.28, 0.30), trimA, -12, 6.39, 46.65);
+    t_(new THREE.BoxGeometry(0.30, 0.28, 9.6), trimA, -22.15, 6.39, 42);
+    t_(new THREE.BoxGeometry(0.30, 0.28, 9.6), trimA, -1.85, 6.39, 42);
+    // Corner boards, full two-story height.
+    for (const [cx, cz] of [[-22, 37.5], [-2, 37.5], [-22, 46.5], [-2, 46.5]]) {
+      t_(new THREE.BoxGeometry(0.34, 6.0, 0.34), trimC, cx, 3.0, cz);
+    }
+    // Floor-line header band (the slab edge, read from outside).
+    t_(new THREE.BoxGeometry(20.2, 0.22, 0.08), trimB, -12, 3.02, 46.66);
+    t_(new THREE.BoxGeometry(20.2, 0.22, 0.08), trimB, -12, 3.02, 37.34);
+    t_(new THREE.BoxGeometry(0.08, 0.22, 9.2), trimB, -22.16, 3.02, 42);
+    t_(new THREE.BoxGeometry(0.08, 0.22, 9.2), trimB, -1.84, 3.02, 42);
+    // Door frames: south gap (x -13.6..-12) + north gap (x -6.4..-5).
+    t_(new THREE.BoxGeometry(0.18, 2.3, 0.24), trimA, -13.65, 1.15, 46.5);
+    t_(new THREE.BoxGeometry(0.18, 2.3, 0.24), trimA, -11.95, 1.15, 46.5);
+    t_(new THREE.BoxGeometry(1.9, 0.24, 0.24), trimA, -12.8, 2.42, 46.5);
+    t_(new THREE.BoxGeometry(0.18, 2.3, 0.24), trimA, -6.45, 1.15, 37.5);
+    t_(new THREE.BoxGeometry(0.18, 2.3, 0.24), trimA, -4.95, 1.15, 37.5);
+    t_(new THREE.BoxGeometry(1.9, 0.24, 0.24), trimA, -5.7, 2.42, 37.5);
+    // Windows: south ×2 + north ×2 + west ×1 + east ×1 per floor
+    // (upper floor: no east window — the stairwell's north light
+    // and the overwatch west glass carry it).
+    win(-19, 1.7, 46.69, 'S', GW); win(-5.5, 1.7, 46.69, 'S', GC);
+    win(-17, 1.7, 37.31, 'N', GD); win(-11, 1.7, 37.31, 'N', GW);
+    win(-22.19, 1.7, 42, 'W', GC); win(-1.81, 1.7, 42, 'W', GD);
+    win(-19, 4.6, 46.69, 'S', GC); win(-5.5, 4.6, 46.69, 'S', GW);
+    win(-17, 4.6, 37.31, 'N', GW); win(-11, 4.6, 37.31, 'N', GD);
+    win(-22.19, 4.6, 40, 'W', GW);
     // ---- Comms Shed (centre 24, 56; walls y 0..2.4, roof top 2.6) ----
     // Roof fascia on all four edges.
     t_(new THREE.BoxGeometry(6.5, 0.18, 0.16), trimB, 24, 2.52, 53.22);
@@ -853,7 +989,7 @@ export function buildWorld(scene) {
       dummy.position.set(t.x, 1.6 * t.sy, t.z);
       dummy.rotation.set(0, t.rot, 0); dummy.scale.set(t.s, t.sy, t.s);
       dummy.updateMatrix(); trunkIM.setMatrixAt(i, dummy.matrix);
-      trunkIM.setColorAt(i, new THREE.Color(0x5b4632).offsetHSL(0, (lrand() - 0.5) * 0.05, (lrand() - 0.5) * 0.07));
+      trunkIM.setColorAt(i, new THREE.Color(0x6b4a2a).offsetHSL(0, (lrand() - 0.5) * 0.05, (lrand() - 0.5) * 0.07));
     });
     trunkIM.instanceColor.needsUpdate = true;
     scene.add(trunkIM);
@@ -871,7 +1007,7 @@ export function buildWorld(scene) {
         dummy.position.set(t.x + dir.x * 0.5 * t.s, 0.27 * t.sy, t.z + dir.z * 0.5 * t.s);
         dummy.scale.set(t.s * 1.1, t.s, t.s * 0.55); // flattened fin
         dummy.updateMatrix(); rootIM.setMatrixAt(i * 5 + k, dummy.matrix);
-        rootIM.setColorAt(i * 5 + k, new THREE.Color(0x5b4632).offsetHSL(0, (lrand() - 0.5) * 0.05, (lrand() - 0.5) * 0.07));
+        rootIM.setColorAt(i * 5 + k, new THREE.Color(0x6b4a2a).offsetHSL(0, (lrand() - 0.5) * 0.05, (lrand() - 0.5) * 0.07));
       }
     });
     if (rootIM.instanceColor) rootIM.instanceColor.needsUpdate = true;
@@ -889,7 +1025,7 @@ export function buildWorld(scene) {
         dummy.position.set(t.x + dir.x * 0.85 * t.s, trunkH * 0.72 + dir.y * 0.85 * t.s, t.z + dir.z * 0.85 * t.s);
         dummy.scale.set(t.s, t.s * (0.85 + lrand() * 0.35), t.s);
         dummy.updateMatrix(); branchIM.setMatrixAt(i * 4 + k, dummy.matrix);
-        branchIM.setColorAt(i * 4 + k, new THREE.Color(0x5b4632).offsetHSL(0, (lrand() - 0.5) * 0.05, (lrand() - 0.5) * 0.07));
+        branchIM.setColorAt(i * 4 + k, new THREE.Color(0x6b4a2a).offsetHSL(0, (lrand() - 0.5) * 0.05, (lrand() - 0.5) * 0.07));
       }
     });
     if (branchIM.instanceColor) branchIM.instanceColor.needsUpdate = true;
@@ -903,7 +1039,7 @@ export function buildWorld(scene) {
     const BLOBS = 6;
     const canopyIM = new THREE.InstancedMesh(canopyGeometry(1, 3.1, 0.30), foliageMat, trees.length * BLOBS);
     canopyIM.castShadow = true; canopyIM.frustumCulled = false;
-    const deepGreen = new THREE.Color(0x2f4d20), tipGreen = new THREE.Color(0x7d9c3c);
+    const deepGreen = new THREE.Color(0x2a6318), tipGreen = new THREE.Color(0x93c23e); // V6-3 vivid greens
     trees.forEach((t, i) => {
       const trunkH = 3.2 * t.sy;
       for (let k = 0; k < BLOBS; k++) {
@@ -983,6 +1119,7 @@ export function buildWorld(scene) {
       [-53, -35, -62.5, -51],                               // north ridge terraces
       [-61.5, -51, -15, 23],                                // depot row maze
       [36, 61, 36, 61],                                     // motor pool
+      [-22.5, -1.5, 37, 47],                                // V6-3 HQ footprint (SW inner court)
     ];
     const clearPoints = [
       [-42, -42, 2.2], [42, -42, 2.2], [-42, 42, 2.2], [42, 42, 2.2], [0, -44, 2.2], [0, 44, 2.2],
@@ -1009,8 +1146,8 @@ export function buildWorld(scene) {
     // 90 each, one per material). V4: count up with the bigger world.
     const tuftGeo = new THREE.ConeGeometry(0.16, 0.5, 5);
     const tuftMats = [
-      new THREE.MeshStandardMaterial({ color: 0x49682c, roughness: 1, flatShading: true }),
-      new THREE.MeshStandardMaterial({ color: 0x7d9c46, roughness: 1, flatShading: true }),
+      new THREE.MeshStandardMaterial({ color: 0x3f751f, roughness: 1, flatShading: true }),
+      new THREE.MeshStandardMaterial({ color: 0x8cc24a, roughness: 1, flatShading: true }),
     ];
     const tuftMeshes = tuftMats.map(m => {
       const im = new THREE.InstancedMesh(tuftGeo, m, 96);
