@@ -156,41 +156,100 @@ body.touch-mode #stats-top { top:calc(10px + env(safe-area-inset-top)); right:ca
 }
 .cd-swatch.sel { border-color: #fff; box-shadow: 0 0 10px var(--c); }
 
-/* U6-01 usable scopes: the optic picture. Magnification itself
-   is the FOV division by the attachment's adsZoom stat (player
-   FOV ease) — this layer is what you SEE through the glass. */
+/* Usable scopes (U6-01; five-kind taxonomy U7-01): the sight
+   picture. Magnification itself is the FOV division by the
+   sight's adsZoom stat (player FOV ease) — this layer is what
+   you SEE through the sight. Five kinds, each its own picture:
+   iron (open post + wings, bottom centre), reddot (small open
+   ring + red dot), holo (rectangular window + ring-and-dot),
+   mid / sniper (blacked-out tubes; sniper tighter, mil-dotted).
+   The label (kind + zoom) renders for every kind. */
 #scope-overlay { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .10s ease; z-index: 6; }
 #scope-overlay.on { opacity: 1; }
-#scope-overlay .scope-circle, #scope-overlay .scope-h, #scope-overlay .scope-v, #scope-overlay .scope-dot, #scope-overlay .scope-mag { display: none; }
-#scope-overlay.kind-scope .scope-circle {
+#scope-overlay .scope-circle, #scope-overlay .scope-ring, #scope-overlay .scope-window, #scope-overlay .scope-h, #scope-overlay .scope-v, #scope-overlay .scope-mil, #scope-overlay .scope-dot, #scope-overlay .sight-post, #scope-overlay .sight-wing, #scope-overlay .scope-mag { display: none; }
+#scope-overlay .scope-mag { position: absolute; left: 50%; top: calc(50% + 34vmin); transform: translateX(-50%); color: rgba(230, 235, 240, .8); font: 600 13px/1 monospace; letter-spacing: .18em; text-shadow: 0 1px 4px rgba(0,0,0,.8); white-space: nowrap; }
+#scope-overlay.on .scope-mag { display: block; }
+/* --- magnified tubes (mid 3× / sniper 5×) --- */
+#scope-overlay.kind-mid .scope-circle, #scope-overlay.kind-sniper .scope-circle {
   display: block; position: absolute; left: 50%; top: 50%;
   width: 64vmin; height: 64vmin; transform: translate(-50%, -50%);
   border-radius: 50%; box-shadow: 0 0 0 999vmax rgba(2, 3, 4, 0.985), inset 0 0 60px rgba(0,0,0,.55);
   border: 2px solid rgba(10, 10, 10, .9);
 }
-#scope-overlay.kind-scope .scope-h, #scope-overlay.kind-scope .scope-v { display: block; position: absolute; left: 50%; top: 50%; background: rgba(8, 8, 8, .88); }
-#scope-overlay.kind-scope .scope-h { width: 64vmin; height: 1.5px; transform: translate(-50%, -50%); background-image: radial-gradient(circle, rgba(8,8,8,.9) 1.6px, transparent 2.2px); background-size: 7.5vmin 100%; background-position: center; background-repeat: repeat-x; background-color: transparent; border-top: 1.5px solid rgba(8,8,8,.88); height: 3px; }
-#scope-overlay.kind-scope .scope-v { width: 1.5px; height: 64vmin; transform: translate(-50%, -50%); }
-#scope-overlay.kind-scope .scope-mag { display: block; position: absolute; left: 50%; top: calc(50% + 27vmin); transform: translateX(-50%); color: rgba(230, 235, 240, .75); font: 600 13px/1 monospace; letter-spacing: .18em; }
-#scope-overlay.kind-holo .scope-circle {
+#scope-overlay.kind-sniper .scope-circle { width: 54vmin; height: 54vmin; }
+#scope-overlay.kind-mid .scope-h, #scope-overlay.kind-mid .scope-v, #scope-overlay.kind-sniper .scope-h, #scope-overlay.kind-sniper .scope-v { display: block; position: absolute; left: 50%; top: 50%; background: rgba(8, 8, 8, .88); }
+#scope-overlay.kind-mid .scope-h, #scope-overlay.kind-sniper .scope-h { width: 64vmin; height: 1.5px; transform: translate(-50%, -50%); }
+#scope-overlay.kind-sniper .scope-h { width: 54vmin; background-image: radial-gradient(circle, rgba(8,8,8,.9) 1.6px, transparent 2.2px); background-size: 6.5vmin 100%; background-position: center; background-repeat: repeat-x; background-color: transparent; border-top: 1.5px solid rgba(8,8,8,.88); height: 3px; }
+#scope-overlay.kind-mid .scope-v, #scope-overlay.kind-sniper .scope-v { width: 1.5px; height: 64vmin; transform: translate(-50%, -50%); }
+#scope-overlay.kind-sniper .scope-v { height: 54vmin; }
+#scope-overlay.kind-sniper .scope-mil { display: block; position: absolute; left: 50%; width: 4px; height: 4px; border-radius: 50%; background: rgba(8, 8, 8, .85); transform: translate(-50%, -50%); }
+#scope-overlay.kind-sniper .scope-mil-1 { top: calc(50% + 6.5vmin); }
+#scope-overlay.kind-sniper .scope-mil-2 { top: calc(50% + 13vmin); }
+#scope-overlay.kind-mid .scope-mag { top: calc(50% + 27vmin); }
+#scope-overlay.kind-sniper .scope-mag { top: calc(50% + 22.5vmin); }
+/* --- holographic (open rectangular window + ring-and-dot) --- */
+#scope-overlay.kind-holo .scope-window {
   display: block; position: absolute; left: 50%; top: 50%;
-  width: 36vmin; height: 36vmin; transform: translate(-50%, -50%);
-  border-radius: 50%; border: 3px solid rgba(15, 18, 20, .92);
+  width: 34vmin; height: 26vmin; transform: translate(-50%, -50%);
+  border: 3px solid rgba(15, 18, 20, .92); border-radius: 1.2vmin;
   box-shadow: inset 0 0 0 2px rgba(140, 220, 255, .14), 0 0 24px rgba(0,0,0,.25);
-  background: radial-gradient(circle, rgba(140, 210, 255, .05) 0%, rgba(140, 210, 255, 0.015) 70%, transparent 71%);
+  background: linear-gradient(rgba(140, 210, 255, .055), rgba(140, 210, 255, .055));
+}
+#scope-overlay.kind-holo .scope-ring {
+  display: block; position: absolute; left: 50%; top: 50%;
+  width: 11vmin; height: 11vmin; transform: translate(-50%, -50%);
+  border-radius: 50%; border: 2px solid rgba(255, 84, 60, .9);
+  box-shadow: 0 0 8px rgba(255, 53, 36, .35), inset 0 0 8px rgba(255, 53, 36, .25);
 }
 #scope-overlay.kind-holo .scope-dot, #scope-overlay.kind-reddot .scope-dot {
   display: block; position: absolute; left: 50%; top: 50%;
   width: 7px; height: 7px; border-radius: 50%; transform: translate(-50%, -50%);
   background: #ff3524; box-shadow: 0 0 9px 2px rgba(255, 53, 36, .75);
 }
+/* --- red dot (small open ring) --- */
 #scope-overlay.kind-reddot .scope-circle {
   display: block; position: absolute; left: 50%; top: 50%;
   width: 19vmin; height: 19vmin; transform: translate(-50%, -50%);
   border-radius: 50%; border: 2.5px solid rgba(15, 18, 20, .92);
   box-shadow: 0 0 18px rgba(0,0,0,.3);
 }
+/* --- iron sights (open: front post + rear wings, bottom centre) --- */
+#scope-overlay.kind-iron .sight-post {
+  display: block; position: absolute; left: 50%; bottom: 0;
+  width: 5px; height: 17vmin; transform: translateX(-50%);
+  background: linear-gradient(to top, rgba(10, 11, 12, .97), rgba(10, 11, 12, .92));
+  border-radius: 2px 2px 0 0;
+  box-shadow: 0 0 14px rgba(0,0,0,.35);
+}
+#scope-overlay.kind-iron .sight-post::after {
+  content: ''; position: absolute; left: 50%; top: 5px; transform: translateX(-50%);
+  width: 3px; height: 3px; border-radius: 50%;
+  background: #cfe6cf; box-shadow: 0 0 5px rgba(210, 255, 210, .8);
+}
+#scope-overlay.kind-iron .sight-wing {
+  display: block; position: absolute; bottom: 0;
+  width: 11vmin; height: 8.5vmin;
+  background: linear-gradient(to top, rgba(10, 11, 12, .97), rgba(10, 11, 12, .9));
+}
+#scope-overlay.kind-iron .sight-wing-l { right: calc(50% + 4.5vmin); border-radius: 6px 3px 0 0; transform: skewX(6deg); }
+#scope-overlay.kind-iron .sight-wing-r { left: calc(50% + 4.5vmin); border-radius: 3px 6px 0 0; transform: skewX(-6deg); }
 #hud.scoped-scope #crosshair { opacity: 0; }
+
+/* U7-01 ADS discovery hint: one-time chip under the crosshair
+   until the player's first-ever aim (retired in main.js). */
+#ads-hint {
+  position: absolute; left: 50%; top: calc(50% + 9vmin); transform: translateX(-50%);
+  z-index: 6; pointer-events: none; opacity: 0; transition: opacity .25s ease;
+  background: rgba(6, 12, 8, .72); border: 1px solid rgba(182, 255, 176, .45); border-radius: 999px;
+  padding: 8px 16px; color: #dff5df; font: 700 12px/1.2 system-ui, sans-serif; letter-spacing: .14em;
+  text-shadow: 0 1px 3px rgba(0,0,0,.8); white-space: nowrap;
+}
+#ads-hint.on { opacity: 1; animation: ads-hint-pulse 1.6s ease-in-out infinite; }
+#ads-hint .hint-touch { display: none; }
+#ads-hint.on.touch .hint-keys { display: none; }
+#ads-hint.on.touch .hint-touch { display: inline; }
+@keyframes ads-hint-pulse { 0%, 100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.045); } }
+@media (prefers-reduced-motion: reduce) { #ads-hint.on { animation: none; } }
 
 /* ---------- U6-09 START MENU REDESIGN ---------- */
 /* Brett: the menu "looks kinda dull" — make it lively, modern,
