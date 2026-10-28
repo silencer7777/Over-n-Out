@@ -101,18 +101,18 @@ export const LIGHTING_PROFILES = {
     sky: { zenith: 0x2e5a8c, mid: 0x6ea3d4, horizon: 0xcfdde8 },
     dome: 'profile',
     disc: true, discColor: 0xfff3d0, glowColor: 0xffe9bb, glowScale: 85, glowAlpha: 0.55,
-    stars: 0, exposure: 1.10, shadowExtent: 72,
+    stars: 0, exposure: 1.10, shadowExtent: 86,
   },
   forest: {
     id: 'forest', name: 'Canopy Morning',
     sunXZ: [-0.657, -0.755], elevationDeg: 36,
     sunColor: 0xfff0d6, sunIntensity: 2.5,
-    hemiSky: 0xbcd8c8, hemiGround: 0x5d6b45, hemiIntensity: 1.00,
+    hemiSky: 0xbcd8c8, hemiGround: 0x5d6b45, hemiIntensity: 1.04,
     fogColor: 0xc3d5c0, fogNear: 42, fogFar: 200,
     sky: { zenith: 0x2c5a7c, mid: 0x6fae9e, horizon: 0xc3d5c0 },
     dome: 'profile',
     disc: true, discColor: 0xfff3d0, glowColor: 0xffedc4, glowScale: 85, glowAlpha: 0.5,
-    stars: 0, exposure: 1.08, shadowExtent: 68,
+    stars: 0, exposure: 1.08, shadowExtent: 86,
   },
   snow: {
     id: 'snow', name: 'Bright Overcast',
@@ -123,13 +123,13 @@ export const LIGHTING_PROFILES = {
     sky: { zenith: 0x9fb4c4, mid: 0xc3d2dc, horizon: 0xe6edf2 },
     dome: 'profile',
     disc: true, discColor: 0xf7fafc, glowColor: 0xeef4f8, glowScale: 130, glowAlpha: 0.35,
-    stars: 0, exposure: 1.08, shadowExtent: 68,
+    stars: 0, exposure: 1.08, shadowExtent: 86,
   },
   mars: {
     id: 'mars', name: 'Butterscotch Midday',
     sunXZ: [-0.858, -0.515], elevationDeg: 42,
     sunColor: 0xffe9c4, sunIntensity: 2.4,
-    hemiSky: 0xd9a06b, hemiGround: 0x7a4a2e, hemiIntensity: 1.00,
+    hemiSky: 0xd9a06b, hemiGround: 0x7a4a2e, hemiIntensity: 1.06,
     // Fog colour is Atlas's dressing value EXACTLY (0x9a5f36)
     // so profile and dressing never fight over it (Board 005 §2.2).
     fogColor: 0x9a5f36, fogNear: 42, fogFar: 200,
@@ -139,7 +139,7 @@ export const LIGHTING_PROFILES = {
     // The Mars sun lives in Atlas's dome painting — the rig's
     // disc/glow hide here. One sun per sky.
     disc: false, discColor: 0xffe9c4, glowColor: 0xffd9a0, glowScale: 70, glowAlpha: 0.4,
-    stars: 0, exposure: 1.06, shadowExtent: 68,
+    stars: 0, exposure: 1.06, shadowExtent: 86,
   },
 };
 
@@ -196,6 +196,11 @@ export function applyLightingProfile(THREE, scene, renderer, id) {
   if (sun.color && typeof sun.color.setHex === 'function') sun.color.setHex(p.sunColor);
   sun.intensity = p.sunIntensity;
   if (sun.shadow && sun.shadow.camera) {
+    // U7-04: shadowExtent is 86 on every profile — U6-12 grew
+    // the playable bounds to ±80 but the shadow camera stayed
+    // at ±72/±68, leaving the ring POIs shadowless. 86 covers
+    // the bounds plus margin; the 4096 map still resolves
+    // ≈4.2 cm/texel and no caster count changes.
     const cam = sun.shadow.camera;
     cam.left = -p.shadowExtent; cam.right = p.shadowExtent;
     cam.top = p.shadowExtent; cam.bottom = -p.shadowExtent;
