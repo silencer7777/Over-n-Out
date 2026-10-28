@@ -116,6 +116,10 @@ function buildAR() {
   P(L, cylZ(0.029, 0.075), 'steel', 0, 0.02, -0.665);                            // muzzle brake
   P(L, cylZ(0.031, 0.012), 'steel', 0, 0.02, -0.640);                            // muzzle brake ring
   P(L, box(0.02, 0.055, 0.03), 'metal', 0, 0.055, -0.44);                        // gas block / front sight post
+  P(L, cylZ(0.007, 0.22), 'steel', 0, 0.045, -0.35);                             // gas tube (U5-06: runs from the gas block back into the handguard — the AR's gas system)
+  for (let i = 0; i < 4; i++) for (const s of [-1, 1]) {
+    P(L, box(0.004, 0.018, 0.038), 'metal', s * 0.032, 0.008, -0.36 + i * 0.065); // handguard vent slots (U5-06)
+  }
   railAndOptic(L, -0.10, 0.40, -0.04);
   magazine(L, 'metal', 0, -0.105, 0.045, 0.075, 3, 0.14);                        // curved magazine (3 segments)
   gripAndGuard(L, 0.125, 0.0);
@@ -134,6 +138,8 @@ function buildSMG() {
   P(L, cylZ(0.014, 0.12), 'steel', 0, 0.015, -0.175);                            // barrel
   P(L, cylZ(0.027, 0.17), 'steel', 0, 0.015, -0.295);                            // suppressor / muzzle
   P(L, cylY(0.012, 0.05), 'metal', 0.048, 0.0, -0.03, 0, 0, Math.PI / 2);        // charging handle (side)
+  P(L, cylY(0.008, 0.070), 'steel', 0, 0.032, 0.055, 0, 0, Math.PI / 2);         // receiver pivot pin (U5-06)
+  P(L, box(0.006, 0.022, 0.034), 'metal', 0.035, -0.020, 0.045, 0, 0, 0.4);      // magazine release paddle (U5-06)
   magazine(L, 'metal', 0, -0.115, 0.015, 0.06, 2, 0.05);                         // straight magazine (long)
   P(L, box(0.042, 0.115, 0.048), 'polymer', 0, -0.105, -0.135, 0.12);            // vertical foregrip
   gripAndGuard(L, 0.115, -0.01);
@@ -149,6 +155,10 @@ function buildShotgun() {
   P(L, box(0.072, 0.12, 0.25), 'metal', 0, 0, 0.06);                             // receiver
   P(L, cylZ(0.021, 0.52), 'steel', 0, 0.028, -0.375);                            // barrel
   P(L, cylZ(0.017, 0.44), 'steel', 0, -0.032, -0.335);                           // magazine tube (under barrel)
+  P(L, box(0.05, 0.006, 0.30), 'steel', 0, 0.052, -0.35);                        // heat shield (U5-06: perforated shield over the barrel)
+  for (let i = 0; i < 4; i++) {
+    P(L, box(0.012, 0.004, 0.022), 'metal', 0, 0.056, -0.45 + i * 0.065);        // heat shield perforations (U5-06)
+  }
   P(L, box(0.078, 0.072, 0.17), 'wood', 0, -0.032, -0.30);                       // pump grip
   P(L, box(0.082, 0.02, 0.03), 'wood', 0, -0.068, -0.36);                        // pump rib detail
   P(L, box(0.082, 0.02, 0.03), 'wood', 0, -0.068, -0.245);
@@ -177,6 +187,11 @@ function buildDMR() {
   P(L, cylZ(0.031, 0.085), 'steel', 0, 0.02, -0.775);                            // muzzle brake
   P(L, cylZ(0.033, 0.012), 'steel', 0, 0.02, -0.748);                            // muzzle brake ring
   P(L, box(0.055, 0.075, 0.20), 'polymer', 0, 0.0, -0.33);                       // handguard
+  for (let i = 0; i < 3; i++) for (const s of [-1, 1]) {
+    P(L, box(0.004, 0.016, 0.030), 'metal', s * 0.0285, 0.0, -0.385 + i * 0.055); // handguard vent slots (U5-06)
+  }
+  P(L, cylZ(0.0235, 0.010), 'metal', 0, 0.02, -0.47);                            // barrel fluting ring (U5-06)
+  P(L, cylZ(0.0235, 0.010), 'metal', 0, 0.02, -0.415);                           // barrel fluting ring (U5-06)
   // Scope: tube + objective bell + eyepiece + mounts + glass.
   P(L, cylZ(0.024, 0.17), 'metal', 0, 0.125, -0.05);                             // scope tube
   P(L, cylZ(0.031, 0.035), 'metal', 0, 0.125, -0.135);                           // objective bell
@@ -221,6 +236,10 @@ function buildPistol() {
   }
   P(L, box(0.008, 0.012, 0.030), 'metal', -0.024, 0.012, 0.055, 0, 0, 0.3);       // thumb safety (left)
   P(L, cylZ(0.006, 0.030), 'steel', 0, 0.012, -0.118);                            // guide rod
+  for (let i = 0; i < 3; i++) {
+    P(L, box(0.048, 0.006, 0.008), 'metal', 0, 0.070, 0.028 + i * 0.014);         // slide-top serration grooves (U5-06: the slide reads machined from above/behind)
+  }
+  P(L, box(0.030, 0.012, 0.070), 'polymer', 0, -0.045, -0.075);                  // frame accessory rail (U5-06)
   return { parts: L, muzzle: new THREE.Vector3(0, 0.032, -0.145) };
 }
 
