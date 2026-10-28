@@ -155,22 +155,22 @@ export function makePlankTexture() {
 export function makeConcreteTexture() {
   return canvasTexture(256, 991199, (c, S, rng) => {
     c.fillStyle = '#d9dbde'; c.fillRect(0, 0, S, S);
+    // Blotches are wrap-drawn (±S offsets) so the tile edge never
+    // slices one in half — the repeat stays invisible (U5-02).
     for (let i = 0; i < 18; i++) {
+      const bx = rng() * S, by = rng() * S, brx = 18 + rng() * 60, bry = 12 + rng() * 40, brot = rng() * Math.PI;
       c.fillStyle = rng() > 0.4 ? `rgba(30,30,34,${0.03 + rng() * 0.05})` : `rgba(255,255,255,${0.03 + rng() * 0.04})`;
-      c.beginPath();
-      c.ellipse(rng() * S, rng() * S, 18 + rng() * 60, 12 + rng() * 40, rng() * Math.PI, 0, Math.PI * 2);
-      c.fill();
+      for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) {
+        c.beginPath();
+        c.ellipse(bx + ox, by + oy, brx, bry, brot, 0, Math.PI * 2);
+        c.fill();
+      }
     }
-    // Horizontal form-board lines.
-    for (let y = 0; y < S; y += 64) {
-      c.fillStyle = 'rgba(30,32,36,0.20)'; c.fillRect(0, y, S, 2);
-      c.fillStyle = 'rgba(255,255,255,0.10)'; c.fillRect(0, y + 2, S, 2);
-    }
-    // Tie holes.
-    c.fillStyle = 'rgba(35,38,42,0.5)';
-    for (const [hx, hy] of [[32, 32], [224, 32], [32, 224], [224, 224], [128, 128]]) {
-      c.beginPath(); c.arc(hx, hy, 3.2, 0, Math.PI * 2); c.fill();
-    }
+    // V6 Update 5 (U5-02): the horizontal form-board lines and the
+    // fixed tie-hole dots that used to be painted here are REMOVED
+    // — tiled across floors they read as stripes and a dot grid
+    // (diagnosis D1). What remains is aperiodic: blotches, cracks,
+    // speckle. Nothing in this painter repeats on a period.
     c.strokeStyle = 'rgba(0,0,0,0.12)'; c.lineWidth = 1;
     for (let i = 0; i < 7; i++) {
       let x = rng() * S, y = rng() * S;
