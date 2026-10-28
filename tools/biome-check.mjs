@@ -79,8 +79,11 @@ else fail('B0 mars registry status → ' + BIOMES.find(b => b.id === 'mars')?.st
     else fail(`B2 forest bushes placed: ${bushCount} (expected >= 80)`);
     if (addedShootables.length === treeCount + mastMeshes) ok(`B3 forest hit-proxies tracked: ${addedShootables.length} === treeCount + mast meshes`);
     else fail(`B3 forest hit-proxies: ${addedShootables.length} !== treeCount ${treeCount} + mast ${mastMeshes}`);
-    if (addedColliders.length === treeCount + bushColliderCount + 1) ok(`B4 forest colliders tracked: ${addedColliders.length} === trees ${treeCount} + bush ${bushColliderCount} + mast 1`);
-    else fail(`B4 forest colliders: ${addedColliders.length} !== ${treeCount} + ${bushColliderCount} + 1 (mast)`);
+    // U6-16 RE-DERIVATION (named): the thicket lane walls add
+    // one tracked collider per planted bush (userData.thicketCount).
+    const thicketCount = g.userData.thicketCount || 0;
+    if (addedColliders.length === treeCount + bushColliderCount + thicketCount + 1) ok(`B4 forest colliders tracked: ${addedColliders.length} === trees ${treeCount} + bush ${bushColliderCount} + thicket ${thicketCount} + mast 1`);
+    else fail(`B4 forest colliders: ${addedColliders.length} !== ${treeCount} + ${bushColliderCount} + ${thicketCount} + 1 (mast)`);
     if (g.userData.mastPoi && g.userData.mastPoi.x === -16 && g.userData.mastPoi.z === 56 && mastMeshes === 4) {
       ok('B14 forest fallen-mast POI present at (-16, 56) with 4 tracked meshes + collider');
     } else fail(`B14 forest mast POI → ${JSON.stringify(g.userData.mastPoi)} meshes=${mastMeshes}`);
