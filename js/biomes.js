@@ -603,21 +603,34 @@ function buildForest(ctx) {
   // V6: two overlapping smooth masses per bush in the SAME
   // InstancedMesh (organic clumps, no extra call). The collider
   // rule below still keys on the main mass, unchanged.
-  const bushIM = new THREE.InstancedMesh(displacedSphere(1, 7.7, 0.34, 10, 8), foliageMat, bushes.length * 2);
+  // U7-02: a THIRD mass — a low, wide skirt grounding each bush
+  // (the approved tree technique applied to bushes), same mesh.
+  // Its variation comes from a locally-seeded PRNG (mulberry32
+  // on the bush index): the shared rng stream feeds the pinned
+  // biome scatter (B3/B4/B6/B7) and must not gain draws.
+  const bushIM = new THREE.InstancedMesh(displacedSphere(1, 7.7, 0.34, 10, 8), foliageMat, bushes.length * 3);
   bushIM.castShadow = true; bushIM.receiveShadow = true; bushIM.frustumCulled = false;
   let bushColliders = 0;
   bushes.forEach((b, i) => {
     dummy.rotation.set(0, rng() * Math.PI * 2, 0);
     dummy.position.set(b.x, b.size * 0.34, b.z);
     dummy.scale.set(b.size, b.size * 0.72, b.size * (0.85 + rng() * 0.3));
-    dummy.updateMatrix(); bushIM.setMatrixAt(i * 2, dummy.matrix);
-    bushIM.setColorAt(i * 2, deepGreen.clone().lerp(tipGreen, rng() * 0.55));
+    dummy.updateMatrix(); bushIM.setMatrixAt(i * 3, dummy.matrix);
+    bushIM.setColorAt(i * 3, deepGreen.clone().lerp(tipGreen, rng() * 0.55));
     const oa = rng() * Math.PI * 2, os = b.size * (0.5 + rng() * 0.2);
     dummy.rotation.set(0, rng() * Math.PI * 2, 0);
     dummy.position.set(b.x + Math.cos(oa) * b.size * 0.45, os * 0.36, b.z + Math.sin(oa) * b.size * 0.45);
     dummy.scale.set(os, os * 0.7, os * (0.85 + rng() * 0.3));
-    dummy.updateMatrix(); bushIM.setMatrixAt(i * 2 + 1, dummy.matrix);
-    bushIM.setColorAt(i * 2 + 1, deepGreen.clone().lerp(tipGreen, 0.15 + rng() * 0.5));
+    dummy.updateMatrix(); bushIM.setMatrixAt(i * 3 + 1, dummy.matrix);
+    bushIM.setColorAt(i * 3 + 1, deepGreen.clone().lerp(tipGreen, 0.15 + rng() * 0.5));
+    let sk = ((i + 1) * 2654435761) >>> 0;
+    const srnd = () => { sk = (sk + 0x6D2B79F5) >>> 0; let t = sk; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+    const sa = srnd() * Math.PI * 2, ss = b.size * (0.8 + srnd() * 0.2);
+    dummy.rotation.set(0, srnd() * Math.PI * 2, 0);
+    dummy.position.set(b.x + Math.cos(sa) * b.size * 0.22, b.size * 0.13, b.z + Math.sin(sa) * b.size * 0.22);
+    dummy.scale.set(ss, b.size * 0.34, ss * (0.85 + srnd() * 0.3));
+    dummy.updateMatrix(); bushIM.setMatrixAt(i * 3 + 2, dummy.matrix);
+    bushIM.setColorAt(i * 3 + 2, deepGreen.clone().lerp(tipGreen, srnd() * 0.3));
     if (b.size >= 1.1) {
       const collider = new THREE.Box3(
         new THREE.Vector3(b.x - b.size * 0.75, 0, b.z - b.size * 0.75),
