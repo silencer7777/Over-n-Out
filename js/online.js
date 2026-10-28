@@ -141,6 +141,10 @@ export class OnlineSession {
         }
         if (msg.t === 'snapshot') { this.latest = msg; this._syncPuppets(msg); return; }
         if (msg.t === 'event') { this._onEvent(msg); return; }
+        // U6-14/U6-15: chat lines and voice signaling ride the
+        // same socket (protocol extension) — routed to hooks.
+        if (msg.t === 'chat') { this.hooks.onChat?.(msg); return; }
+        if (msg.t === 'signal') { this.hooks.onSignal?.(msg); return; }
         if (msg.t === 'ping') { try { ws.send(JSON.stringify({ t: 'pong', id: msg.id ?? null })); } catch {} }
       };
       ws.onclose = () => {
@@ -239,6 +243,19 @@ export class OnlineSession {
     this._inputAcc = 0;
     const sample = buildSample(++this.seq);
     try { this.ws.send(JSON.stringify(sample)); } catch {}
+  }
+
+  // U6-14: send a chat line on this session's socket. The
+  // server stamps identity; the payload is words only.
+  sendChat(channel, text) {
+    if (!this.connected || !this.ws || this.ws.readyState !== 1) return false;
+    try { this.ws.send(JSON.stringify({ t: 'chat', channel, text })); return true; } catch { return false; }
+  }
+
+  // U6-15: send a WebRTC signal relayed by the server.
+  sendSignal(to, kind, data) {
+    if (!this.connected || !this.ws || this.ws.readyState !== 1) return false;
+    try { this.ws.send(JSON.stringify({ t: 'signal', to, kind, data })); return true; } catch { return false; }
   }
 
   close() {
