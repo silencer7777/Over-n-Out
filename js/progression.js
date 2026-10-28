@@ -17,6 +17,10 @@
 import { MAX_CLASSES, defaultClass, validateClass } from './loadouts.js';
 
 export const PROFILE_KEY = 'ono-profile-v1';
+// U6-05: the countdown colour palette. Green is the shipped
+// default for everyone (Brett approved it as-is); the others
+// are a personal preference, sanitized against this list.
+export const COUNTDOWN_COLORS = ['#39ff6a', '#35c4ff', '#ffb02e', '#ff4fd8', '#ffffff'];
 export const LEGACY_SENS_KEY = 'ono-sensitivity';
 export const MAX_LEVEL = 30;
 
@@ -177,6 +181,11 @@ export function createProfile() {
       qualityMode: 'auto',   // auto | high | medium | low
       fov: 75,
       sprintToggle: false,   // false = hold Shift, true = tap to toggle
+      countdownColor: '#39ff6a',   // U6-05: green is the default for everyone (Brett's ruling)
+      voiceChannel: 'off',   // U6-15: 'off' | 'team' | 'all' — off until the player opts in
+      voiceMic: 'ptt',       // U6-15: 'ptt' (hold V) | 'open'
+      voicePeers: {},        // U6-15: callsign -> { muted, volume } per-player prefs
+      chatMuted: [],         // U6-14: callsigns muted in chat (persisted per Brett's options)
     },
   };
 }
@@ -205,6 +214,24 @@ export function sanitizeProfile(raw) {
     if (['auto', 'high', 'medium', 'low'].includes(s.qualityMode)) p.settings.qualityMode = s.qualityMode;
     if (Number.isFinite(s.fov)) p.settings.fov = Math.max(60, Math.min(100, Math.round(s.fov)));
     if (typeof s.sprintToggle === 'boolean') p.settings.sprintToggle = s.sprintToggle;
+    if (COUNTDOWN_COLORS.includes(s.countdownColor)) p.settings.countdownColor = s.countdownColor;
+    // U6-14/U6-15 comms settings — enum-checked, peer prefs
+    // shape-checked per entry, mute list capped.
+    if (['off', 'team', 'all'].includes(s.voiceChannel)) p.settings.voiceChannel = s.voiceChannel;
+    if (['ptt', 'open'].includes(s.voiceMic)) p.settings.voiceMic = s.voiceMic;
+    if (s.voicePeers && typeof s.voicePeers === 'object' && !Array.isArray(s.voicePeers)) {
+      for (const [name, v] of Object.entries(s.voicePeers).slice(0, 32)) {
+        if (v && typeof v === 'object') {
+          p.settings.voicePeers[String(name).slice(0, 24)] = {
+            muted: !!v.muted,
+            volume: Number.isFinite(v.volume) ? Math.max(0, Math.min(1, v.volume)) : 1,
+          };
+        }
+      }
+    }
+    if (Array.isArray(s.chatMuted)) {
+      p.settings.chatMuted = s.chatMuted.filter(n => typeof n === 'string').slice(0, 32).map(n => n.slice(0, 24));
+    }
   }
   return p;
 }
