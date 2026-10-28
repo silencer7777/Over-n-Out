@@ -593,7 +593,8 @@ try {
   // PG6: Havoc's ruled values + prestige track (v4-progression-curve.md §5 pin)
   if (P.XP_VALUES.capture === 100 && P.XP_VALUES.assist === 40 && P.XP_VALUES.matchLoss === 100 && P.XP_VALUES.streak8 === 150) ok('PG6 XP values ruled: capture 100 / assist 40 / matchLoss 100 / streak8 150');
   else fail(`PG6 XP values drifted: ${JSON.stringify(P.XP_VALUES)}`);
-  if (Array.isArray(P.PRESTIGE) && P.PRESTIGE.length === 11 && P.PRESTIGE.every(u => u.kind === 'prestige' || u.kind === 'camo')) ok('PG7 prestige track: 11 entries (7 V4 + 4 V5 camos), zero power past L18');
+  // PG7 re-pinned by U5-10 (ruled change, Brett's earnable-camos spec): +4 designs.
+  if (Array.isArray(P.PRESTIGE) && P.PRESTIGE.length === 15 && P.PRESTIGE.every(u => u.kind === 'prestige' || u.kind === 'camo')) ok('PG7 prestige track: 15 entries (7 V4 + 8 camos), zero power past L18');
   else fail(`PG7 prestige → ${P.PRESTIGE?.length}`);
   const all = P.unlocksBetween(16, 30);
   if (all.some(u => u.kind === 'prestige') && all.some(u => u.id === 'suppressor')) ok('PG8 unlocksBetween merges power + prestige in level order');
