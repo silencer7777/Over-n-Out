@@ -207,6 +207,29 @@ only when they cost the graphics mission nothing:
   on tree + snapshot; live byte-verified (10 files exact).
   Report: `docs/sessions/v6-update-07-report.md`. **The count
   is now 7. Awaiting Brett's playtest verdicts — scopes first.**
+- **Update 8 LANDED + PUSHED LIVE** (Oct 28, slim hotfix,
+  commits `af33e54` spec + `aeca7a6` code + this landing):
+  Brett's 04:27 playtest verdicts — scopes CONFIRMED ("works
+  and is pretty cool", queue item 1 closed); mobile portrait
+  too cramped → landscape, then refined 04:30: **automatic on
+  flip, from game start, no manual step**. Shipped: boot-bound
+  `fitRenderer()` (resize + orientationchange immediate/rAF/
+  250 ms + visualViewport) so flips re-fit in menu and
+  mid-match; a touch+portrait rotate prompt (pure CSS gate,
+  non-blocking, CSS icon); a GO LANDSCAPE button (menu + touch
+  pill via a new TouchCore orient hook) doing fullscreen +
+  `orientation.lock('landscape')` where supported and a safe
+  no-op on iOS; and a landscape-phone layout query
+  (≤520px height) re-seating the touch cluster into a
+  pairwise-checked non-overlap grid + HUD re-seats — portrait
+  CSS untouched. mobile-check gained T6 (7 assertions, 47
+  total); no re-pins. Perf Δ0 on every map (calls 131/144/
+  143/145; tris and shadow estimates identical to U7). All
+  five gates green on tree + snapshot; live byte-verified.
+  Report: `docs/sessions/v6-update-08-report.md`. **The count
+  is now 8.** Queue head for the coming sessions: characters
+  realism, then Brett's 04:29 minimap + Domination guidance
+  spec (see the MEMORY directive), scenery/mountains, meta.
 
 ## Owner directives (Brett, Oct 28, 2026) — release law, lighting lock lifted, focus queue
 
