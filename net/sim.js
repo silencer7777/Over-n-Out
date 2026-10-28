@@ -47,6 +47,7 @@ import {
   dronePositionAt, createStreakState, feedStreak, streakFeedFor, activateStreak,
 } from '../js/streaks.js';
 import { MAP_IDS, getMapData, TEAM_SPAWNS, ASSAULT_ATTACKER_SPAWNS } from '../js/maps.js';
+import { STANCE, createStanceState, stepStance } from '../js/stance.js';
 
 export const EYE = 1.66;
 
@@ -393,6 +394,9 @@ export function addSimPlayer(match, id, name, cls = null) {
     channelAcc: 0,
     prevLethal: false, prevTactical: false, prevPlace: null,
     prevUav: false, prevStreak: null,
+    // U6-10: stance (shared machine, js/stance.js). Sim players
+    // have no slide, so slideStarted/Ended are always false here.
+    stance: 'stand', stanceState: createStanceState(),
   };
   if (cls) {
     p.effPrimary = effectiveWeapon(getWeapon(cls.primary), cls.attachments || []);
@@ -506,6 +510,16 @@ function spawnBotSim(match, { team = 'kestrel', tier = null, weaponId = null, sp
   }
   const weapon = getWeapon(wid);
   const aimMult = AIM_MULTS[wid] === undefined ? 1.0 : AIM_MULTS[wid];
+  // U6-06 personality variance WITHOUT touching the match.rng
+  // stream: the sim is seed-deterministic and scenario gates
+  // (soak S3) ride the exact draw sequence — extra draws here
+  // reshuffle every downstream roll in the match. Personality
+  // derives from the bot's spawn ordinal instead: same ±25%
+  // aim jitter and 0.85–1.25 temperament bands, zero stream
+  // cost. (Solo bots use Math.random — no stream to protect.)
+  const botNum = match.nextBotNum;
+  const temperament = 0.85 + ((botNum * 53) % 40) / 100;
+  const aimJitter = 0.75 + ((botNum * 37) % 50) / 100;
   const bot = {
     id: 'b' + match.nextBotNum++,
     team, tier: tier || null, roster,
@@ -517,7 +531,11 @@ function spawnBotSim(match, { team = 'kestrel', tier = null, weaponId = null, sp
     strafeT: 1 + match.rng() * 2,
     burstCooldown: 1.2 + match.rng() * 1.4,
     burstLeft: 0, shotTimer: 0, burstShotIndex: 0,
-    aimTimeNeeded: Math.max(0.25, 0.55 / difficulty) * aimMult,
+    // U6-06 mirrors of the solo bot realism (js/bots.js):
+    // aim-time jitter ±25% symmetric + burst-pause temperament
+    // (ordinal-derived above — never from match.rng).
+    temperament,
+    aimTimeNeeded: Math.max(0.25, 0.55 / difficulty) * aimMult * aimJitter,
     visibleTime: 0, losLostTime: 0,
     flinchT: 0, flinchDuration: 0.25, blindT: 0,
     frameCounter: 0, losPhase: Math.floor(match.rng() * 3), cachedLosF: 0,
@@ -666,6 +684,13 @@ function stepPlayer(match, p, dt, events) {
 
   const f = (keys.forward ? 1 : 0) - (keys.back ? 1 : 0);
   const s = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+  // U6-10 stance: the SAME machine the solo client runs.
+  p.stance = stepStance(p.stanceState, {
+    held: !!input.stance, proneHeld: !!input.prone, tapRequest: false,
+    jumpPressed: !!keys.jump && !p.prevJump,
+    sprintActive: !!keys.sprint && !!(f || s),
+    slideStarted: false, slideEnded: false,
+  }, dt);
   // Movement perks are sim-true (Havoc §5): Lightweight scales
   // the caps; Stalker buys back aim-walk speed on top of the
   // weapon's moveAds, capped at full speed. ADS itself (input
@@ -683,6 +708,7 @@ function stepPlayer(match, p, dt, events) {
     }
     speed *= ads;
   }
+  speed *= STANCE[p.stance].speed; // U6-10: crouch 0.55×, prone 0.22×
   const sin = Math.sin(p.yaw), cos = Math.cos(p.yaw);
   const wx = (-sin * f + cos * s);
   const wz = (-cos * f - sin * s);
@@ -798,12 +824,17 @@ function shootSim(match, p, events) {
   const weapon = playerWeapon(p);
   p.mags[p.weaponId]--;
   p.shots++;
-  p.fireCooldown = weapon.interval;
+  // U6-04 CADENCE: carry the remainder (see js/main.js shoot()) —
+  // at the 30 Hz tick the reset pattern fired the AR at 7.50/s
+  // against a table 8.70 and swallowed the barrel attachments'
+  // ±interval mods whole (short and long both measured 7.50).
+  p.fireCooldown += weapon.interval;
+  if (p.fireCooldown < -weapon.interval) p.fireCooldown = -weapon.interval;
   p.bloom = Math.min(1, p.bloom + 0.16 * weapon.bloomRate);
   const hSpeed = Math.hypot(p.vel.x, p.vel.z);
   const aiming = !!(p.input && p.input.aim);
   const baseSpread = aiming && typeof weapon.spreadAds === 'number' ? weapon.spreadAds : weapon.spread;
-  const spread = baseSpread + p.bloom * 0.028 + (hSpeed > 6 ? 0.004 : 0);
+  const spread = (baseSpread + p.bloom * 0.028 + (hSpeed > 6 ? 0.004 : 0)) * STANCE[p.stance].spread; // U6-10: crouch 0.85×, prone 0.65×
   const ox = p.pos.x, oy = p.pos.y + EYE, oz = p.pos.z;
   const cp = Math.cos(p.pitch);
   const bx = -Math.sin(p.yaw) * cp, by = Math.sin(p.pitch), bz = -Math.cos(p.yaw) * cp;
@@ -1485,7 +1516,8 @@ function stepSentries(match, dt, events) {
     if (s.burstLeft > 0) {
       s.shotTimer -= dt;
       if (s.shotTimer <= 0) {
-        s.shotTimer = wBot.bot.shotInterval;
+        s.shotTimer += wBot.bot.shotInterval; // U6-04 CADENCE: carry remainder
+        if (s.shotTimer < -wBot.bot.shotInterval) s.shotTimer = -wBot.bot.shotInterval;
         s.burstLeft--;
         events.push({ kind: 'sentry_shot', id: s.id, dist: +td.toFixed(1) });
         if (tgt && !tgt.dead && losF > 0 && aimed) {
@@ -1706,7 +1738,7 @@ function stepBot(match, bot, dt, events) {
   // Movement: close in, strafe at mid range, back off point blank.
   const moveCfg = BOT_MOVEMENT[bot.weaponId] || BOT_MOVEMENT.ar;
   bot.strafeT -= dt;
-  if (bot.strafeT <= 0) { bot.strafeT = 1 + match.rng() * 2; bot.strafeDir *= -1; }
+  if (bot.strafeT <= 0) { bot.strafeT = 0.7 + match.rng() * 0.9; bot.strafeDir *= -1; } // U6-06: 0.7–1.6 s reversals
   let mx = 0, mz = 0;
   if (dist > moveCfg.close) { mx += vx; mz += vz; }
   else if (dist < moveCfg.backoff) { mx -= vx * 0.7; mz -= vz * 0.7; }
@@ -1857,7 +1889,8 @@ function stepBot(match, bot, dt, events) {
   if (bot.burstLeft > 0) {
     bot.shotTimer -= dt;
     if (bot.shotTimer <= 0) {
-      bot.shotTimer = bot.weapon.bot.shotInterval;
+      bot.shotTimer += bot.weapon.bot.shotInterval; // U6-04 CADENCE: carry remainder
+      if (bot.shotTimer < -bot.weapon.bot.shotInterval) bot.shotTimer = -bot.weapon.bot.shotInterval;
       bot.burstLeft--;
       events.push({ kind: 'bot_shot', bot: bot.id, dist: +dist.toFixed(1) });
       if (canFire) {
@@ -1869,6 +1902,7 @@ function stepBot(match, bot, dt, events) {
         let chance = Math.min(0.52 - dist * 0.011, 0.45);
         chance = Math.max(0.10, chance) * hitScalarFor(bot.weaponId, dist) * bot.difficulty * burstMult * moveFactor;
         chance = Math.min(chance, 0.55);
+        if (targetPlayer) chance *= STANCE[targetPlayer.stance].hit; // U6-10: stance hit rule vs players
         if (match.rng() < chance) {
           const raw = bot.weapon.bot.damageMin + match.rng() * (bot.weapon.bot.damageMax - bot.weapon.bot.damageMin);
           const dmg = raw * falloffFactor(bot.weapon, dist);
@@ -1887,7 +1921,7 @@ function stepBot(match, bot, dt, events) {
       bot.burstLeft = bot.weapon.bot.burst;
       bot.burstShotIndex = 0;
       bot.shotTimer = 0;
-      bot.burstCooldown = rollBurstCooldown(match.rng, bot.weaponId);
+      bot.burstCooldown = rollBurstCooldown(match.rng, bot.weaponId) * bot.temperament; // U6-06
     }
   }
   return true;
