@@ -318,6 +318,10 @@ export class TouchControls {
     // touches — swallow them so a two-finger look never zooms.
     this.doc.addEventListener('gesturestart', e => e.preventDefault());
     this.win.addEventListener('resize', () => this.core.setViewport(this.win.innerWidth));
+    // U9: iOS does not guarantee a resize event on every rotation
+    // (in-app webviews, bfcache restores) — orientationchange
+    // re-feeds the stick viewport too.
+    this.win.addEventListener('orientationchange', () => this.core.setViewport(this.win.innerWidth));
   }
 
   _showStick(x, y) {
