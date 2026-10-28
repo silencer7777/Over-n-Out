@@ -171,11 +171,13 @@ export function buildWorld(scene) {
     // the world-space Update 4 overlay carries the big variation
     // that must NOT repeat.
     const tex = new THREE.CanvasTexture(cv);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(10, 10);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(13, 13);
     // Frame cost: bumpMap reuses the same texture instance as map (no duplicate canvas / no extra GPU upload); per-frame cost is one extra texture sample in the ground shader.
     // V4 (Atlas): plane 110 -> 136 and repeat 8 -> 10, so the ±62
     // worlds sit on concrete at the same texel density as V3.
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(136, 136), new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 0.04, roughness: 0.95 }));
+    // U6-12: plane 136 -> 176, repeat 10 -> 13 (same density rule)
+    // for the ±80 expansion.
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(176, 176), new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 0.04, roughness: 0.95 }));
     ground.rotation.x = -Math.PI / 2;
     ground.name = 'ground';
     ground.receiveShadow = true;
@@ -394,8 +396,12 @@ export function buildWorld(scene) {
   // LINE — segments with 10 gaps (the ring's doors), merged into
   // ONE mesh. The inner course below is byte-identical to V3:
   // every V3 route, pin and spawn inside the old walls survives.
-  solid(0, -63, 128, 7, 2, wallMat); solid(0, 63, 128, 7, 2, wallMat);
-  solid(-63, 0, 2, 7, 128, wallMat); solid(63, 0, 2, 7, 128, wallMat);
+  // U6-12 EXPANSION: the perimeter moves again — playable
+  // bounds ±62 -> ±80, outer wall at ±81 (inner face = 80). The
+  // ±63 line is abandoned (the ground grew over it); the ±50
+  // ruin line stays as the interior doors it already was.
+  solid(0, -81, 164, 7, 2, wallMat); solid(0, 81, 164, 7, 2, wallMat);
+  solid(-81, 0, 2, 7, 164, wallMat); solid(81, 0, 2, 7, 164, wallMat);
   const RUIN_SEGMENTS = [
     // north (z=-50): gaps [-30,-24], [-3,3], [21,27]; last segment dropped to 5.4 (ruin character)
     B(-40.5, -50, 21, 2, 7), B(-13.5, -50, 21, 2, 7), B(12, -50, 18, 2, 7), B(39, -50, 24, 2, 5.4),
@@ -589,17 +595,25 @@ export function buildWorld(scene) {
   // roof (top 3.45) reached by the exterior crate stack east
   // (1.15 -> 2.3 -> roof), a fighting position over the SW
   // lanes. Interior: a hop crate + a full stack.
-  solid(-32, 40.15, 10, 3.2, 0.3, wallMat);            // north wall
-  solid(-34, 47.85, 6, 3.2, 0.3, wallMat);             // south wall L
-  solid(-28.2, 47.85, 2.4, 3.2, 0.3, wallMat);         // south wall R
-  solid(-36.85, 44, 0.3, 3.2, 7.4, wallMat);           // west wall
-  solid(-27.15, 41.65, 0.3, 3.2, 2.7, wallMat);        // east wall S
-  solid(-27.15, 46.35, 0.3, 3.2, 2.7, wallMat);        // east wall N
-  elevated(-32, 3.2, 44, 10.4, 0.25, 8.4, roofTexMat); // roof slab (top 3.45)
-  solid(-35, 42, 2.2, 1.15, 2.2, crateMat);            // interior hop crate
-  solid(-29, 46, 2.2, 2.2, 2.2, crateMat2);            // interior stack
-  solid(-25.6, 44, 2.2, 1.15, 2.2, crateMat);          // exterior stack 1
-  solid(-25.6, 41.6, 2.2, 2.3, 2.2, crateMat2);        // exterior stack 2
+  // U6-12: Ops grows on the same centre (-32, 44) — footprint
+  // 10x8 -> 12x10 (walls out 1 m on every side). Door gaps are
+  // UNCHANGED (south x -31..-29.4, east z 43..45) and the roof
+  // chain geometry keeps its shipped relation to the east wall.
+  solid(-32, 39.15, 12, 3.2, 0.3, wallMat);            // north wall
+  solid(-34.5, 48.85, 7, 3.2, 0.3, wallMat);           // south wall L
+  solid(-27.7, 48.85, 3.4, 3.2, 0.3, wallMat);         // south wall R
+  solid(-37.85, 44, 0.3, 3.2, 9.4, wallMat);           // west wall
+  solid(-26.15, 41.15, 0.3, 3.2, 3.7, wallMat);        // east wall S
+  solid(-26.15, 46.85, 0.3, 3.2, 3.7, wallMat);        // east wall N
+  elevated(-32, 3.2, 44, 12.4, 0.25, 10.4, roofTexMat); // roof slab (top 3.45)
+  solid(-36.5, 41.5, 2.2, 1.15, 2.2, crateMat);        // interior hop crate
+  solid(-28.5, 47, 2.2, 2.2, 2.2, crateMat2);          // interior stack
+  // U6-12 (collision fix): the roof-chain stacks move to the
+  // WEST exterior — the east side is now the HQ/Ops service
+  // alley (1.35 m), too tight for the chain. Chain geometry
+  // mirrors the old east chain: 1.15 -> 2.3 -> roof 3.45.
+  solid(-39.6, 44, 2.2, 1.15, 2.2, crateMat);          // exterior stack 1 (roof chain, west)
+  solid(-39.6, 41.6, 2.2, 2.3, 2.2, crateMat2);        // exterior stack 2 (roof chain, west)
   // V6-3 ENTERABLE INTERIORS, Stage 1 (Atlas): the Ops Building
   // becomes a true 3-room interior. APPEND-ONLY — every shipped
   // solid above is untouched; two partition walls with 1.4 m
@@ -615,10 +629,10 @@ export function buildWorld(scene) {
   // keeps the V5 interior probe point (-30.2, 44) open.
   // This wallRun-with-door-gap is the interior primitive of
   // the Stage-1 kit exercised at full scale by the HQ below.
-  solid(-32, 41.85, 0.3, 3.2, 3.1, wallMat);           // partition A north run (gap z 43.4..44.8)
-  solid(-32, 46.25, 0.3, 3.2, 2.9, wallMat);           // partition A south run
+  solid(-32, 41.35, 0.3, 3.2, 4.1, wallMat);           // partition A north run (gap z 43.4..44.8) — U6-12: extended to the new north wall
+  solid(-32, 46.75, 0.3, 3.2, 3.9, wallMat);           // partition A south run — U6-12: extended to the new south wall
   solid(-31.225, 44, 1.25, 3.2, 0.3, wallMat);         // partition B west run (gap x -30.6..-29.2)
-  solid(-28.15, 44, 1.9, 3.2, 0.3, wallMat);            // partition B east run
+  solid(-27.75, 44, 2.9, 3.2, 0.3, wallMat);           // partition B east run — U6-12: extended to the new east wall
   // Comms Shed (S ring, (24, 56)) — guards the ruin gap lane
   // [24,30]: three walls, open south, roof + awning on posts,
   // a guyed mast at its corner.
@@ -659,23 +673,34 @@ export function buildWorld(scene) {
   const HQ_FLOOR_H = 2.875, HQ_SLAB_T = 3.125; // floor-to-floor + slab = pitch 3.125
   // -- ground-floor walls (h 2.875): south door x -13.6..-12,
   //    north door x -6.4..-5.
-  solid(-14.2, 37.5, 15.6, HQ_FLOOR_H, 0.3, wallMat);   // north wall W (to door)
+  // U6-12: HQ grows WEST (-22 -> -24.5): footprint 20x9 ->
+  // 22.5x9 on the same interior topology — doors keep their
+  // positions, the stair run and partitions are untouched;
+  // the west bunk room widens and the stair well widens with
+  // it. West growth stops at -24.5 because Ops grew east to
+  // a -26.0 face: a 1.35 m service alley survives between
+  // the buildings (a wider first draft interpenetrated Ops'
+  // east door lane — the reachability probes caught it).
+  // (South growth was priced and REJECTED in design: the
+  // ±50 ruin line stands 2.35 m south of the HQ's south
+  // wall — growing south would swallow the south door.)
+  solid(-15.45, 37.5, 18.1, HQ_FLOOR_H, 0.3, wallMat);   // north wall W (to door)
   solid(-3.5, 37.5, 3, HQ_FLOOR_H, 0.3, wallMat);      // north wall E
-  solid(-17.8, 46.5, 8.4, HQ_FLOOR_H, 0.3, wallMat);   // south wall W
+  solid(-19.05, 46.5, 10.9, HQ_FLOOR_H, 0.3, wallMat);   // south wall W
   solid(-7, 46.5, 10, HQ_FLOOR_H, 0.3, wallMat);       // south wall E (from door)
-  solid(-22, 42, 0.3, HQ_FLOOR_H, 8.7, wallMat);       // west wall
+  solid(-24.5, 42, 0.3, HQ_FLOOR_H, 8.7, wallMat);       // west wall
   solid(-2, 42, 0.3, HQ_FLOOR_H, 8.7, wallMat);        // east wall
   // -- floor plate (top 3.125) with the stairwell opening
-  //    (x -21.85..-15, z 37.65..39.5) left open.
-  elevated(-12, HQ_FLOOR_H, 43, 20, 0.25, 7, deckMat);      // main plate
+  //    (x -24.5..-15, z 37.65..39.5) left open.
+  elevated(-13.25, HQ_FLOOR_H, 43, 22.5, 0.25, 7, deckMat);      // main plate
   elevated(-8.5, HQ_FLOOR_H, 38.5, 13, 0.25, 2, deckMat);   // north strip E of well
   // -- upper walls: same footprint, NO door openings.
-  elevated(-12, HQ_SLAB_T, 37.5, 20, HQ_FLOOR_H, 0.3, wallMat);  // north
-  elevated(-12, HQ_SLAB_T, 46.5, 20, HQ_FLOOR_H, 0.3, wallMat);  // south
-  elevated(-22, HQ_SLAB_T, 42, 0.3, HQ_FLOOR_H, 8.7, wallMat);   // west
+  elevated(-13.25, HQ_SLAB_T, 37.5, 22.5, HQ_FLOOR_H, 0.3, wallMat);  // north
+  elevated(-13.25, HQ_SLAB_T, 46.5, 22.5, HQ_FLOOR_H, 0.3, wallMat);  // south
+  elevated(-24.5, HQ_SLAB_T, 42, 0.3, HQ_FLOOR_H, 8.7, wallMat);   // west
   elevated(-2, HQ_SLAB_T, 42, 0.3, HQ_FLOOR_H, 8.7, wallMat);    // east
   // -- roof slab (top 6.25), Ops-style overhang.
-  elevated(-12, 6.0, 42, 20.6, 0.25, 9.6, roofTexMat);
+  elevated(-13.25, 6.0, 42, 23.1, 0.25, 9.6, roofTexMat);
   // -- interior partitions, BOTH floors (gap = 1.4 m doors):
   //    P1 along x -14 (gap z 41.3..42.7), P2 along z 41 in the
   //    east half (gap x -8.6..-7.2).
@@ -696,7 +721,7 @@ export function buildWorld(scene) {
   solid(-17.4, 38.6, 1.0, 2.3, 1.7, deckMat);
   solid(-15.95, 38.6, 1.9, 2.875, 1.7, deckMat);       // landing step
   // -- railing along the well's south edge (upper floor).
-  elevated(-18.425, HQ_SLAB_T, 39.56, 6.85, 1.0, 0.12, slabMat);
+  elevated(-19.75, HQ_SLAB_T, 39.56, 9.5, 1.0, 0.12, slabMat);   // U6-12: spans the widened well (x -24.5..-15)
   // -- interior cover (collider-true crates): ground west
   //    stack, NE + SE singles; upstairs west + NE singles.
   solid(-20.3, 44.8, 2.2, 2.2, 2.2, crateMat2);
@@ -704,6 +729,59 @@ export function buildWorld(scene) {
   solid(-4.3, 44.3, 2.2, 1.15, 2.2, crateMat);
   elevated(-20.3, HQ_SLAB_T, 44.8, 2.2, 1.15, 2.2, crateMat);
   elevated(-4.3, HQ_SLAB_T, 39.2, 2.2, 1.15, 2.2, crateMat2);
+
+  // ============ U6-12 EXPANSION RING (±63..±80) ============
+  // The new band gets four POIs so the walk out there is worth
+  // making — one per quadrant, each a different fight. Every
+  // solid mirrors into worlddata.js in this same commit.
+  // -- WAREHOUSE (NE, centre (62,-62), 18x11, walls h4.2):
+  //    a fighting warehouse — north door gap x 60..64, a wide
+  //    south loading door x 58..63, a canopy over the north
+  //    half, crate cover inside.
+  elevated(62, 0, -62, 19, 0.15, 12, deckMat);            // floor slab (top 0.15)
+  solid(56.5, -67.5, 7, 4.2, 0.35, wallMat);              // north wall W
+  solid(67.5, -67.5, 7, 4.2, 0.35, wallMat);              // north wall E
+  solid(55.5, -56.5, 5, 4.2, 0.35, wallMat);              // south wall W
+  solid(67, -56.5, 8, 4.2, 0.35, wallMat);                // south wall E
+  solid(53, -62, 0.35, 4.2, 11, wallMat);                 // west wall
+  solid(71, -62, 0.35, 4.2, 11, wallMat);                 // east wall
+  elevated(62, 4.2, -64.75, 18, 0.25, 5.5, roofTexMat);   // canopy (top 4.45)
+  solid(58, -64, 2.2, 2.2, 2.2, crateMat);                // interior crate
+  solid(66, -60, 2.2, 2.2, 2.2, crateMat2);               // interior crate
+  solid(62, -66, 3, 1.15, 2, crateMat);                   // interior pallet stack
+  // -- FUEL DEPOT (NW): three storage tanks (cylinder visuals,
+  //    box colliders — EXTRA in worlddata, not standable) and
+  //    two jersey barriers on the approach.
+  {
+    const tankMat = new THREE.MeshStandardMaterial({ color: 0x7a8894, roughness: 0.45, metalness: 0.55 });
+    const tankMat2 = new THREE.MeshStandardMaterial({ color: 0x9a6a3a, roughness: 0.6, metalness: 0.3 });
+    [[-68, -62], [-61, -57], [-67, -51]].forEach(([tx, tz], i) => {
+      const tank = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 4.5, 18), i === 1 ? tankMat2 : tankMat);
+      tank.position.set(tx, 2.25, tz);
+      tank.castShadow = true; tank.receiveShadow = true;
+      scene.add(tank); shootables.push(tank);
+      colliders.push(new THREE.Box3(
+        new THREE.Vector3(tx - 2.2, 0, tz - 2.2), new THREE.Vector3(tx + 2.2, 4.5, tz + 2.2)));
+    });
+  }
+  solid(-58, -44, 3, 1, 1, slabMat);                       // depot barrier
+  solid(-52, -52, 3, 1, 1, slabMat);                       // depot barrier
+  // -- SOLAR FIELD (SW): six low panel slabs in two rows —
+  //    crouch cover you can also jump onto (0.95 tops).
+  for (const px of [-68, -60, -52]) for (const pz of [56, 66]) {
+    solid(px, pz, 6, 0.95, 3, deckMat);
+  }
+  // -- LANDING PAD (SE): a marked pad slab, two crates and a
+  //    slim comms mast.
+  elevated(62, 0, 60, 16, 0.12, 14, deckMat);             // pad slab (top 0.12)
+  solid(56, 55, 2.2, 2.2, 2.2, crateMat);
+  solid(68, 65, 2.2, 1.15, 2.2, crateMat2);
+  solid(70, 53, 0.3, 6, 0.3, deckMat);                    // comms mast
+  // -- Ring-road jersey barriers (U6-11 cover on the lanes).
+  solid(30, -72, 3, 1, 1, slabMat); solid(-30, -72, 3, 1, 1, slabMat);
+  solid(72, 20, 3, 1, 1, slabMat); solid(72, -30, 3, 1, 1, slabMat);
+  solid(-72, 30, 3, 1, 1, slabMat); solid(-72, -20, 3, 1, 1, slabMat);
+  solid(20, 72, 3, 1, 1, slabMat); solid(-25, 72, 3, 1, 1, slabMat);
   // Motor-pool fuel drums (merged; EXTRA colliders in
   // worlddata — hard cover, not explosive) + ring dressing:
   // instanced rubble along the ruin gaps and the merged
@@ -896,10 +974,10 @@ export function buildWorld(scene) {
     // Relay console screen (on the shipped console box, L2).
     GC.push({ geo: new THREE.BoxGeometry(0.8, 0.5, 0.05), color: 0xffffff, x: 38.8, y: 5.2, z: -55.57 });
     // ---- Perimeter coping: a cap strip along every wall top ----
-    t_(new THREE.BoxGeometry(128, 0.22, 2.3), trimC, 0, 7.11, -63);
-    t_(new THREE.BoxGeometry(128, 0.22, 2.3), trimC, 0, 7.11, 63);
-    t_(new THREE.BoxGeometry(2.3, 0.22, 128), trimC, -63, 7.11, 0);
-    t_(new THREE.BoxGeometry(2.3, 0.22, 128), trimC, 63, 7.11, 0);
+    t_(new THREE.BoxGeometry(164, 0.22, 2.3), trimC, 0, 7.11, -81);
+    t_(new THREE.BoxGeometry(164, 0.22, 2.3), trimC, 0, 7.11, 81);
+    t_(new THREE.BoxGeometry(2.3, 0.22, 164), trimC, -81, 7.11, 0);
+    t_(new THREE.BoxGeometry(2.3, 0.22, 164), trimC, 81, 7.11, 0);
 
     const trimMesh = new THREE.Mesh(mergeColoredParts(P),
       new THREE.MeshStandardMaterial({ vertexColors: true, map: makeConcreteTexture(), roughness: 0.85 }));
@@ -1090,11 +1168,18 @@ export function buildWorld(scene) {
     // Bushes — displaced-sphere clusters (0.8–1.4m) as soft cover near
     // stair bases, deck edges (ground level) and ground routes. Large
     // bushes (>=1.1m) block movement; shots pass through all bushes.
+    // U6-11: Brett's word — the bushes were small. Every bush
+    // grows ~35-45% (now 1.2-1.75 m; ALL of them clear the
+    // 1.1 m blocking rule, so all 14 block) and six more plant
+    // the expansion ring. Colliders re-derived in worlddata.
     const bushData = [
-      [-15.5, -18, 1.2], [-6.5, -18.5, 0.9], [0, -20, 1.3], [22, -20, 1.0],
-      [29, -0.5, 1.15], [38.5, 1.5, 0.85], [-28, -14, 1.25], [-4, 8, 0.95],
-      [16, 22, 1.2], [-30, 32, 1.0], [28, 18, 1.3], [-18, 36, 0.9],
-      [12, -6, 1.1], [-38, 28, 1.15],
+      [-15.5, -18, 1.6], [-6.5, -18.5, 1.25], [0, -20, 1.75], [22, -20, 1.4],
+      [29, -0.5, 1.55], [38.5, 1.5, 1.2], [-28, -14, 1.7], [-4, 8, 1.3],
+      [16, 22, 1.6], [-30, 32, 1.4], [28, 18, 1.75], [-18, 36, 1.25],
+      [12, -6, 1.5], [-38, 28, 1.55],
+      // U6-11 ring bushes
+      [58, -40, 1.5], [-58, 40, 1.6], [40, 58, 1.45], [-58, -44, 1.5],
+      [70, 10, 1.35], [-70, -10, 1.45],
     ];
     // V6: two overlapping smooth masses per bush in the SAME
     // InstancedMesh — organic clumps, zero extra draw calls.
@@ -1222,19 +1307,19 @@ export function buildWorld(scene) {
     const c = cv.getContext('2d');
     let seed = 777001;
     const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-    const S = 512, PX = S / 136; // canvas px per metre
+    const S = 512, PX = S / 176; // canvas px per metre (U6-12: plane is 176 m now)
     const blob = (x, z, rx, ry, style) => {
       c.fillStyle = style;
       c.beginPath();
-      c.ellipse((x + 68) * PX, (z + 68) * PX, rx * PX, ry * PX, rand() * Math.PI, 0, Math.PI * 2);
+      c.ellipse((x + 88) * PX, (z + 88) * PX, rx * PX, ry * PX, rand() * Math.PI, 0, Math.PI * 2);
       c.fill();
     };
     // Rim wear: layered dirt blobs hugging the outer ~12 m, denser
     // and darker the closer to the rim, feathering inward.
     for (let i = 0; i < 260; i++) {
-      const side = Math.floor(rand() * 4), along = -66 + rand() * 132;
+      const side = Math.floor(rand() * 4), along = -86 + rand() * 172;
       const depth = Math.pow(rand(), 1.7) * 12;
-      const edge = 66.5 - depth;
+      const edge = 86.5 - depth;
       const x = side === 0 ? along : side === 1 ? along : side === 2 ? -edge : edge;
       const z = side === 0 ? -edge : side === 1 ? edge : along;
       blob(x, z, 2 + rand() * 5.5, 1.6 + rand() * 4,
@@ -1243,22 +1328,22 @@ export function buildWorld(scene) {
     // Gate-lane wear: both centre axes (the N/S gate runs and the
     // cross lane) scuffed down to dirt in overlapping soft passes.
     for (let i = 0; i < 110; i++) {
-      const along = (rand() * 2 - 1) * 58, lat = (rand() - 0.5) * 2.6;
+      const along = (rand() * 2 - 1) * 76, lat = (rand() - 0.5) * 2.6;
       const vert = rand() > 0.42;
       blob(vert ? lat : along, vert ? along : lat, 1.6 + rand() * 3.4, 1.2 + rand() * 2.4,
         `rgba(96,76,50,${0.04 + rand() * 0.08})`);
     }
     // Bare-earth mottling across the field.
     for (let i = 0; i < 36; i++) {
-      blob((rand() * 2 - 1) * 58, (rand() * 2 - 1) * 58, 2 + rand() * 5, 1.5 + rand() * 3.6,
+      blob((rand() * 2 - 1) * 74, (rand() * 2 - 1) * 74, 2 + rand() * 5, 1.5 + rand() * 3.6,
         `rgba(88,70,48,${0.04 + rand() * 0.06})`);
     }
     // Gravel speckle concentrated in the rim band.
     for (let i = 0; i < 1000; i++) {
-      const x = (rand() * 2 - 1) * 67, z = (rand() * 2 - 1) * 67;
-      if (Math.max(Math.abs(x), Math.abs(z)) < 54) continue;
+      const x = (rand() * 2 - 1) * 87, z = (rand() * 2 - 1) * 87;
+      if (Math.max(Math.abs(x), Math.abs(z)) < 70) continue;
       c.fillStyle = rand() > 0.5 ? `rgba(168,156,138,${0.05 + rand() * 0.08})` : `rgba(40,32,22,${0.05 + rand() * 0.07})`;
-      c.fillRect((x + 68) * PX, (z + 68) * PX, 1 + rand() * 2, 1 + rand() * 2);
+      c.fillRect((x + 88) * PX, (z + 88) * PX, 1 + rand() * 2, 1 + rand() * 2);
     }
     // Fine dust speckle everywhere.
     for (let i = 0; i < 1200; i++) {
@@ -1268,7 +1353,7 @@ export function buildWorld(scene) {
     const blendTex = new THREE.CanvasTexture(cv);
     blendTex.colorSpace = THREE.SRGBColorSpace;
     const blend = new THREE.Mesh(
-      new THREE.PlaneGeometry(136, 136),
+      new THREE.PlaneGeometry(176, 176),
       new THREE.MeshStandardMaterial({ map: blendTex, transparent: true, roughness: 1, depthWrite: false }));
     blend.rotation.x = -Math.PI / 2;
     blend.position.y = 0.012;
@@ -1298,7 +1383,7 @@ export function buildWorld(scene) {
   ];
 
   flushBoxBuckets();
-  return { colliders, shootables, spawnPoints, bounds: 62, groundHeightAt };
+  return { colliders, shootables, spawnPoints, bounds: 80, groundHeightAt }; // U6-12: ±80
 }
 
 // Push a point (with radius) out of every collider on the XZ plane.
