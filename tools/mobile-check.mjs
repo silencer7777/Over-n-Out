@@ -139,8 +139,8 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   const touch = readFileSync(new URL('../js/touchcontrols.js', import.meta.url), 'utf8');
-  eq(html.includes('id="build-stamp"') && html.includes('BUILD U10'), true, 'T7 menu build stamp present (cache witness)'); // U10 named re-pin: witness 9 -> 10
-  eq(html.includes('name="ono-build" content="10"'), true, 'T7 ono-build meta present'); // U10 named re-pin
+  eq(html.includes('id="build-stamp"') && html.includes('BUILD U11'), true, 'T7 menu build stamp present (cache witness)'); // U11 named re-pin: witness 10 -> 11
+  eq(html.includes('name="ono-build" content="11"'), true, 'T7 ono-build meta present'); // U11 named re-pin
   eq(main.includes('__onoBuild'), true, 'T7 build number exposed for support reads');
   eq(main.includes("matchMedia('(orientation: portrait)')") && main.includes("'pageshow'"), true, 'T7 redundant iOS fit triggers present');
   eq(touch.includes("'orientationchange'"), true, 'T7 touch layer re-feeds viewport on orientationchange');
