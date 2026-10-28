@@ -49,6 +49,11 @@ export async function runBotMatch({ root, modeId, mapId, seed = 1, maxTicks = 36
   };
 
   let modeEnd = null, waveClears = 0, peakBots = 0, botDeaths = 0, ticks = 0;
+  // channelMax: peak channel reached at ANY tick (assault). The
+  // end-of-match channel alone hides real progress — an assault
+  // that reached 60% and then decayed to 0 reads as "never
+  // channelled" without this (training diagnostic, Oct 28, 2026).
+  let channelMax = 0;
   const t0 = Date.now();
   while (m.state !== 'over' && ticks < maxTicks) {
     ticks++;
@@ -105,6 +110,7 @@ export async function runBotMatch({ root, modeId, mapId, seed = 1, maxTicks = 36
     }
     const evs = [];
     stepMatch(m, DT, evs);
+    if (m.mode && m.mode.channel != null && m.mode.channel > channelMax) channelMax = m.mode.channel;
     let aliveBots = 0;
     for (const b of m.bots) if (!b.dead) aliveBots++;
     if (aliveBots > peakBots) peakBots = aliveBots;
@@ -131,6 +137,7 @@ export async function runBotMatch({ root, modeId, mapId, seed = 1, maxTicks = 36
     finalScore: m.mode ? {
       scoreYou: m.mode.scoreYou, scoreThem: m.mode.scoreThem,
       channel: m.mode.channel != null ? +m.mode.channel.toFixed(1) : undefined,
+      channelMax: m.mode.channel != null ? +channelMax.toFixed(1) : undefined,
     } : null,
     players: ps.map(s => ({ id: s.cfg.id, profile: s.cfg.profile, weapon: s.cfg.weapon, kills: s.kills, deaths: s.deaths })),
     state: m.state, endedByCap: ticks >= maxTicks && !modeEnd,
