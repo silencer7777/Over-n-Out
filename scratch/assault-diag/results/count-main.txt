@@ -1,0 +1,12 @@
+{"mapId":"compound","attackers":1,"seed":11,"result":"lose","simSeconds":360,"finalChannel":0,"kills":42,"deaths":0}
+{"mapId":"compound","attackers":1,"seed":23,"result":"lose","simSeconds":360,"finalChannel":0,"kills":56,"deaths":0}
+{"mapId":"compound","attackers":2,"seed":11,"result":"lose","simSeconds":360,"finalChannel":0,"kills":86,"deaths":0}
+{"mapId":"compound","attackers":2,"seed":23,"result":"lose","simSeconds":360,"finalChannel":0,"kills":117,"deaths":1}
+{"mapId":"compound","attackers":3,"seed":11,"result":"lose","simSeconds":360,"finalChannel":0,"kills":90,"deaths":1}
+{"mapId":"compound","attackers":3,"seed":23,"result":"lose","simSeconds":360,"finalChannel":0,"kills":94,"deaths":1}
+{"mapId":"mars","attackers":1,"seed":11,"result":"win","simSeconds":110.3,"finalChannel":100,"kills":12,"deaths":1}
+{"mapId":"mars","attackers":1,"seed":23,"result":"win","simSeconds":52.5,"finalChannel":100,"kills":6,"deaths":1}
+{"mapId":"mars","attackers":2,"seed":11,"result":"win","simSeconds":77.4,"finalChannel":100,"kills":8,"deaths":0}
+{"mapId":"mars","attackers":2,"seed":23,"result":"win","simSeconds":93.5,"finalChannel":100,"kills":13,"deaths":4}
+{"mapId":"mars","attackers":3,"seed":11,"result":"win","simSeconds":82.9,"finalChannel":100,"kills":9,"deaths":0}
+{"mapId":"mars","attackers":3,"seed":23,"result":"win","simSeconds":39.6,"finalChannel":100,"kills":3,"deaths":0}
