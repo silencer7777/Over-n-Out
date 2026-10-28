@@ -96,3 +96,24 @@ Files changed: `js/minimap.js` (new, 117 lines), `js/main.js`,
 Queue after U10: scenery realism + background mountains
 (queue 5), then meta systems (queue 6). Characters/movement
 await Brett's U9 verdicts before more spend.
+
+## Addendum — push incident (same session, on the record)
+
+The first push attempt was interrupted by a service restart
+mid-run; it had already landed index/css/docs on the remote
+(the successful push's SHA-skip list proves it) but not
+js/main.js or js/minimap.js. A retry against the /tmp
+snapshot then silently walked an empty directory (the
+restart had wiped /tmp) and printed PUSH COMPLETE with zero
+files — caught because the per-file output was empty and a
+remote read showed minimap.js missing. The snapshot was
+rebuilt from git HEAD under ~/workspace, all five gates
+re-run green on it, and the push completed for real
+(6 files pushed, the rest SHA-verified unchanged). Live
+verification: the Contents API blob-SHA match on every file,
+plus live content reads — js/minimap.js served in full and
+matching, js/main.js serving the U10 import and
+`BUILD_NO = 10`. (The page-fetch cache still held a pre-push
+copy of the rendered index at last check — a fetch-cache
+lag, not a Pages state: minimap.js exists only in U10 and
+is being served.)
