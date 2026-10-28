@@ -11,6 +11,7 @@
 
 <!-- HUD -->
 <div id="hud" class="hidden">
+  <div id="scope-overlay"><div class="scope-circle"></div><div class="scope-h"></div><div class="scope-v"></div><div class="scope-dot"></div><div class="scope-mag"></div></div>
   <div id="crosshair"><span></span><span></span><span></span><span></span></div>
   <div id="hitmarker">✕</div>
   <div id="wave-banner"></div>
@@ -29,6 +30,16 @@
     <div id="health-num">100</div>
   </div>
   <div id="gear-hud">FRAG [G] ×1 · FLASH [T] ×1</div>
+  <!-- U6-14: in-game mini chat (online matches). ENTER opens
+       the input; the channel button flips TEAM/ALL. -->
+  <div id="chat-box" class="hidden">
+    <div id="chat-log"></div>
+    <div id="chat-input-row" class="hidden">
+      <button id="chat-chan" type="button" title="Chat channel">TEAM</button>
+      <input type="text" id="chat-input" maxlength="240" placeholder="Message…  (ENTER sends, ESC closes)">
+    </div>
+    <div id="chat-hint">ENTER — CHAT</div>
+  </div>
   <div id="streak-hud"></div>
   <div id="ammo-wrap">
     <div id="weapon-name">ASSAULT RIFLE</div>
@@ -48,6 +59,7 @@
   <div id="menu-page-main" class="menu-page">
     <h1>OVER <span>N'</span> OUT</h1>
     <p class="tag">TACTICAL BROWSER FPS · v0.6.0-dev</p>
+    <div id="menu-chips" aria-hidden="true"><span class="mchip hot">UPDATE 6 — LIVE BUILD</span><span class="mchip">WORKING OPTICS</span><span class="mchip">TEAM CHAT + VOICE</span><span class="mchip">4 MAPS · 4 IDENTITIES</span></div>
     <p id="menu-msg">Hostile waves inbound. Hold the compound.</p>
     <div id="results" class="hidden"><div class="story-label">AFTER ACTION — XP</div><div id="results-body"></div></div>
     <div id="profile-line">LEVEL 1 · 0 XP</div>
@@ -78,6 +90,18 @@
       </div>
       <div class="online-row"><button id="online-btn">🌐 &nbsp;JOIN ONLINE</button><span id="online-status">Offline — solo deploy below.</span></div>
     </div>
+    <!-- U6-14: the lobby chatroom — lives on the server above
+         (live when a server is up; see js/chat.js). -->
+    <div id="chat-panel">
+      <div class="loadout-label">LOBBY CHAT — THE READY ROOM</div>
+      <div id="chat-menu-log" aria-live="polite"></div>
+      <div class="online-row">
+        <input type="text" id="chat-menu-input" maxlength="240" placeholder="Say something to the lobby…" disabled>
+        <button id="chat-menu-send" type="button" disabled>SEND</button>
+        <button id="chat-connect-btn" type="button">💬 &nbsp;CONNECT CHAT</button>
+      </div>
+      <div id="chat-menu-status">Chat connects to the SERVER above, with your CALLSIGN. Live when a server is up.</div>
+    </div>
     <button id="play-btn">▶ &nbsp;DEPLOY</button>
     <button id="menu-options-btn" type="button">⚙ &nbsp;OPTIONS — CONTROLS · SCREEN · MOVEMENT · AUDIO</button>
     <button id="menu-more-btn" type="button">📜 &nbsp;STORY · CONTROLS REFERENCE</button>
@@ -97,6 +121,11 @@
       <div class="opt-row"><label for="opt-sprint-toggle">SPRINT — TAP TO TOGGLE</label><input type="checkbox" id="opt-sprint-toggle"><span class="opt-note">off = hold Shift</span></div>
       <div class="opt-row"><label for="opt-music">MENU MUSIC VOLUME</label><input type="range" id="opt-music" min="0" max="1" step="0.05" value="0.8"><span id="opt-music-val">80%</span></div>
       <div class="opt-row"><label for="opt-sfx">SOUND EFFECTS VOLUME</label><input type="range" id="opt-sfx" min="0" max="1" step="0.05" value="1"><span id="opt-sfx-val">100%</span></div>
+      <div class="opt-row"><label>COUNTDOWN COLOR</label><span id="opt-cd-colors"><button type="button" class="cd-swatch" data-cd="#39ff6a" style="--c:#39ff6a" aria-label="Green"></button><button type="button" class="cd-swatch" data-cd="#35c4ff" style="--c:#35c4ff" aria-label="Cyan"></button><button type="button" class="cd-swatch" data-cd="#ffb02e" style="--c:#ffb02e" aria-label="Amber"></button><button type="button" class="cd-swatch" data-cd="#ff4fd8" style="--c:#ff4fd8" aria-label="Magenta"></button><button type="button" class="cd-swatch" data-cd="#ffffff" style="--c:#ffffff" aria-label="White"></button></span><span class="opt-note">green is the default for everyone</span></div>
+      <div class="opt-row"><label for="opt-voice-channel">VOICE CHAT</label><select id="opt-voice-channel"><option value="off" selected>OFF</option><option value="team">TEAM</option><option value="all">ALL PLAYERS</option></select><span class="opt-note">in online matches; some connections can't carry voice (NAT) — the game will say so</span></div>
+      <div class="opt-row"><label for="opt-voice-mic">MIC MODE</label><select id="opt-voice-mic"><option value="ptt" selected>PUSH-TO-TALK — HOLD V</option><option value="open">OPEN MIC</option></select></div>
+      <div class="opt-row"><label>VOICE — PLAYERS</label><span id="voice-peers"><span class="opt-note">per-player mute/volume appears here during an online match</span></span></div>
+      <div class="opt-row"><label>CHAT — MUTED</label><span id="chat-muted-list"><span class="opt-note">nobody muted — use the ✕ on a lobby chat line</span></span></div>
       <div class="opt-row"><label>FULLSCREEN</label><button id="opt-fullscreen" type="button">TOGGLE FULLSCREEN</button></div>
     </div>
     <div class="controls">
@@ -105,7 +134,9 @@
       <div><b>CLICK</b> Fire</div>
       <div><b>RIGHT-CLICK</b> Aim down sights</div>
       <div><b>SHIFT</b> Sprint (hold — or toggle, in Options)</div>
-      <div><b>C / CTRL</b> Slide (while sprinting)</div>
+      <div><b>C / CTRL</b> Slide (while sprinting) · Crouch (tap) · Prone (hold or Z)</div>
+      <div><b>ENTER</b> Chat (online) — TEAM / ALL</div>
+      <div><b>V</b> Push-to-talk (voice, when enabled)</div>
       <div><b>SPACE</b> Jump</div>
       <div><b>ESC</b> Pause — options are in the pause menu too</div>
       <div><b>R</b> Reload</div>
