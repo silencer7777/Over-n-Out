@@ -757,6 +757,17 @@ try {
     if (!home.includes(idAttr)) fail(`M10 served HTML missing ${idAttr}`); else ok(`M10 served HTML contains ${idAttr}`);
   }
 
+  // M11 (U10): minimap + guidance ids, CSP meta, and the
+  // localhost-default bind for the online server entrypoint.
+  for (const idAttr of ['id="minimap"', 'id="objective-guide"', 'id="og-arrow"', 'id="og-text"']) {
+    if (!home.includes(idAttr)) fail(`M11 served HTML missing ${idAttr}`); else ok(`M11 served HTML contains ${idAttr}`);
+  }
+  if (!home.includes('Content-Security-Policy') || !home.includes("object-src 'none'")) fail('M11 CSP meta missing or weakened'); else ok('M11 CSP meta present (object-src none)');
+  {
+    const gs = readFileSync(new URL('../net/game-server.js', import.meta.url), 'utf8');
+    if (!gs.includes("host = '127.0.0.1'") || !gs.includes("process.env.HOST || '127.0.0.1'")) fail('M11 game-server default bind is not localhost'); else ok('M11 game-server defaults to localhost bind (U10 hardening)');
+  }
+
   // m2: served HTML defaults match WEAPONS[0]
   if (Array.isArray(WEAPONS) && WEAPONS.length) {
     const wnMatch = home.match(/id="weapon-name"[^>]*>([^<]*)</);
