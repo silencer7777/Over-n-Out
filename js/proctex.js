@@ -48,6 +48,23 @@ function speckle(c, S, rng, n, alpha) {
   }
 }
 
+// --- Weather streaks: wind-polished pale smears on one bearing
+// (V6-3, one shared shape). Snow scour and Mars dust are the
+// same painter with different paint — count, colour, smear size
+// and bearing come from the caller. RNG order is part of the
+// recipe (fillStyle alpha first, then ellipse x/y/rx/ry/bearing),
+// so seeded textures stay identical; do not reorder the calls.
+// js/biomes.js carries a mirror copy (windStreaksLocal) because
+// that file must stay self-contained for tools/biome-check.mjs.
+function windStreaks(c, S, rng, { n, rgb, rx, ry, bearing, jitter }) {
+  for (let i = 0; i < n; i++) {
+    c.fillStyle = `rgba(${rgb},${0.05 + rng() * 0.06})`;
+    c.beginPath();
+    c.ellipse(rng() * S, rng() * S, rx[0] + rng() * rx[1], ry[0] + rng() * ry[1], bearing + (rng() - 0.5) * jitter, 0, Math.PI * 2);
+    c.fill();
+  }
+}
+
 // --- Bark: vertical ridged grooves, crack dashes, knots. ---
 export function makeBarkTexture() {
   return canvasTexture(256, 771177, (c, S, rng) => {
@@ -271,17 +288,23 @@ export function makeSnowTexture() {
     speckle(c, S, rng, 1500, 0.05);
     // V6-3 weather: wind-scour streaks — long pale ellipses the
     // wind has polished into the pack (all near one bearing).
-    for (let i = 0; i < 12; i++) {
-      c.fillStyle = `rgba(255,255,255,${0.05 + rng() * 0.06})`;
-      c.beginPath();
-      c.ellipse(rng() * S, rng() * S, 26 + rng() * 44, 3 + rng() * 5, 0.35 + (rng() - 0.5) * 0.2, 0, Math.PI * 2);
-      c.fill();
-    }
+    windStreaks(c, S, rng, { n: 12, rgb: '255,255,255', rx: [26, 44], ry: [3, 5], bearing: 0.35, jitter: 0.2 });
     // Sparkle glints: hard white points (V6-3: doubled — sun on
     // fresh snow should bite a little).
     for (let i = 0; i < 140; i++) {
       c.fillStyle = `rgba(255,255,255,${0.5 + rng() * 0.5})`;
       c.fillRect(rng() * S, rng() * S, 1.3, 1.3);
+    }
+    // V6 Update 4: deep-drift mottling — broad blue-grey masses
+    // at a larger scale than the drift shading above, so the
+    // pack reads as depth, not one flat sheet. Appended last so
+    // every upstream draw is unchanged (kept in step with the
+    // biomes.js local copy).
+    for (let i = 0; i < 9; i++) {
+      c.fillStyle = `rgba(120,146,182,${0.05 + rng() * 0.05})`;
+      c.beginPath();
+      c.ellipse(rng() * S, rng() * S, 60 + rng() * 90, 34 + rng() * 60, rng() * Math.PI, 0, Math.PI * 2);
+      c.fill();
     }
   });
 }
@@ -334,12 +357,7 @@ export function makeRegolithTexture() {
     }
     // V6-3 weather: wind-blown dust streaks — pale elongated
     // smears on one bearing, dust sheeting across the surface.
-    for (let i = 0; i < 9; i++) {
-      c.fillStyle = `rgba(255,238,214,${0.05 + rng() * 0.06})`;
-      c.beginPath();
-      c.ellipse(rng() * S, rng() * S, 30 + rng() * 52, 3 + rng() * 6, 0.5 + (rng() - 0.5) * 0.25, 0, Math.PI * 2);
-      c.fill();
-    }
+    windStreaks(c, S, rng, { n: 9, rgb: '255,238,214', rx: [30, 52], ry: [3, 6], bearing: 0.5, jitter: 0.25 });
     for (let i = 0; i < 220; i++) { // pebbles
       const v = 120 + Math.floor(rng() * 100);
       c.fillStyle = `rgba(${v},${Math.floor(v * 0.72)},${Math.floor(v * 0.5)},0.8)`;
