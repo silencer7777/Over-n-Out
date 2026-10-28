@@ -1,11 +1,11 @@
 {
   "tool": "v6-metrics",
-  "generatedAt": "2026-10-28T12:02:22.022Z",
+  "generatedAt": "2026-10-28T13:06:50.481Z",
   "sections": {
     "gates": {
       "smoke": {
         "passed": true,
-        "checks": 279,
+        "checks": 287,
         "tail": " | SMOKE PASSED"
       },
       "reachability": {
@@ -25,8 +25,8 @@
       },
       "soak": {
         "passed": true,
-        "losUsPerRay": 6.11,
-        "simMsPerTick": 0.064
+        "losUsPerRay": 7.78,
+        "simMsPerTick": 0.055
       },
       "perMapReachability": {
         "maps": {
@@ -4035,7 +4035,7 @@
           "matchBooted": true,
           "snapshotsReceived": 1428
         },
-        "msPerTickAvg": 0.13,
+        "msPerTickAvg": 0.135,
         "windowMsPerTick": null,
         "maxWave": 1,
         "maxAliveBots": 4,
@@ -4052,7 +4052,7 @@
           "matchBooted": true,
           "snapshotsReceived": 5092
         },
-        "msPerTickAvg": 0.14,
+        "msPerTickAvg": 0.121,
         "windowMsPerTick": null,
         "maxWave": 3,
         "maxAliveBots": 7,
@@ -4090,7 +4090,7 @@
     },
     "capabilities": {
       "packageVersion": "0.6.0-dev",
-      "losProfileUsPerRay": 6.11,
+      "losProfileUsPerRay": 7.78,
       "loadoutCombinations": 49863600,
       "camoCount": 9,
       "mapRegistry": {
@@ -4132,7 +4132,7 @@
     "FLAT SURFACE STRIKE (LAYOUT mars (pre-wiring projection)): largest in-scope untextured static mesh ≈ 33924.8 m² (BoxGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 12 tris of flat colour",
     "SOLDIER BAR (§2.4): bot costs 8 calls > 7 — Update 4 must hold ≤7 calls per bot while smoothing the kit read"
   ],
-  "head": "b229788",
+  "head": "544c057",
   "treeClean": true,
   "bars": {
     "drawCallsPerMap": 165,
