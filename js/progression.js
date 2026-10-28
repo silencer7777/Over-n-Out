@@ -140,6 +140,12 @@ export const PRESTIGE = [
   { level: 22, kind: 'camo', id: 'arctic', label: 'CAMO — ARCTIC (weapon + uniform)' },
   { level: 24, kind: 'camo', id: 'urban', label: 'CAMO — URBAN (weapon + uniform)' },
   { level: 26, kind: 'camo', id: 'night', label: 'CAMO — NIGHT (weapon + uniform)' },
+  // V6 Update 5 (U5-10): four more earnable designs, interleaved
+  // into the gaps of the camo lane — same ruling: zero power.
+  { level: 21, kind: 'camo', id: 'mirage', label: 'CAMO — MIRAGE DIGITAL (weapon + uniform)' },
+  { level: 23, kind: 'camo', id: 'tiger', label: 'CAMO — TIGER STRIPE (weapon + uniform)' },
+  { level: 25, kind: 'camo', id: 'crimson', label: 'CAMO — CRIMSON (weapon + uniform)' },
+  { level: 28, kind: 'camo', id: 'gold', label: 'CAMO — MERIDIAN GOLD (weapon + uniform)' },
 ];
 
 // Everything earned between two levels: power unlocks + prestige,
@@ -161,7 +167,17 @@ export function createProfile() {
     xp: 0,
     classes: Array.from({ length: MAX_CLASSES }, (_, i) => defaultClass(i)),
     activeClass: 0,
-    settings: { sensitivity: null },
+    // V6 Update 5 (U5-08): the settings block grows up into the
+    // full options menu — controls, screen, movement, audio.
+    settings: {
+      sensitivity: null,
+      invertY: false,
+      musicVolume: 0.8,
+      sfxVolume: 1,
+      qualityMode: 'auto',   // auto | high | medium | low
+      fov: 75,
+      sprintToggle: false,   // false = hold Shift, true = tap to toggle
+    },
   };
 }
 
@@ -180,8 +196,15 @@ export function sanitizeProfile(raw) {
   }
   // A locked class slot can never be the active one after a repair.
   if (p.activeClass + 1 > unlockedClassSlots(levelForXp(p.xp))) p.activeClass = 0;
-  if (raw.settings && Number.isFinite(raw.settings.sensitivity)) {
-    p.settings.sensitivity = raw.settings.sensitivity;
+  if (raw.settings && typeof raw.settings === 'object') {
+    const s = raw.settings;
+    if (Number.isFinite(s.sensitivity)) p.settings.sensitivity = s.sensitivity;
+    if (typeof s.invertY === 'boolean') p.settings.invertY = s.invertY;
+    if (Number.isFinite(s.musicVolume)) p.settings.musicVolume = Math.max(0, Math.min(1, s.musicVolume));
+    if (Number.isFinite(s.sfxVolume)) p.settings.sfxVolume = Math.max(0, Math.min(1, s.sfxVolume));
+    if (['auto', 'high', 'medium', 'low'].includes(s.qualityMode)) p.settings.qualityMode = s.qualityMode;
+    if (Number.isFinite(s.fov)) p.settings.fov = Math.max(60, Math.min(100, Math.round(s.fov)));
+    if (typeof s.sprintToggle === 'boolean') p.settings.sprintToggle = s.sprintToggle;
   }
   return p;
 }
