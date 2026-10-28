@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="ono-build" content="9">
 <title>OVER N' OUT — Browser FPS</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=9">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -65,7 +66,7 @@
   <div id="menu-page-main" class="menu-page">
     <h1>OVER <span>N'</span> OUT</h1>
     <p class="tag">TACTICAL BROWSER FPS · v0.6.0-dev</p>
-    <div id="menu-chips" aria-hidden="true"><span class="mchip hot">UPDATE 6 — LIVE BUILD</span><span class="mchip">WORKING OPTICS</span><span class="mchip">TEAM CHAT + VOICE</span><span class="mchip">4 MAPS · 4 IDENTITIES</span></div>
+    <div id="menu-chips" aria-hidden="true"><span class="mchip hot">UPDATE 9 — LIVE BUILD</span><span class="mchip">WORKING OPTICS</span><span class="mchip">TEAM CHAT + VOICE</span><span class="mchip">4 MAPS · 4 IDENTITIES</span></div>
     <p id="menu-msg">Hostile waves inbound. Hold the compound.</p>
     <div id="results" class="hidden"><div class="story-label">AFTER ACTION — XP</div><div id="results-body"></div></div>
     <div id="profile-line">LEVEL 1 · 0 XP</div>
@@ -113,6 +114,7 @@
     <button id="menu-options-btn" type="button">⚙ &nbsp;OPTIONS — CONTROLS · SCREEN · MOVEMENT · AUDIO</button>
     <button id="menu-more-btn" type="button">📜 &nbsp;STORY · CONTROLS REFERENCE</button>
     <p class="fine">One build for desktop + phone — on touch screens, on-screen controls appear automatically when you deploy.</p>
+    <p class="fine" id="build-stamp">BUILD U9 · v0.6.0-dev</p>
   </div>
   <div id="menu-page-more" class="menu-page hidden">
     <div class="menu-page-title">OPTIONS</div>
@@ -161,6 +163,6 @@
 <script type="importmap">
 { "imports": { "three": "./vendor/three.module.js" } }
 </script>
-<script type="module" src="js/main.js"></script>
+<script type="module" src="js/main.js?v=9"></script>
 </body>
 </html>
