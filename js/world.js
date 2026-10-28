@@ -119,7 +119,10 @@ export function buildWorld(scene) {
   const colliders = [];   // THREE.Box3 list for movement collision
   const shootables = [];  // meshes the player's raycast can hit
 
-  // Ground — concrete with a painted grid
+  // Ground — seamless concrete (V6 Update 5, U5-02: the painted
+  // grid that used to live in this tile is GONE — diagnosis D1 in
+  // docs/sessions/v6-update-05-spec.md. Every blotch is painted
+  // wrap-safe, so the 10x10 repeat itself is invisible too.)
   {
     const cv = document.createElement('canvas'); cv.width = cv.height = 512;
     const c = cv.getContext('2d');
@@ -127,19 +130,26 @@ export function buildWorld(scene) {
     let seed = 1234567;
     const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
     c.fillStyle = '#35424e'; c.fillRect(0, 0, 512, 512); // V6-3 vivid: deeper blue-slate base
-    // Wear layer (under the paint): large darker patches + subtle light scuffs.
-    for (let i = 0; i < 26; i++) {
-      c.fillStyle = rand() > 0.35 ? `rgba(0,0,0,${0.04 + rand() * 0.07})` : `rgba(255,255,255,${0.02 + rand() * 0.03})`;
-      c.beginPath();
-      c.ellipse(rand() * 512, rand() * 512, 20 + rand() * 80, 14 + rand() * 55, rand() * Math.PI, 0, Math.PI * 2);
-      c.fill();
+    // Wrap-safe blotch: painted at all ±512 offsets, so a blotch
+    // crossing the tile edge continues on the other side — the
+    // repeat has no seam for the eye to catch.
+    const blotch = (x, y, rx, ry, rot, style) => {
+      c.fillStyle = style;
+      for (const ox of [-512, 0, 512]) for (const oy of [-512, 0, 512]) {
+        c.beginPath();
+        c.ellipse(x + ox, y + oy, rx, ry, rot, 0, Math.PI * 2);
+        c.fill();
+      }
+    };
+    // Wear layer: large darker patches + subtle light scuffs.
+    for (let i = 0; i < 30; i++) {
+      blotch(rand() * 512, rand() * 512, 20 + rand() * 80, 14 + rand() * 55, rand() * Math.PI,
+        rand() > 0.35 ? `rgba(0,0,0,${0.04 + rand() * 0.07})` : `rgba(255,255,255,${0.02 + rand() * 0.03})`);
     }
     // Subtle stains / grime streaks.
     for (let i = 0; i < 14; i++) {
-      c.fillStyle = `rgba(18,14,10,${0.05 + rand() * 0.07})`;
-      c.beginPath();
-      c.ellipse(rand() * 512, rand() * 512, 8 + rand() * 30, 3 + rand() * 9, rand() * Math.PI, 0, Math.PI * 2);
-      c.fill();
+      blotch(rand() * 512, rand() * 512, 8 + rand() * 30, 3 + rand() * 9, rand() * Math.PI,
+        `rgba(18,14,10,${0.05 + rand() * 0.07})`);
     }
     // Fine speckle noise.
     for (let i = 0; i < 2600; i++) {
@@ -154,13 +164,12 @@ export function buildWorld(scene) {
       for (let j = 0; j < 4; j++) { x += (rand() - 0.5) * 60; y += (rand() - 0.5) * 60; c.lineTo(x, y); }
       c.stroke();
     }
-    // Painted grid + center circle (original character, kept).
-    c.strokeStyle = 'rgba(255,255,255,0.07)'; c.lineWidth = 2;
-    for (let i = 0; i <= 512; i += 64) { c.beginPath(); c.moveTo(i, 0); c.lineTo(i, 512); c.stroke(); c.beginPath(); c.moveTo(0, i); c.lineTo(512, i); c.stroke(); }
-    c.fillStyle = 'rgba(57,255,106,0.10)'; c.beginPath(); c.arc(256, 256, 70, 0, Math.PI * 2); c.fill();
-    // Edge darkening per tile, so each repeated slab reads as worn concrete.
-    c.strokeStyle = 'rgba(0,0,0,0.16)'; c.lineWidth = 18; c.strokeRect(9, 9, 494, 494);
-    c.strokeStyle = 'rgba(0,0,0,0.08)'; c.lineWidth = 40; c.strokeRect(20, 20, 472, 472);
+    // U5-02 (was: a painted white grid + repeating center circle +
+    // per-tile edge darkening — together they tiled into the exact
+    // floor grid Brett flagged). All three are removed. Large soft
+    // tonal drift (wrap-safe, very low alpha) is what remains, and
+    // the world-space Update 4 overlay carries the big variation
+    // that must NOT repeat.
     const tex = new THREE.CanvasTexture(cv);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(10, 10);
     // Frame cost: bumpMap reuses the same texture instance as map (no duplicate canvas / no extra GPU upload); per-frame cost is one extra texture sample in the ground shader.
@@ -257,10 +266,18 @@ export function buildWorld(scene) {
   const wallMat = new THREE.MeshStandardMaterial({ color: 0x4d6076, map: wallTex, roughness: 0.85 });
   const crateMat = new THREE.MeshStandardMaterial({ color: 0x7d6027, map: crateTex, roughness: 0.9 });
   const crateMat2 = new THREE.MeshStandardMaterial({ color: 0x33517c, map: crateTex, roughness: 0.9 });
-  const pillarMat = new THREE.MeshStandardMaterial({ color: 0x707a86, roughness: 0.8, emissive: 0x0d2b16 });
+  // V6 Update 5 (U5-03): the deck/slab/pillar solids used to be
+  // flat colour — together they were the §2.5 strike, one merged
+  // untextured bucket of ~4,240 m² on every map. They now wear
+  // the shared (de-gridded) procedural concrete, so no large
+  // surface in the compound reads as flat colour any more. One
+  // texture instance serves all three materials (one upload).
+  const flatConcreteTex = makeConcreteTexture();
+  const flatTexOpt = flatConcreteTex ? { map: flatConcreteTex } : {};
+  const pillarMat = new THREE.MeshStandardMaterial({ color: 0x707a86, roughness: 0.8, emissive: 0x0d2b16, ...flatTexOpt });
 
-  const deckMat = new THREE.MeshStandardMaterial({ color: 0x424e5c, roughness: 0.9 });
-  const slabMat = new THREE.MeshStandardMaterial({ color: 0x57687a, roughness: 0.85 });
+  const deckMat = new THREE.MeshStandardMaterial({ color: 0x424e5c, roughness: 0.9, ...flatTexOpt });
+  const slabMat = new THREE.MeshStandardMaterial({ color: 0x57687a, roughness: 0.85, ...flatTexOpt });
   // V6 (Atlas): standing-seam roofing for the two built roofs
   // (Ops Building + Comms Shed) — same solids, textured skin.
   const roofTexMat = new THREE.MeshStandardMaterial({ color: 0x707880, map: makeRoofTexture(), roughness: 0.9 });
