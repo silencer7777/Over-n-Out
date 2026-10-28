@@ -289,3 +289,144 @@ strings — the smoke-owned port at merge should strip more
 robustly. Deduction 1 in the entry above (the ±half-span seam)
 stands as the Lead's phrasing of the wrap-boundary concern from
 the grading summary received in-session.
+---
+
+## Wed Oct 28, 2026 — FIX PRACTICE
+
+**Staff:** Training Lead (ran the session), REVIEWER (recent record,
+read-only), COACH (drill design per the Sunday focus list + grading
+criteria; grading pass on the actual files recorded as an addendum
+below).
+
+**Pre-checks:** Tree clean on `main` at `d4ea353` (BUILD U10) —
+full session allowed. Guardian 08:07 PDT Watch rotation: all-pass,
+293 checks, SMOKE PASSED, live integrity byte-identical to local
+HEAD, Stage 2 signed session verification still open (known, not
+new). Baseline smoke (Lead, pre-drill): **PASSED, exit 0, 293
+checks**.
+
+**Target (from Sunday's focus list):** ASSAULT 0.16, diagnostic-
+first: re-run the VM2 matrix segmented by map/attacker count and
+write Havoc a precise unblock — do not tune numbers blind.
+Full write-up: `docs/training/ASSAULT-DIAGNOSTIC.md`; raw evidence
+in `scratch/assault-diag/results/`.
+
+**Verdict on the claim: MEASUREMENT-INVALID.** The pooled 0.16
+measures the instrument, not Havoc's mode numbers. No pack number
+(45 s channel, defender growth 4→8/25%, defender respawn
+6 s +2 s/25%, decay 2%/s) is proven wrong in either direction.
+**No numbers were tuned.**
+
+**What the diagnostic proved (all at `d4ea353`):**
+- Segmented matrix (stock instrument, Oct-25 design): pooled
+  0.22 (7/32) vs 0.16 — decomposition: compound 0/8 with
+  channelMax 0 in all 8, snow 0/8, forest 1/8, mars 6/8. The
+  pooled move came entirely from the ground-ring maps.
+- Mechanism (code + per-tick trace, 26/26 parity-checked vs the
+  stock botmatch): `stepAssault`'s ring needs |y − 4.6| < 3.2 on
+  compound/snow; the 2D rig driver (and sim bots, same 0.6-step
+  `groundHeightAt`) never take the stair routes. Compound: 0.0 s
+  in-ring for ANYONE in 8/8 trace seeds. Snow: scripted player
+  never in-ring in 8/8; seed 11 stands XZ-in-ring 65 s at y = 0 —
+  the elevation gate, directly observed.
+- Attacker count is not the lever: compound channelMax 0 at
+  0/1/2/3 scripted attackers × 4 seeds (16/16 losses). Mars
+  control: ≥1 attacker wins (faster with more); the 0-attacker
+  control reaches 16–54% via friendly bots but loses 4/4.
+- Attribution: several ground-map wins have ZERO scripted-player
+  ring time (mars s23: player 78.3 m away, bots channeled 40.3 s;
+  a stationary turret "wins" mars and "channels" 3.9–4.4% on
+  snow) — VM2 assault outcomes substantially measure friendly-
+  bot ring behaviour (Lesson 23).
+- Hold phase, isolated by a scoped ring-start diagnostic
+  (teleport-in, labelled, never a headline rate): elevated maps
+  8/8 win at exactly 45.0 s, defender ring time 0.0 s — a started
+  channel is holdable in the sim; defenders contest by fire, not
+  presence (unblock U2 is a design question for Havoc).
+- Solo caveat: `js/main.js` assault (player-only channel, wave-
+  spawned defenders, no friendly squad) is a different game from
+  the sim's; VM2 never described Brett's solo experience.
+
+**The FIX that landed:** `rig/vm2-balance/driver.mjs` returns
+`finalScore.channelMax` (peak channel at any tick) — end-state
+channel hid decayed progress (peaks 84 / 60.2 / 49.5 read as
+final 0–55.9). Additive only: full 32-match rerun vs the pre-fix
+run shows **zero diffs on every pre-existing gameplay field**
+(`wallMs` timing excepted). No game
+code touched; perf budgets untouched (rig tooling only).
+
+**Unblocks written for Havoc/Rig (diagnostic §8):** U1 teach the
+driver vertical access (stair waypoints) or adopt ring-start as
+a maintained VM2 case — until then, per-map reporting with
+channelMax, never a pooled assault rate; U2 defender presence-
+contest is a design decision, with this diagnostic as the
+before-measurement; U3 friendly-bot channel discipline is close
+to "bots alone never finish" already — pin it, don't fix it.
+**Friday TEST CRAFT adoption spec** is written and ready
+(diagnostic §9).
+
+**Staff-claim corrections (Lesson 17):** Reviewer's "U7 spawn
+re-pick" fails verification (`2808fd3` touches no spawn/map/sim
+file; the point stands on U6 evidence instead); Reviewer's
+compound XZ-footprint claim is not reproduced (compound XZ-ring
+0.0 s in 8/8; the XZ-without-Y proof map is snow); Reviewer's
+forest s23 channelMax ~60% is corroborated exactly (60.2 → 0).
+
+**Close-out verification (Lead, personally run):**
+`node tools/smoke.mjs` → **SMOKE PASSED, exit 0** on the
+end-state tree (293 checks per the guardian's morning count;
+both Coach grading passes also ran it PASSED, exit 0 — one
+counts 294 ✓ lines, a counting-method difference only).
+
+**Commits:** one local commit, `training: fix practice — assault
+0.16 diagnostic (measurement-invalid, channelMax instrument fix,
+no tuning)`. Not pushed.
+
+**New lessons:** 21 (never pool a win rate across unlike
+objectives), 22 (a decaying progress metric is reported as its
+peak), 23 (attribute the objective before crediting the profile).
+Next session: Thu Oct 29 — EFFICIENCY, per Sunday's focus list.
+
+**Grading addendum (Coach's full written report, filed after the
+entry above):** grade **PASS** — all 8 design-pass criteria
+verified against the actual files, with independent re-runs:
+trace parity re-run 4/4 (incl. a botmatch `channelMax`
+cross-check: snow s31 trace 9.3 = stock 9.3); count cells
+re-run matching (compound s31 ×{0,2,3} channelMax 0, mars s31
+0-attacker 45.0 / final 0); post-fix matrix independently
+diffed — 0 diffs on shared fields across all 32 rows; ring-start
+re-runs win at exactly 45.0 s (compound/snow/mars s11); Coach's
+own close-out smoke PASSED (293 checks). Verdict taxonomy
+applied correctly; the `channelMax` diff ruled minimal and
+sound (7 lines, return-shape only). Three minor deductions, none
+blocking, all corrected in the record in-session: (1) the VM2
+reporter `run.mjs` itself still pools assault by mode and
+ignores `channelMax` — the diagnostic now states this scope
+explicitly in §7; reporter adoption stays §9 item 1 for Friday.
+(2) Coach's independent 4-seed 0-attacker mars sweep reached
+channelMax 64.1 (seed 53), above this session's 54.1 sample cap
+— diagnostic §8 U3 now cites both; the "bots start, never
+finish" conclusion is unchanged. (3) Wording tightened where a
+matrix cell spans profiles × seeds.
+
+**Second grading pass (independent Coach re-grade of the same
+files, filed with the follow-up corrections commit):** grade
+**PASS** — verdict taxonomy, segmentation/sample sizes, trace
+parity (26/26 re-counted), channelMax discipline, ring-start
+scoping, and the U1–U3 unblocks all verified; the channelMax
+fix ruled sound; no hard fail. Its three minor deductions and
+their disposition: (1) "the log's commit claim is ahead of
+reality" — true at grading time (files were uncommitted);
+resolved by the session commit `af088ec` itself. (2) "Zero
+diffs on every pre-existing field" was literally overstated —
+`wallMs` differs on all rows (nondeterministic timing);
+wording corrected to "every pre-existing gameplay field" in
+the diagnostic and the entry above. (3) §1 presentation trims
+— snow's channelMax range dropped its 0 values and forest's
+loss peaks omitted 54.2; both corrected in the diagnostic.
+Also carried forward from the REVIEWER report for Sunday's
+CONSOLIDATE (not edited in a FIX PRACTICE session): Lesson 1's
+lighting-lock statement is superseded by Brett's Oct 28 lock
+lift (U7 lighting changes landed), and Lesson 7's Forest
+snapshot numbers are stale post-U10 — both due for correction
+under the playbook's own prune rules.
