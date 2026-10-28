@@ -134,7 +134,7 @@ body.touch-mode { touch-action:manipulation; }
 body.touch-mode .wpn, body.touch-mode .cls-tab, body.touch-mode .att-select,
 body.touch-mode #mode-select, body.touch-mode #biome-select,
 body.touch-mode #online-panel input, body.touch-mode #online-btn,
-body.touch-mode #menu-more-btn, body.touch-mode #menu-back-btn { min-height:44px; }
+body.touch-mode #menu-more-btn, body.touch-mode #menu-back-btn, body.touch-mode #landscape-btn { min-height:44px; }
 body.touch-mode #play-btn { min-height:56px; }
 body.touch-mode .controls { grid-template-columns:repeat(2, auto); font-size:12px; gap:8px 22px; }
 body.touch-mode #ammo-wrap { top:calc(104px + env(safe-area-inset-top)); bottom:auto; right:calc(20px + env(safe-area-inset-right)); }
@@ -401,3 +401,86 @@ body.touch-mode #stats-top { top:calc(10px + env(safe-area-inset-top)); right:ca
 .vp-mute { cursor: pointer; border-radius: 5px; padding: 3px 8px; font-size: 10px; font-weight: 700; letter-spacing: 1px; background: rgba(255,255,255,.06); border: 1px solid rgba(182,255,176,.35); color: #d9e8db; }
 .vp-mute.muted { color: #ff8a7a; border-color: rgba(255, 120, 100, .6); }
 #chat-muted-list .cm-name { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; }
+
+/* ---------- U8 MOBILE LANDSCAPE (Update 8) ---------- */
+/* U8-01 rotate prompt: a non-blocking pill shown ONLY to touch
+   devices held in portrait — body.touch-mode is set by main.js
+   from isTouchDevice and the media query does the rest, so it
+   can never appear on desktop/non-touch. pointer-events: none
+   (never eats a tap); it disappears the moment the device
+   turns. Icon is pure CSS: a wide phone outline inside a
+   rotating arc — no emoji, no images. */
+#rotate-prompt {
+  position: fixed; left: 50%; top: calc(10px + env(safe-area-inset-top)); transform: translateX(-50%);
+  z-index: 30; display: none; align-items: center; gap: 12px; pointer-events: none;
+  background: rgba(6, 12, 8, .82); border: 1px solid rgba(182, 255, 176, .5); border-radius: 999px;
+  padding: 9px 18px 9px 12px; color: #eaf7ea; letter-spacing: .14em;
+  font: 800 13px/1.25 system-ui, sans-serif; text-shadow: 0 1px 3px rgba(0,0,0,.8);
+  box-shadow: 0 8px 24px rgba(0,0,0,.45);
+}
+#rotate-prompt .rp-text span { display: block; font-size: 10px; font-weight: 700; color: #9fd8a8; letter-spacing: .22em; margin-top: 2px; }
+#rotate-prompt .rp-icon { position: relative; width: 40px; height: 40px; flex: 0 0 auto; }
+#rotate-prompt .rp-arc {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 2px solid transparent; border-top-color: #39ff6a; border-right-color: #39ff6a;
+  animation: rp-spin 2.2s linear infinite;
+}
+#rotate-prompt .rp-phone {
+  position: absolute; left: 50%; top: 50%; width: 22px; height: 14px;
+  transform: translate(-50%, -50%);
+  border: 2px solid #dff5df; border-radius: 3px;
+}
+@keyframes rp-spin { to { transform: rotate(360deg); } }
+@media (orientation: portrait) {
+  body.touch-mode #rotate-prompt { display: flex; }
+}
+@media (prefers-reduced-motion: reduce) { #rotate-prompt .rp-arc { animation: none; } }
+
+/* U8-02 menu landscape button: touch devices only (body class
+   gate), a quiet ghost under DEPLOY. Optional extra — landscape
+   itself is automatic on flip; this adds fullscreen + an
+   orientation lock where the platform allows it. */
+#landscape-btn { display: none; }
+body.touch-mode #landscape-btn {
+  display: inline-flex; align-items: center; gap: 10px; margin-top: 14px;
+  pointer-events: auto; cursor: pointer;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(182,255,176,.35); color: #d9e8db;
+  padding: 11px 22px; font-size: 12px; font-weight: 700; letter-spacing: 2px; border-radius: 8px;
+}
+body.touch-mode #landscape-btn:hover { border-color: rgba(182,255,176,.85); }
+#landscape-btn .lb-icon { width: 20px; height: 13px; border: 2px solid currentColor; border-radius: 3px; flex: 0 0 auto; }
+
+/* U8-02 in-game landscape pill (touch layer, built by
+   touchcontrols.js): left edge, below PAUSE and STREAK. */
+.tc-orient { width: auto; height: 48px; padding: 0 15px; border-radius: 999px; left: calc(14px + env(safe-area-inset-left)); top: calc(136px + env(safe-area-inset-top)); font-size: 10px; }
+
+/* U8-04 landscape phones (short landscape viewports): the
+   portrait touch cluster is a tall right-edge stack (up to
+   282px of bottom offsets) that collides with the top HUD at
+   phone landscape heights (~360–430px). This query — touch
+   mode only, so desktop is untouched — re-seats the cluster
+   into a compact grid whose button centres were checked
+   pairwise (centre distance > summed radii for all nine
+   buttons) and moves HUD readouts clear: ammo to the lower
+   left above the health block, score under the stats stack,
+   gear/streak lines above the lowered slots bar, chat raised.
+   Portrait rules are not modified — no portrait regression. */
+@media (orientation: landscape) and (max-height: 520px) {
+  body.touch-mode #stats-top { font-size: 13px; line-height: 1.5; }
+  body.touch-mode #score-line { top: calc(88px + env(safe-area-inset-top)); }
+  body.touch-mode #objective { max-width: 40vw; }
+  body.touch-mode #ammo-wrap { top: auto; bottom: calc(96px + env(safe-area-inset-bottom)); left: calc(22px + env(safe-area-inset-left)); right: auto; text-align: left; }
+  body.touch-mode #ammo-num { font-size: 34px; }
+  body.touch-mode #health-wrap { width: 200px; }
+  body.touch-mode #gear-hud { bottom: calc(68px + env(safe-area-inset-bottom)); }
+  body.touch-mode #streak-hud { bottom: calc(88px + env(safe-area-inset-bottom)); }
+  body.touch-mode #chat-box { bottom: calc(186px + env(safe-area-inset-bottom)); }
+  .tc-fire { right: calc(20px + env(safe-area-inset-right)); bottom: calc(18px + env(safe-area-inset-bottom)); }
+  .tc-jump { right: calc(124px + env(safe-area-inset-right)); bottom: calc(22px + env(safe-area-inset-bottom)); }
+  .tc-ads { right: calc(24px + env(safe-area-inset-right)); bottom: calc(122px + env(safe-area-inset-bottom)); }
+  .tc-stance { right: calc(100px + env(safe-area-inset-right)); bottom: calc(118px + env(safe-area-inset-bottom)); }
+  .tc-reload { right: calc(176px + env(safe-area-inset-right)); bottom: calc(108px + env(safe-area-inset-bottom)); }
+  .tc-lethal { right: calc(30px + env(safe-area-inset-right)); bottom: calc(192px + env(safe-area-inset-bottom)); }
+  .tc-tactical { right: calc(104px + env(safe-area-inset-right)); bottom: calc(188px + env(safe-area-inset-bottom)); }
+  .tc-slots { bottom: calc(14px + env(safe-area-inset-bottom)); }
+}
