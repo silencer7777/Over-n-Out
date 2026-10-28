@@ -119,13 +119,14 @@ export class Player {
     this._attKey = '';
     this.aiming = false;         // right-mouse held (input.aim)
     this.adsZoom = 1;            // set from the effective weapon (optic)
-    // U6-01 USABLE SCOPES: which optic picture the player is
-    // looking through ('iron' | 'reddot' | 'holo' | 'scope'),
-    // derived in setWeaponVisual from the fitted attachments
-    // (the DMR's built-in glass counts as 'scope'), and the
-    // eased 0..1 ADS blend that drives the overlay + the
-    // viewmodel rule (inside a magnified scope you see the
-    // optic picture, not the gun).
+    // USABLE SCOPES (U6-01; taxonomy U7-01): which sight
+    // picture the player is looking through — 'iron' | 'reddot'
+    // | 'holo' | 'mid' | 'sniper' — derived in setWeaponVisual
+    // from the fitted attachments (the DMR's built-in glass
+    // counts as 'sniper'; every other bare gun is 'iron'), and
+    // the eased 0..1 ADS blend that drives the overlay + the
+    // viewmodel rule (inside a MAGNIFIED tube — mid / sniper —
+    // you see the optic picture, not the gun).
     this.adsKind = 'iron';
     this.aimBlend = 0;
     this._scopeInner = false;
@@ -252,23 +253,39 @@ export class Player {
     // ADS profile rides the effective weapon (set by main.js).
     if (Number.isFinite(weapon.adsZoom)) this.adsZoom = weapon.adsZoom;
     if (Number.isFinite(weapon.moveAds)) this.aimMoveMult = weapon.moveAds;
-    // U6-01: optic kind — the fitted optic wins; the DMR's
-    // built-in scope is glass even with no optic attachment.
+    // U7-01: sight kind — a fitted optic wins; the DMR's
+    // built-in glass is a sniper scope even with no attachment;
+    // everything else falls to iron sights (which now render a
+    // real sight picture — see the overlay in main.js / css).
     const atts = attachments || [];
-    this.adsKind = atts.includes('scope') ? 'scope'
+    this.adsKind = atts.includes('sniper') ? 'sniper'
+      : atts.includes('scope') ? 'mid'
       : atts.includes('holo') ? 'holo'
       : atts.includes('reddot') ? 'reddot'
-      : weapon.id === 'dmr' ? 'scope' : 'iron';
+      : weapon.id === 'dmr' ? 'sniper' : 'iron';
     // Suppressor identity (Havoc §3): minimal muzzle flash.
     this.flashDim = weapon.stealth ? 0.3 : 1;
   }
 
   update(dt, input) {
-    // Mouse-look smoothing: ease yaw/pitch toward the look() targets
-    // with a frame-rate-independent factor (~35ms time constant).
-    const lookK = 1 - Math.exp(-LOOK_SMOOTHING_RATE * dt);
-    this.yaw += (this.targetYaw - this.yaw) * lookK;
-    this.pitch += (this.targetPitch - this.pitch) * lookK;
+    // Mouse-look smoothing: ease yaw/pitch toward the look()
+    // targets with a frame-rate-independent factor. U7-03 LOOK
+    // FEEL: the rate is now error-adaptive — it scales with the
+    // wrapped angular distance to target (capped ×2.6) so long
+    // flicks catch up fast instead of swimming, while fine
+    // corrections keep the shipped ~35 ms settle; ADS multiplies
+    // the rate ×1.5 for precision. Sensitivity and targets are
+    // untouched — only the approach curve changes.
+    let dYawT = this.targetYaw - this.yaw;
+    dYawT = Math.atan2(Math.sin(dYawT), Math.cos(dYawT));
+    const dPitchT = this.targetPitch - this.pitch;
+    const angErr = Math.hypot(dYawT, dPitchT);
+    const lookRate = LOOK_SMOOTHING_RATE
+      * (1 + Math.min(1.6, angErr * 2.2))
+      * (input.aim ? 1.5 : 1);
+    const lookK = 1 - Math.exp(-lookRate * dt);
+    this.yaw += dYawT * lookK;
+    this.pitch += dPitchT * lookK;
     this.yawTarget = this.targetYaw;
     this.pitchTarget = this.targetPitch;
 
@@ -340,7 +357,21 @@ export class Player {
     const hasInput = !!(f || s);
     const wishX = hasInput ? (wx / len) * speed : 0;
     const wishZ = hasInput ? (wz / len) * speed : 0;
-    const rate = this.onGround ? (hasInput ? GROUND_ACCEL_INPUT : GROUND_ACCEL_STOP) : AIR_ACCEL;
+    let rate = this.onGround ? (hasInput ? GROUND_ACCEL_INPUT : GROUND_ACCEL_STOP) : AIR_ACCEL;
+    // U7-03 LOCOMOTION FEEL: soft-start ramp on INPUT accel —
+    // a fresh push eases in at ×0.7 and reaches full rate over
+    // 100 ms (smootherstep), so starts glide instead of
+    // snapping. Stops keep the full stop rate (brakes stay
+    // responsive) and air control is untouched. Top speeds and
+    // the base rates are Havoc's and do not change; measured
+    // cost: time-to-90% walk speed ≈ 0.140 s → ≈ 0.147 s.
+    if (hasInput && this.onGround) {
+      this._pushT = Math.min(0.1, (this._pushT || 0) + dt);
+      const pt = this._pushT / 0.1;
+      rate *= 0.7 + 0.3 * (pt * pt * (3 - 2 * pt));
+    } else if (!hasInput) {
+      this._pushT = 0;
+    }
     const dvx = wishX - this.vel.x;
     const dvz = wishZ - this.vel.z;
     const dvLen = Math.hypot(dvx, dvz);
@@ -511,7 +542,7 @@ export class Player {
     this.aimBlend += ((this.aiming ? 1 : 0) - this.aimBlend) * Math.min(1, dt * 11);
     if (this.aimBlend < 0.001) this.aimBlend = 0;
     if (this.aimBlend > 0.999) this.aimBlend = 1;
-    const scopeInner = this.adsKind === 'scope' && this.aimBlend > 0.55;
+    const scopeInner = (this.adsKind === 'mid' || this.adsKind === 'sniper') && this.aimBlend > 0.55;
     if (scopeInner !== this._scopeInner) {
       this._scopeInner = scopeInner;
       if (this.gunModel) this.gunModel.visible = !scopeInner;
