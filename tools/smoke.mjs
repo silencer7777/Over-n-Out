@@ -620,7 +620,7 @@ try {
   const P = await import('../js/progression.js');
   if (P.xpForLevel(2) === 400 && P.levelForXp(0) === 1 && P.levelForXp(400) === 2) ok('PG1 XP curve: level 2 at 400 XP (first-match unlock)');
   else fail(`PG1 curve → L2 ${P.xpForLevel(2)}, levelForXp(400) ${P.levelForXp(400)}`);
-  if (P.UNLOCKS.length === 26 && P.unlockedClassSlots(1) === 1 && P.unlockedClassSlots(18) === 5) ok('PG2 unlock ladder: 26 rungs (V4 15 + V5 8 perks + 3 attachments), class slots 1→5 by L18');
+  if (P.UNLOCKS.length === 27 && P.unlockedClassSlots(1) === 1 && P.unlockedClassSlots(18) === 5) ok('PG2 unlock ladder: 27 rungs (V4 15 + V5 8 perks + 3 attachments + U7-01 sniper scope), class slots 1→5 by L18');
   else fail(`PG2 ladder → ${P.UNLOCKS.length} rungs, slots(18) ${P.unlockedClassSlots(18)}`);
   if (!P.isAttachmentUnlocked(1, 'reddot') && P.isAttachmentUnlocked(2, 'reddot')) ok('PG3 reddot gated until level 2');
   else fail('PG3 reddot gating wrong');
