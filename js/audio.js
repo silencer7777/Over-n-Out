@@ -79,13 +79,20 @@ const ENEMY_DESCRIPTORS = {
 };
 
 export class Sfx {
-  constructor() { this.ctx = null; this.master = null; this._ambientStarted = false; this._ambient = null; }
+  constructor() {
+    this.ctx = null; this.master = null; this._ambientStarted = false; this._ambient = null;
+    // V6 Update 5 (U5-01/U5-08): mix settings, driven live from
+    // the options menu and persisted in the player profile.
+    this.musicVolume = 0.8;   // 0..1 (menu theme bus)
+    this.sfxVolume = 1;       // 0..1 (scales the master bus)
+    this._music = null;       // menu theme scheduler state
+  }
   ensure() {
     if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
     try {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
       this.master = this.ctx.createGain();
-      this.master.gain.value = 0.35;
+      this.master.gain.value = 0.35 * this.sfxVolume;
       this.master.connect(this.ctx.destination);
       // Start the ambient wind bed alongside the new context. startAmbient()
       // is guarded (starts at most once) and never throws, so a failure here
@@ -129,6 +136,118 @@ export class Sfx {
       this._ambient = null;
     }
   }
+  // ---------------------------------------------------------------
+  // MENU THEME (V6 Update 5, U5-01) — an original procedural
+  // composition in the house WebAudio idiom: no files, no samples,
+  // nothing copyrighted. A four-bar loop in D minor at 96 BPM:
+  // sub-bass roots (Dm, Dm, Bb, A), slow pad triads, a sparse
+  // pentatonic lead over the last two bars, and soft kick/hat
+  // percussion — scheduled with a lookahead pump like a tiny
+  // step sequencer. Menu-only: startMenuMusic() is called from
+  // the menu flow after the first user gesture (autoplay law);
+  // stopMenuMusic() fades it out when a match deploys.
+  // ---------------------------------------------------------------
+  setSfxVolume(v) {
+    this.sfxVolume = Math.max(0, Math.min(1, Number(v) || 0));
+    if (this.master && this.ctx) {
+      this.master.gain.setTargetAtTime(0.35 * this.sfxVolume, this.ctx.currentTime, 0.03);
+    }
+  }
+  setMusicVolume(v) {
+    this.musicVolume = Math.max(0, Math.min(1, Number(v) || 0));
+    if (this._music && this.ctx) {
+      this._music.gain.gain.setTargetAtTime(this.musicVolume * 0.5, this.ctx.currentTime, 0.03);
+    }
+  }
+  startMenuMusic() {
+    if (!this.ctx || !this.master || this._music) return;
+    try {
+      const gain = this.ctx.createGain();
+      gain.gain.value = this.musicVolume * 0.5;
+      gain.connect(this.master);
+      this._music = {
+        gain, step: 0,
+        nextTime: this.ctx.currentTime + 0.08,
+        timer: setInterval(() => this._musicPump(), 120),
+      };
+    } catch (e) { this._music = null; /* music is garnish — never break the game */ }
+  }
+  stopMenuMusic() {
+    if (!this._music || !this.ctx) { this._music = null; return; }
+    const m = this._music;
+    this._music = null;
+    clearInterval(m.timer);
+    try {
+      m.gain.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.12);
+      setTimeout(() => { try { m.gain.disconnect(); } catch (e) { /* already gone */ } }, 500);
+    } catch (e) { /* silent is fine */ }
+  }
+  // Duck the theme under the pre-match countdown (U5-09).
+  duckMenuMusic(on) {
+    if (!this._music || !this.ctx) return;
+    const target = this.musicVolume * 0.5 * (on ? 0.3 : 1);
+    this._music.gain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.1);
+  }
+  _musicTone(freq, t, dur, { type = 'sine', vol = 0.1, attack = 0.01 } = {}) {
+    if (!this._music) return;
+    const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(this._music.gain);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  _musicHat(t) {
+    if (!this._music) return;
+    const c = this.ctx, src = this._noise(0.05), f = c.createBiquadFilter(), g = c.createGain();
+    f.type = 'highpass'; f.frequency.value = 6000;
+    g.gain.setValueAtTime(0.05, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    src.connect(f); f.connect(g); g.connect(this._music.gain);
+    src.start(t);
+  }
+  _musicPump() {
+    if (!this._music || !this.ctx) return;
+    const STEP = 60 / 96 / 2; // eighth notes at 96 BPM
+    const CHORDS = [
+      { root: 73.42, pad: [146.83, 174.61, 220.00] },  // Dm
+      { root: 73.42, pad: [146.83, 174.61, 220.00] },  // Dm
+      { root: 58.27, pad: [116.54, 146.83, 174.61] },  // Bb
+      { root: 55.00, pad: [110.00, 138.59, 164.81] },  // A
+    ];
+    const LEAD = { 16: 293.66, 19: 349.23, 22: 293.66, 25: 329.63, 28: 220.00, 30: 261.63 };
+    while (this._music.nextTime < this.ctx.currentTime + 0.30) {
+      const s = this._music.step % 32;
+      const t = this._music.nextTime;
+      const bar = Math.floor(s / 8), chord = CHORDS[bar], inBar = s % 8;
+      if (inBar === 0) {
+        for (const f of chord.pad) this._musicTone(f, t, STEP * 8, { type: 'triangle', vol: 0.045, attack: 0.4 });
+        // soft kick: pitched sine drop
+        const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(95, t);
+        o.frequency.exponentialRampToValueAtTime(44, t + 0.12);
+        g.gain.setValueAtTime(0.16, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+        o.connect(g); g.connect(this._music.gain);
+        o.start(t); o.stop(t + 0.16);
+      }
+      if (inBar === 0 || inBar === 3 || inBar === 6) this._musicTone(chord.root, t, STEP * 1.8, { type: 'triangle', vol: 0.14, attack: 0.005 });
+      if (inBar === 4) this._musicTone(chord.root * 2, t, STEP * 1.5, { type: 'triangle', vol: 0.10, attack: 0.005 });
+      if (inBar % 4 === 2) this._musicHat(t);
+      if (LEAD[s]) this._musicTone(LEAD[s], t, STEP * 2.6, { type: 'sine', vol: 0.075, attack: 0.01 });
+      this._music.step++;
+      this._music.nextTime += STEP;
+    }
+  }
+  // Countdown ticks (U5-09): a short blip per second, higher and
+  // longer on GO. Rides the SFX bus like every other UI sound.
+  countTick(final = false) {
+    if (!this.ctx) return;
+    this._tone(final ? 1318 : 880, final ? 0.22 : 0.08, 'square', final ? 0.20 : 0.13);
+  }
+
   _noise(dur) {
     const c = this.ctx, len = Math.floor(c.sampleRate * dur);
     const buf = c.createBuffer(1, len, c.sampleRate);
