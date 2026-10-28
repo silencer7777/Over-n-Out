@@ -48,7 +48,12 @@ const FORBIDDEN_PATTERNS = [
 // pattern still applies to that file, and every other file keeps
 // the full list. Added by Vega alongside the server transport it
 // speaks to (net/ws-transport.js).
-const LINT_EXCEPTIONS = { 'js/online.js': ['WebSocket('] };
+// U6-14 extension (named): js/chat.js — the menu lobby-chat
+// client — is the second transport module, under the identical
+// discipline (its URL comes only from the player's own SERVER
+// field via OnlineSession.normalizeUrl; nothing is hardcoded).
+// The exception list grows by exactly this one file.
+const LINT_EXCEPTIONS = { 'js/online.js': ['WebSocket('], 'js/chat.js': ['WebSocket('] };
 for (const file of walk(join(ROOT, 'js'))) {
   const rel = file.replace(ROOT, '');
   let content = '';
@@ -226,9 +231,9 @@ if (STORY && typeof briefingForWave === 'function' && typeof objectiveForWave ==
 }
 
 // 1e) Net protocol — real import + wire contract (MULTIPLAYER.md §5)
-let MSG, PROTOCOL_VERSION, validateHello, validateInput, LIMITS, DEFAULT_MODE, isValidModeId;
+let MSG, PROTOCOL_VERSION, validateHello, validateInput, validateChat, validateSignal, LIMITS, DEFAULT_MODE, isValidModeId;
 try {
-  ({ MSG, PROTOCOL_VERSION, validateHello, validateInput, LIMITS, DEFAULT_MODE, isValidModeId } = await import('../net/protocol.js'));
+  ({ MSG, PROTOCOL_VERSION, validateHello, validateInput, validateChat, validateSignal, LIMITS, DEFAULT_MODE, isValidModeId } = await import('../net/protocol.js'));
   if (!MSG || typeof MSG !== 'object') fail('N1 protocol import — MSG is not an object'); else ok('N1 MSG is an object');
   if (typeof validateHello !== 'function') fail('N1 protocol import — validateHello is not a function'); else ok('N1 validateHello is a function');
   if (typeof validateInput !== 'function') fail('N1 protocol import — validateInput is not a function'); else ok('N1 validateInput is a function');
@@ -237,9 +242,13 @@ try {
 }
 
 if (MSG && typeof validateHello === 'function' && typeof validateInput === 'function') {
-  // N1: MSG is frozen with exactly the 8 specified types
-  const EXPECTED_MSG = { HELLO: 'hello', WELCOME: 'welcome', ERROR: 'error', INPUT: 'input', SNAPSHOT: 'snapshot', EVENT: 'event', PING: 'ping', PONG: 'pong' };
-  if (!Object.isFrozen(MSG)) fail('N1 MSG is not frozen'); else if (Object.keys(MSG).length !== 8) fail(`N1 MSG key count → ${Object.keys(MSG).length} (expected 8): ${Object.keys(MSG).join(', ')}`); else if (JSON.stringify(MSG) !== JSON.stringify(EXPECTED_MSG)) fail(`N1 MSG → ${JSON.stringify(MSG)} (expected ${JSON.stringify(EXPECTED_MSG)})`); else ok('N1 MSG is frozen with exactly the 8 specified types');
+  // N1: MSG is frozen with exactly the specified types.
+  // U6-14/U6-15 RE-PIN (named, Vega's ruling): the protocol is
+  // EXTENDED 8 -> 10 types (CHAT, SIGNAL) with PROTOCOL_VERSION
+  // held at 1 — old peers drop unknown types per §5, and
+  // neither new type carries an outcome. See protocol.js.
+  const EXPECTED_MSG = { HELLO: 'hello', WELCOME: 'welcome', ERROR: 'error', INPUT: 'input', SNAPSHOT: 'snapshot', EVENT: 'event', PING: 'ping', PONG: 'pong', CHAT: 'chat', SIGNAL: 'signal' };
+  if (!Object.isFrozen(MSG)) fail('N1 MSG is not frozen'); else if (Object.keys(MSG).length !== 10) fail(`N1 MSG key count → ${Object.keys(MSG).length} (expected 10 after the U6 extension): ${Object.keys(MSG).join(', ')}`); else if (JSON.stringify(MSG) !== JSON.stringify(EXPECTED_MSG)) fail(`N1 MSG → ${JSON.stringify(MSG)} (expected ${JSON.stringify(EXPECTED_MSG)})`); else ok('N1 MSG is frozen with exactly the 10 types (8 + U6 chat/signal extension, version still 1)');
 
   // N2: PROTOCOL_VERSION === 1
   if (PROTOCOL_VERSION !== 1) fail(`N2 PROTOCOL_VERSION → ${PROTOCOL_VERSION} (expected 1)`); else ok('N2 PROTOCOL_VERSION === 1');
@@ -316,6 +325,31 @@ if (MSG && typeof validateHello === 'function' && typeof validateInput === 'func
     else if (typeof isValidModeId !== 'function' || !isValidModeId('domination') || isValidModeId('NOPE') || isValidModeId('')) fail('N12 isValidModeId misbehaves');
     else ok("N12 DEFAULT_MODE === 'waves'; isValidModeId shapes ids");
   } catch (e) { fail('N12 mode id checks threw: ' + e.message); }
+
+  // N13 (U6-14): validateChat — channels are an enum, text is
+  // 1..240 chars, no other shape passes.
+  try {
+    const good = validateChat({ t: 'chat', channel: 'team', text: 'push the left lane' });
+    const badChan = validateChat({ t: 'chat', channel: 'global', text: 'hi' });
+    const badLong = validateChat({ t: 'chat', channel: 'all', text: 'x'.repeat(241) });
+    const badEmpty = validateChat({ t: 'chat', channel: 'all', text: '   ' });
+    if (good.ok !== true) fail('N13 validateChat rejected a valid line');
+    else if (badChan.ok || badLong.ok || badEmpty.ok) fail('N13 validateChat accepted a bad channel / 241 chars / blank text');
+    else ok('N13 validateChat: channel enum + 1..240 char text, strict');
+  } catch (e) { fail('N13 validateChat threw: ' + e.message); }
+
+  // N14 (U6-15): validateSignal — kinds are an enum, per-kind
+  // payload caps hold, target is a bounded string.
+  try {
+    const offer = validateSignal({ t: 'signal', to: 'p2', kind: 'offer', data: { sdp: 'v=0 o=- 1 1 IN IP4 127.0.0.1' } });
+    const ice = validateSignal({ t: 'signal', to: 'p2', kind: 'ice', data: { candidate: 'candidate:1 1 udp 1 127.0.0.1 9 typ host', sdpMid: '0' } });
+    const badKind = validateSignal({ t: 'signal', to: 'p2', kind: 'bye', data: {} });
+    const badSdp = validateSignal({ t: 'signal', to: 'p2', kind: 'offer', data: { sdp: 'x'.repeat(12001) } });
+    const badTo = validateSignal({ t: 'signal', to: '', kind: 'ice', data: { candidate: 'c' } });
+    if (offer.ok !== true || ice.ok !== true) fail('N14 validateSignal rejected a valid offer/ice');
+    else if (badKind.ok || badSdp.ok || badTo.ok) fail('N14 validateSignal accepted a bad kind / oversize sdp / empty target');
+    else ok('N14 validateSignal: kind enum + per-kind payload caps, strict');
+  } catch (e) { fail('N14 validateSignal threw: ' + e.message); }
 }
 
 // 1f) Gun models (V3 Phase 2 workstream 1) — source contract.
@@ -388,10 +422,17 @@ try {
   // V6-3 re-pin (Atlas): deliberate — SOLIDS 111 -> 115 (+4 Ops
   // Building interior partitions, Stage 1 enterable interiors),
   // then 115 -> 147 (+32 HQ two-story enterable, same wave).
-  if (wd.SOLIDS.length === 147) ok('T1 worlddata SOLIDS === 147 (mirrors world.js solids)');
-  else fail(`T1 worlddata SOLIDS → ${wd.SOLIDS.length} (expected 147 — mirror world.js!)`);
-  if (wd.EXTRA_COLLIDERS.length === 22) ok('T2 worlddata EXTRA_COLLIDERS === 22 (3 trees + 8 big bushes + 5 barrels + 3 wrecks + 3 drums)');
-  else fail(`T2 worlddata EXTRA_COLLIDERS → ${wd.EXTRA_COLLIDERS.length} (expected 22)`);
+  // U6-12 re-pin (Atlas): deliberate — SOLIDS 147 -> 178 (+31:
+  // the ±80 expansion ring — warehouse 11, fuel-depot barriers
+  // 2, solar field 6, landing pad 4, ring jersey barriers 8;
+  // Ops/HQ growth is count-neutral, walls moved not added),
+  // EXTRA 22 -> 37 (+15: U6-11 grew all 14 compound bushes past
+  // the blocking rule and planted 6 more (bushes 8 -> 20,
+  // +12), fuel-depot tanks +3).
+  if (wd.SOLIDS.length === 178) ok('T1 worlddata SOLIDS === 178 (mirrors world.js solids)');
+  else fail(`T1 worlddata SOLIDS → ${wd.SOLIDS.length} (expected 178 — mirror world.js!)`);
+  if (wd.EXTRA_COLLIDERS.length === 37) ok('T2 worlddata EXTRA_COLLIDERS === 37 (3 trees + 20 big bushes + 5 barrels + 3 wrecks + 3 drums + 3 depot tanks)');
+  else fail(`T2 worlddata EXTRA_COLLIDERS → ${wd.EXTRA_COLLIDERS.length} (expected 37)`);
   if (wd.SPAWN_POINTS.length === 12) ok('T3 worlddata SPAWN_POINTS === 12');
   else fail(`T3 worlddata SPAWN_POINTS → ${wd.SPAWN_POINTS.length} (expected 12)`);
   if (wd.BARRELS.length === 5) ok('T4 worlddata BARRELS === 5');
