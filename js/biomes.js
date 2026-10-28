@@ -207,6 +207,17 @@ function procTexture(size, seed, painter) {
   if ('colorSpace' in tex && THREE.SRGBColorSpace) tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
+// Mirror of proctex.js windStreaks (this file stays self-contained
+// for tools/biome-check.mjs, so the helper is copied, not imported).
+// RNG order is part of the recipe — alpha, then x/y/rx/ry/bearing.
+function windStreaksLocal(c, S, rng, { n, rgb, rx, ry, bearing, jitter }) {
+  for (let i = 0; i < n; i++) {
+    c.fillStyle = `rgba(${rgb},${0.05 + rng() * 0.06})`;
+    c.beginPath();
+    c.ellipse(rng() * S, rng() * S, rx[0] + rng() * rx[1], ry[0] + rng() * ry[1], bearing + (rng() - 0.5) * jitter, 0, Math.PI * 2);
+    c.fill();
+  }
+}
 function makeBarkTextureLocal() {
   return procTexture(256, 771177, (c, S, rng) => {
     c.fillStyle = '#d3c7b2'; c.fillRect(0, 0, S, S);
@@ -253,6 +264,40 @@ function makeFoliageTextureLocal() {
     }
   });
 }
+// --- V6 (Atlas, Update 4): forest floor — grass, bare earth --
+// and leaf litter blended in one painter, so the forest stops
+// growing out of the compound's concrete slab. Original recipe
+// (no proctex twin — the floor exists only on this path).
+function makeForestFloorTextureLocal() {
+  return procTexture(512, 615131, (c, S, rng) => {
+    c.fillStyle = '#3d4d1f'; c.fillRect(0, 0, S, S); // deep moss-grass base
+    // Large soft material patches: bare earth, dark moss, dry grass.
+    const PATCHES = ['90,70,44', '46,61,24', '106,116,52', '58,48,30'];
+    for (let i = 0; i < 34; i++) {
+      const rgb = PATCHES[Math.floor(rng() * PATCHES.length)];
+      c.fillStyle = `rgba(${rgb},${0.10 + rng() * 0.16})`;
+      c.beginPath();
+      c.ellipse(rng() * S, rng() * S, 26 + rng() * 74, 18 + rng() * 52, rng() * Math.PI, 0, Math.PI * 2);
+      c.fill();
+    }
+    // Leaf-litter flecks: fallen browns and ochres.
+    for (let i = 0; i < 2100; i++) {
+      const warm = ['150,102,44', '122,84,36', '96,70,30', '168,128,58'][Math.floor(rng() * 4)];
+      c.fillStyle = `rgba(${warm},${0.10 + rng() * 0.20})`;
+      c.fillRect(rng() * S, rng() * S, 1 + rng() * 3, 1 + rng() * 2);
+    }
+    // Grass speckle: short light strokes over the dark base.
+    for (let i = 0; i < 1500; i++) {
+      c.fillStyle = `rgba(147,194,62,${0.05 + rng() * 0.10})`;
+      c.fillRect(rng() * S, rng() * S, 1 + rng() * 2, 2 + rng() * 3);
+    }
+    // Fine soil noise.
+    for (let i = 0; i < 1600; i++) {
+      c.fillStyle = rng() > 0.5 ? `rgba(0,0,0,${0.03 + rng() * 0.05})` : `rgba(220,230,190,${0.02 + rng() * 0.04})`;
+      c.fillRect(rng() * S, rng() * S, 1 + rng() * 2, 1 + rng() * 2);
+    }
+  });
+}
 // --- V6 (Atlas, Update 2): snow / ice / metal-panel / ------
 // regolith — local copies of the js/proctex.js recipes, same
 // reason as above (biomes.js imports only 'three').
@@ -271,15 +316,21 @@ function makeSnowTextureLocal() {
     }
     // V6-3 weather: wind-scour streaks + doubled sparkle glints
     // (kept in step with proctex makeSnowTexture).
-    for (let i = 0; i < 12; i++) {
-      c.fillStyle = `rgba(255,255,255,${0.05 + rng() * 0.06})`;
-      c.beginPath();
-      c.ellipse(rng() * S, rng() * S, 26 + rng() * 44, 3 + rng() * 5, 0.35 + (rng() - 0.5) * 0.2, 0, Math.PI * 2);
-      c.fill();
-    }
+    windStreaksLocal(c, S, rng, { n: 12, rgb: '255,255,255', rx: [26, 44], ry: [3, 5], bearing: 0.35, jitter: 0.2 });
     for (let i = 0; i < 140; i++) {
       c.fillStyle = `rgba(255,255,255,${0.5 + rng() * 0.5})`;
       c.fillRect(rng() * S, rng() * S, 1.3, 1.3);
+    }
+    // V6 Update 4: deep-drift mottling — broad blue-grey masses
+    // at a larger scale than the drift shading above, so the
+    // pack reads as depth, not one flat sheet. Appended last so
+    // every upstream draw is unchanged (kept in step with
+    // proctex makeSnowTexture).
+    for (let i = 0; i < 9; i++) {
+      c.fillStyle = `rgba(120,146,182,${0.05 + rng() * 0.05})`;
+      c.beginPath();
+      c.ellipse(rng() * S, rng() * S, 60 + rng() * 90, 34 + rng() * 60, rng() * Math.PI, 0, Math.PI * 2);
+      c.fill();
     }
   });
 }
@@ -349,12 +400,7 @@ function makeRegolithTextureLocal() {
     }
     // V6-3 weather: wind-blown dust streaks (kept in step with
     // proctex makeRegolithTexture).
-    for (let i = 0; i < 9; i++) {
-      c.fillStyle = `rgba(255,238,214,${0.05 + rng() * 0.06})`;
-      c.beginPath();
-      c.ellipse(rng() * S, rng() * S, 30 + rng() * 52, 3 + rng() * 6, 0.5 + (rng() - 0.5) * 0.25, 0, Math.PI * 2);
-      c.fill();
-    }
+    windStreaksLocal(c, S, rng, { n: 9, rgb: '255,238,214', rx: [30, 52], ry: [3, 6], bearing: 0.5, jitter: 0.25 });
     for (let i = 0; i < 220; i++) {
       const v = 120 + Math.floor(rng() * 100);
       c.fillStyle = `rgba(${v},${Math.floor(v * 0.72)},${Math.floor(v * 0.5)},0.8)`;
@@ -619,6 +665,95 @@ function buildForest(ctx) {
     addedColliders.push(mastCollider); ctx.colliders.push(mastCollider);
     group.userData.mastPoi = { x: -16, z: 56 };
     group.userData.mastMeshCount = mastParts.length;
+  }
+
+  // --- Forest floor (V6 Update 4, Atlas — terrain) -----------
+  // The forest's missing blanket: snow and Mars have worn a
+  // full ground overlay since V4; the forest still showed the
+  // compound's concrete slab under its trees. Same construction
+  // as the snow blanket (one r 90 cylinder, group child only —
+  // no collider, no shootable, no height change), wearing the
+  // blended grass / bare-earth / leaf-litter painter. Plus the
+  // row's undulation and scatter: a ring of smooth mounds past
+  // the arena bounds and a field of floor stones. Everything
+  // below runs on its OWN rng streams (FOREST_SEED + offsets),
+  // planted after every shipped scatter, so the byte-identical
+  // tree/bush placement upstream cannot re-roll.
+  {
+    const floorTex = makeForestFloorTextureLocal();
+    if (floorTex) floorTex.repeat.set(20, 20);
+    const blanket = new THREE.Mesh(
+      new THREE.CylinderGeometry(90, 90, 0.04, 48),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, map: floorTex, bumpMap: floorTex, bumpScale: 0.03 }));
+    blanket.position.set(0, 0.02, 0);
+    blanket.receiveShadow = true;
+    group.add(blanket);
+    group.userData.forestFloor = true;
+
+    // Perimeter undulation — smooth mounds in the r 67–86 ring
+    // (outside the ±62 bounds: backdrop only, boots never reach
+    // them), each held clear of every trunk, bush and the mast.
+    // castShadow stays OFF — the shadow-pass budget has no room
+    // (grand worst case 199 vs the 200 bar); they still receive.
+    const moundRng = makeRng(FOREST_SEED + 9001);
+    const mounds = [];
+    for (let tries = 0; mounds.length < 12 && tries < 12 * 160; tries++) {
+      const a = moundRng() * Math.PI * 2, r = 67 + moundRng() * 19;
+      const x = Math.cos(a) * r, z = Math.sin(a) * r;
+      if (!isClear(x, z, 2)) continue;
+      let ok = true;
+      for (const t of trees) if (Math.hypot(x - t.x, z - t.z) < 5) { ok = false; break; }
+      if (ok) for (const b of bushes) if (Math.hypot(x - b.x, z - b.z) < 3) { ok = false; break; }
+      if (ok && Math.hypot(x + 16, z - 56) < 8) ok = false;
+      if (ok) for (const m of mounds) if (Math.hypot(x - m.x, z - m.z) < 11) { ok = false; break; }
+      if (!ok) continue;
+      mounds.push({ x, z, sx: 4 + moundRng() * 4.5, sz: 4 + moundRng() * 4.5, sy: 0.9 + moundRng() * 0.8, rot: moundRng() * Math.PI });
+    }
+    const moundTex = makeForestFloorTextureLocal();
+    if (moundTex) moundTex.repeat.set(3, 3);
+    const moundIM = new THREE.InstancedMesh(
+      displacedSphere(1, 9.4, 0.16, 10, 8),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, map: moundTex }),
+      Math.max(mounds.length, 1));
+    moundIM.count = mounds.length;
+    moundIM.receiveShadow = true; moundIM.frustumCulled = false;
+    dummy.quaternion.identity();
+    mounds.forEach((m, i) => {
+      dummy.rotation.set(0, m.rot, 0);
+      dummy.position.set(m.x, -m.sy * 0.55, m.z);
+      dummy.scale.set(m.sx, m.sy, m.sz);
+      dummy.updateMatrix(); moundIM.setMatrixAt(i, dummy.matrix);
+      // Per-instance colour on every mound (Board 006 §2.1:
+      // 100% of instanced vegetation carries variation).
+      moundIM.setColorAt(i, new THREE.Color(0xd9dcc8).offsetHSL((moundRng() - 0.5) * 0.03, (moundRng() - 0.5) * 0.08, (moundRng() - 0.5) * 0.09));
+    });
+    if (moundIM.instanceColor) moundIM.instanceColor.needsUpdate = true;
+    group.add(moundIM);
+    group.userData.moundCount = mounds.length;
+
+    // Floor stones — ankle-height scatter across the bands, the
+    // world.js landscaping-rock idiom at forest scale. Visual
+    // only (no colliders — shots and boots pass, like the base
+    // rocks); instance colour carries the grey-brown variation.
+    const stoneRng = makeRng(FOREST_SEED + 9107);
+    const stoneSpots = scatterInBands(stoneRng, 56, 0.4, [], 0, () => 1.6);
+    const stoneIM = new THREE.InstancedMesh(
+      new THREE.DodecahedronGeometry(0.22),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, flatShading: true }),
+      Math.max(stoneSpots.length, 1));
+    stoneIM.count = stoneSpots.length;
+    stoneIM.receiveShadow = true; stoneIM.frustumCulled = false;
+    stoneSpots.forEach((p, i) => {
+      const s = 0.6 + stoneRng() * 1.1;
+      dummy.rotation.set(stoneRng() * 3, stoneRng() * Math.PI * 2, stoneRng() * 3);
+      dummy.position.set(p.x, 0.07 * s, p.z);
+      dummy.scale.set(s, s * 0.7, s * (0.8 + stoneRng() * 0.4));
+      dummy.updateMatrix(); stoneIM.setMatrixAt(i, dummy.matrix);
+      stoneIM.setColorAt(i, new THREE.Color(0x77705f).offsetHSL(0, 0, (stoneRng() - 0.5) * 0.14));
+    });
+    if (stoneIM.instanceColor) stoneIM.instanceColor.needsUpdate = true;
+    group.add(stoneIM);
+    group.userData.stoneCount = stoneSpots.length;
   }
 
   ctx.scene.add(group);
@@ -1074,6 +1209,48 @@ function buildMars(ctx) {
     addedColliders.push(mastCollider); ctx.colliders.push(mastCollider);
     group.userData.spirePoi = { x: 50, z: -52 };
     group.userData.spireMeshCount = spireParts.length;
+  }
+
+  // --- Pebble field (V6 Update 4, Atlas — terrain) -----------
+  // The regolith blanket read smooth between the big rocks: a
+  // dense instanced pebble scatter (ankle height, visual only —
+  // no colliders, same rule as the forest floor stones) gives
+  // the ground its grain at boot level. Own rng stream
+  // (MARS_SEED + 777) planted after every shipped scatter, so
+  // the rock field upstream cannot re-roll. castShadow OFF —
+  // the shadow-pass budget has no room; pebbles still receive.
+  {
+    const pebRng = makeRng(MARS_SEED + 777);
+    const pebSpots = [];
+    for (let tries = 0; pebSpots.length < 130 && tries < 130 * 100; tries++) {
+      const band = BANDS[tries % BANDS.length];
+      const x = band.x0 + pebRng() * (band.x1 - band.x0);
+      const z = band.z0 + pebRng() * (band.z1 - band.z0);
+      if (!marsClear(x, z, 0.3)) continue;
+      let separated = true;
+      for (const p of pebSpots) if (Math.hypot(x - p.x, z - p.z) < 1.1) { separated = false; break; }
+      if (!separated) continue;
+      pebSpots.push({ x, z });
+    }
+    const pebLow = new THREE.Color(0x96481f), pebHigh = new THREE.Color(0xc97a38);
+    const pebIM = new THREE.InstancedMesh(
+      displacedSphere(1, 5.3, 0.25, 7, 6),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, map: regRockTex }),
+      Math.max(pebSpots.length, 1));
+    pebIM.count = pebSpots.length;
+    pebIM.receiveShadow = true; pebIM.frustumCulled = false;
+    dummy.quaternion.identity();
+    pebSpots.forEach((p, i) => {
+      const s = 0.08 + pebRng() * 0.23;
+      dummy.rotation.set(pebRng() * 3, pebRng() * Math.PI * 2, pebRng() * 3);
+      dummy.position.set(p.x, 0.3 * s, p.z);
+      dummy.scale.set(s, s * 0.7, s * (0.8 + pebRng() * 0.4));
+      dummy.updateMatrix(); pebIM.setMatrixAt(i, dummy.matrix);
+      pebIM.setColorAt(i, pebLow.clone().lerp(pebHigh, pebRng()).offsetHSL(0, 0, (pebRng() - 0.5) * 0.08));
+    });
+    if (pebIM.instanceColor) pebIM.instanceColor.needsUpdate = true;
+    group.add(pebIM);
+    group.userData.pebbleCount = pebSpots.length;
   }
 
   // Sky/fog re-dressing — GUARDED: needs a real browser scene
