@@ -139,3 +139,10 @@ body.touch-mode .controls { grid-template-columns:repeat(2, auto); font-size:12p
 body.touch-mode #ammo-wrap { top:calc(104px + env(safe-area-inset-top)); bottom:auto; right:calc(20px + env(safe-area-inset-right)); }
 body.touch-mode #score-line { top:calc(216px + env(safe-area-inset-top)); }
 body.touch-mode #stats-top { top:calc(10px + env(safe-area-inset-top)); right:calc(16px + env(safe-area-inset-right)); }
+
+/* OPTIONS rows (V6 Update 5, U5-08) */
+.opt-row { display: flex; align-items: center; gap: 10px; margin: 7px 0; flex-wrap: wrap; }
+.opt-row label { min-width: 210px; text-align: left; }
+.opt-row input[type="range"] { flex: 1; min-width: 120px; }
+.opt-note { opacity: 0.7; font-size: 0.85em; }
+#camo-pickers .wpn.locked { opacity: 0.45; }
