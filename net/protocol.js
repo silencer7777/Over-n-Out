@@ -25,7 +25,29 @@ export const MSG = Object.freeze({
   EVENT: 'event',
   PING: 'ping',
   PONG: 'pong',
+  // U6-14/U6-15 PROTOCOL EXTENSION (Vega ruling, Update 6):
+  // CHAT and SIGNAL are added as an EXTENSION, not a version
+  // bump — PROTOCOL_VERSION stays 1. Justification: §5 already
+  // drops unknown types for forward compatibility, so an old
+  // peer ignores chat/signal traffic harmlessly; neither type
+  // carries an outcome (chat is presentation, signal is WebRTC
+  // negotiation between clients — the server relays both
+  // verbatim after strict validation and owns no result from
+  // either). The smoke N1 pin is re-derived in the same commit
+  // and the change is named in the Update 6 report.
+  CHAT: 'chat',
+  SIGNAL: 'signal',
 });
+
+// Chat channels (U6-14): 'lobby' = the room you are connected
+// to, out of match (the start-menu chatroom rides the default
+// LOBBY room); 'team' = your side only; 'all' = the whole room.
+export const CHAT_CHANNELS = Object.freeze(['lobby', 'team', 'all']);
+export const CHAT_MAX_CHARS = 240;
+
+// WebRTC signal kinds (U6-15): the three negotiation steps of
+// a peer connection, relayed client -> client via the server.
+export const SIGNAL_KINDS = Object.freeze(['offer', 'answer', 'ice']);
 
 const KNOWN_TYPES = new Set(Object.values(MSG));
 
@@ -197,6 +219,17 @@ export function validateInput(msg) {
   if (msg.tactical !== undefined && typeof msg.tactical !== 'boolean') {
     errors.push('tactical must be a boolean when present');
   }
+  // Optional stance fields (V6 Update 6, U6-10): held-state
+  // booleans like aim — stance (C/Ctrl held) and prone (Z held).
+  // The sim's shared stance machine (js/stance.js) derives
+  // taps/holds/double-taps from the held stream, so no edge
+  // claims travel the wire. Strictly boolean when present.
+  if (msg.stance !== undefined && typeof msg.stance !== 'boolean') {
+    errors.push('stance must be a boolean when present');
+  }
+  if (msg.prone !== undefined && typeof msg.prone !== 'boolean') {
+    errors.push('prone must be a boolean when present');
+  }
   // Optional placed-equipment edge (Directive 10): names WHAT to
   // place on this sample; the sim validates surface / facing /
   // count-per-life from authoritative state — the sample claims
@@ -230,12 +263,88 @@ export function validateInput(msg) {
   return { ok: errors.length === 0, errors };
 }
 
+// validateChat(msg) -> { ok, errors[] }  (U6-14)
+//
+// A chat line: { t: 'chat', channel, text }. The client claims
+// words, never identity — the server stamps `from`/`name` from
+// its own player record when relaying, so a forged name field
+// in the payload is ignored by construction (it is not even
+// read). Text is shape-checked here (string, 1..CHAT_MAX_CHARS
+// after trim); the server additionally strips control
+// characters before relay and rate-limits per player. Rendering
+// is textContent-only on every client (no HTML path exists).
+export function validateChat(msg) {
+  const errors = [];
+  if (!isPlainObject(msg)) {
+    return { ok: false, errors: ['chat message must be an object'] };
+  }
+  if (msg.t !== MSG.CHAT) {
+    errors.push(`t must be '${MSG.CHAT}'`);
+  }
+  if (!CHAT_CHANNELS.includes(msg.channel)) {
+    errors.push('channel must be one of: ' + CHAT_CHANNELS.join(', '));
+  }
+  if (typeof msg.text !== 'string' || msg.text.trim().length < 1 || msg.text.length > CHAT_MAX_CHARS) {
+    errors.push(`text must be a string of 1-${CHAT_MAX_CHARS} characters`);
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+// validateSignal(msg) -> { ok, errors[] }  (U6-15)
+//
+// A WebRTC negotiation relay: { t: 'signal', to, kind, data }.
+// `to` is the target playerId (a string of at most 64 chars —
+// the server checks it names a player in the sender's room and
+// refuses self-relay). `data` is the opaque RTC payload, capped
+// per kind: an SDP blob (offer/answer) or one ICE candidate.
+// The server relays the payload verbatim and interprets none
+// of it; no outcome can ride it (it can only negotiate audio
+// between two browsers).
+export function validateSignal(msg) {
+  const errors = [];
+  if (!isPlainObject(msg)) {
+    return { ok: false, errors: ['signal message must be an object'] };
+  }
+  if (msg.t !== MSG.SIGNAL) {
+    errors.push(`t must be '${MSG.SIGNAL}'`);
+  }
+  if (typeof msg.to !== 'string' || msg.to.length < 1 || msg.to.length > 64) {
+    errors.push('to must be a player id string of 1-64 characters');
+  }
+  if (!SIGNAL_KINDS.includes(msg.kind)) {
+    errors.push('kind must be one of: ' + SIGNAL_KINDS.join(', '));
+  }
+  if (!isPlainObject(msg.data)) {
+    errors.push('data must be an object');
+  } else if (msg.kind === 'offer' || msg.kind === 'answer') {
+    if (typeof msg.data.sdp !== 'string' || msg.data.sdp.length < 1 || msg.data.sdp.length > 12000) {
+      errors.push('data.sdp must be a string of 1-12000 characters');
+    }
+  } else if (msg.kind === 'ice') {
+    if (typeof msg.data.candidate !== 'string' || msg.data.candidate.length > 1024) {
+      errors.push('data.candidate must be a string of at most 1024 characters');
+    }
+    if (msg.data.sdpMid !== undefined && (typeof msg.data.sdpMid !== 'string' || msg.data.sdpMid.length > 64)) {
+      errors.push('data.sdpMid must be a string of at most 64 characters when present');
+    }
+  }
+  return { ok: errors.length === 0, errors };
+}
+
 // Per-connection limits (MULTIPLAYER.md §4, §7.6). The server
 // enforces these; they live here so client and server share one
 // source. A legitimate `input` is ~200 bytes, so the 4 KB cap costs
 // nothing and closes the giant-message hole by construction.
+// SIGNAL_MAX_BYTES is the one exception: an SDP offer is
+// legitimately several KB, so signal messages get a larger cap
+// (validateSignal still bounds every field inside).
+// CHAT_RATE: at most 5 chat messages per 4 s per player,
+// enforced by the server (U6-14 practical law).
 export const LIMITS = Object.freeze({
   MAX_MESSAGE_BYTES: 4096,
+  SIGNAL_MAX_BYTES: 16384,
   INPUT_MAX_PER_SEC: 40,
   IDLE_TIMEOUT_MS: 10000,
+  CHAT_MAX_PER_WINDOW: 5,
+  CHAT_WINDOW_MS: 4000,
 });
