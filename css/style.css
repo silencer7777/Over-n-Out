@@ -104,6 +104,7 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0b0f14; font-
 .tc-btn.on { background:rgba(57,255,106,.35); border-color:#39ff6a; color:#fff; }
 .tc-fire { width:88px; height:88px; right:calc(22px + env(safe-area-inset-right)); bottom:calc(92px + env(safe-area-inset-bottom)); font-size:15px; border-color:rgba(255,211,77,.75); color:#ffd34d; }
 .tc-jump { width:62px; height:62px; right:calc(126px + env(safe-area-inset-right)); bottom:calc(96px + env(safe-area-inset-bottom)); }
+.tc-stance { width:62px; height:62px; right:calc(126px + env(safe-area-inset-right)); bottom:calc(196px + env(safe-area-inset-bottom)); font-size:10px; }
 .tc-ads { width:62px; height:62px; right:calc(34px + env(safe-area-inset-right)); bottom:calc(196px + env(safe-area-inset-bottom)); }
 .tc-reload { width:54px; height:54px; right:calc(122px + env(safe-area-inset-right)); bottom:calc(178px + env(safe-area-inset-bottom)); }
 .tc-lethal { width:54px; height:54px; right:calc(26px + env(safe-area-inset-right)); bottom:calc(282px + env(safe-area-inset-bottom)); }
@@ -146,3 +147,198 @@ body.touch-mode #stats-top { top:calc(10px + env(safe-area-inset-top)); right:ca
 .opt-row input[type="range"] { flex: 1; min-width: 120px; }
 .opt-note { opacity: 0.7; font-size: 0.85em; }
 #camo-pickers .wpn.locked { opacity: 0.45; }
+
+/* U6-05 countdown colour swatches */
+.cd-swatch {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--c); border: 2px solid rgba(255,255,255,.25);
+  margin-right: 6px; cursor: pointer; vertical-align: middle;
+}
+.cd-swatch.sel { border-color: #fff; box-shadow: 0 0 10px var(--c); }
+
+/* U6-01 usable scopes: the optic picture. Magnification itself
+   is the FOV division by the attachment's adsZoom stat (player
+   FOV ease) — this layer is what you SEE through the glass. */
+#scope-overlay { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .10s ease; z-index: 6; }
+#scope-overlay.on { opacity: 1; }
+#scope-overlay .scope-circle, #scope-overlay .scope-h, #scope-overlay .scope-v, #scope-overlay .scope-dot, #scope-overlay .scope-mag { display: none; }
+#scope-overlay.kind-scope .scope-circle {
+  display: block; position: absolute; left: 50%; top: 50%;
+  width: 64vmin; height: 64vmin; transform: translate(-50%, -50%);
+  border-radius: 50%; box-shadow: 0 0 0 999vmax rgba(2, 3, 4, 0.985), inset 0 0 60px rgba(0,0,0,.55);
+  border: 2px solid rgba(10, 10, 10, .9);
+}
+#scope-overlay.kind-scope .scope-h, #scope-overlay.kind-scope .scope-v { display: block; position: absolute; left: 50%; top: 50%; background: rgba(8, 8, 8, .88); }
+#scope-overlay.kind-scope .scope-h { width: 64vmin; height: 1.5px; transform: translate(-50%, -50%); background-image: radial-gradient(circle, rgba(8,8,8,.9) 1.6px, transparent 2.2px); background-size: 7.5vmin 100%; background-position: center; background-repeat: repeat-x; background-color: transparent; border-top: 1.5px solid rgba(8,8,8,.88); height: 3px; }
+#scope-overlay.kind-scope .scope-v { width: 1.5px; height: 64vmin; transform: translate(-50%, -50%); }
+#scope-overlay.kind-scope .scope-mag { display: block; position: absolute; left: 50%; top: calc(50% + 27vmin); transform: translateX(-50%); color: rgba(230, 235, 240, .75); font: 600 13px/1 monospace; letter-spacing: .18em; }
+#scope-overlay.kind-holo .scope-circle {
+  display: block; position: absolute; left: 50%; top: 50%;
+  width: 36vmin; height: 36vmin; transform: translate(-50%, -50%);
+  border-radius: 50%; border: 3px solid rgba(15, 18, 20, .92);
+  box-shadow: inset 0 0 0 2px rgba(140, 220, 255, .14), 0 0 24px rgba(0,0,0,.25);
+  background: radial-gradient(circle, rgba(140, 210, 255, .05) 0%, rgba(140, 210, 255, 0.015) 70%, transparent 71%);
+}
+#scope-overlay.kind-holo .scope-dot, #scope-overlay.kind-reddot .scope-dot {
+  display: block; position: absolute; left: 50%; top: 50%;
+  width: 7px; height: 7px; border-radius: 50%; transform: translate(-50%, -50%);
+  background: #ff3524; box-shadow: 0 0 9px 2px rgba(255, 53, 36, .75);
+}
+#scope-overlay.kind-reddot .scope-circle {
+  display: block; position: absolute; left: 50%; top: 50%;
+  width: 19vmin; height: 19vmin; transform: translate(-50%, -50%);
+  border-radius: 50%; border: 2.5px solid rgba(15, 18, 20, .92);
+  box-shadow: 0 0 18px rgba(0,0,0,.3);
+}
+#hud.scoped-scope #crosshair { opacity: 0; }
+
+/* ---------- U6-09 START MENU REDESIGN ---------- */
+/* Brett: the menu "looks kinda dull" — make it lively, modern,
+   inviting (CoD Mobile class). Pure CSS/procedural: an animated
+   aurora wash + a slow light sweep + a faint tactical grid over
+   the live scene, a sheened hero title, glass cards for the
+   panels, and a breathing hero DEPLOY. Every id, handler and
+   layout contract from the old menu is untouched — this block
+   only restyles. Reduced-motion users get the static version. */
+#menu { background: radial-gradient(ellipse at 50% 30%, rgba(16, 34, 22, .78), rgba(4, 8, 6, .94)); }
+#menu::before {
+  content: ''; position: absolute; inset: -20%; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(600px 340px at 18% 22%, rgba(57, 255, 106, .13), transparent 70%),
+    radial-gradient(700px 380px at 84% 30%, rgba(53, 196, 255, .11), transparent 70%),
+    radial-gradient(560px 420px at 55% 88%, rgba(255, 176, 46, .07), transparent 70%);
+  animation: menu-aurora 14s ease-in-out infinite alternate;
+}
+#menu::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(182, 255, 176, .028) 0 1px, transparent 1px 44px),
+    repeating-linear-gradient(90deg, rgba(182, 255, 176, .028) 0 1px, transparent 1px 44px),
+    linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, .045) 50%, transparent 58%);
+  background-size: auto, auto, 280% 280%;
+  animation: menu-sweep 9s ease-in-out infinite;
+}
+@keyframes menu-aurora { from { transform: translate3d(-1.5%, -1%, 0) scale(1); } to { transform: translate3d(1.5%, 1.5%, 0) scale(1.05); } }
+@keyframes menu-sweep { 0%, 100% { background-position: 0 0, 0 0, 120% 0; } 50% { background-position: 0 0, 0 0, -20% 0; } }
+.menu-page { position: relative; z-index: 1; }
+#menu h1 {
+  background: linear-gradient(100deg, #ffffff 20%, #b6ffb0 38%, #39ff6a 50%, #b6ffb0 62%, #ffffff 80%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: none; filter: drop-shadow(0 0 26px rgba(57, 255, 106, .30));
+  animation: title-sheen 7s ease-in-out infinite;
+}
+#menu h1 span { color: transparent; }
+@keyframes title-sheen { 0%, 100% { background-position: 0% 0; } 50% { background-position: 100% 0; } }
+#menu .tag { color: #b6ffb0; text-shadow: 0 0 12px rgba(57, 255, 106, .35); }
+#menu-chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 16px; max-width: 94vw; }
+.mchip {
+  font-size: 10px; font-weight: 800; letter-spacing: 2.5px; color: #cfe8d2;
+  border: 1px solid rgba(182, 255, 176, .35); border-radius: 999px; padding: 6px 12px;
+  background: rgba(255, 255, 255, .05); backdrop-filter: blur(4px);
+}
+.mchip.hot { color: #06130a; background: linear-gradient(90deg, #5cff85, #35c4ff); border-color: transparent; box-shadow: 0 0 16px rgba(57, 255, 106, .35); }
+#menu-msg { font-size: 19px; color: #eef7ee; text-shadow: 0 2px 10px rgba(0, 0, 0, .6); }
+/* Glass cards for the working panels */
+#loadout, #online-panel, #results, #story-panel {
+  background: linear-gradient(160deg, rgba(255, 255, 255, .075), rgba(255, 255, 255, .028));
+  border: 1px solid rgba(182, 255, 176, .30); border-radius: 12px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .09);
+  backdrop-filter: blur(7px); padding: 16px 20px;
+}
+#loadout { width: min(700px, 94vw); }
+#online-panel { width: min(700px, 94vw); }
+#results { border-color: rgba(255, 211, 77, .45); }
+.loadout-label, .story-label { color: #b6ffb0; }
+/* Chunkier, livelier controls */
+.wpn, .cls-tab, .att-select, #mode-select, #biome-select, #online-panel input, #online-btn,
+#menu-more-btn, #menu-back-btn, #opt-fullscreen {
+  border-radius: 8px; transition: border-color .15s, box-shadow .15s, transform .15s, background .15s;
+}
+.wpn:hover, .cls-tab:hover, #online-btn:hover, #menu-more-btn:hover, #menu-back-btn:hover {
+  transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0, 0, 0, .35), 0 0 12px rgba(57, 255, 106, .18);
+}
+#mode-select, #biome-select { font-size: 13px; font-weight: 700; padding: 10px 12px; }
+#profile-line { font-size: 13px; text-shadow: 0 0 10px rgba(255, 211, 77, .35); }
+#play-btn {
+  font-size: 24px; padding: 18px 64px; border-radius: 10px;
+  background: linear-gradient(100deg, #27c452, #5cff85 45%, #35c4ff 130%);
+  background-size: 200% 100%;
+  box-shadow: 0 10px 34px rgba(57, 255, 106, .40), inset 0 1px 0 rgba(255, 255, 255, .45);
+  animation: deploy-breathe 2.8s ease-in-out infinite;
+  transition: transform .15s, filter .15s;
+}
+#play-btn:hover { transform: translateY(-2px) scale(1.02); filter: brightness(1.1); }
+@keyframes deploy-breathe {
+  0%, 100% { box-shadow: 0 10px 30px rgba(57, 255, 106, .34), inset 0 1px 0 rgba(255, 255, 255, .45); background-position: 0% 0; }
+  50% { box-shadow: 0 12px 42px rgba(57, 255, 106, .55), inset 0 1px 0 rgba(255, 255, 255, .45); background-position: 90% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #menu::before, #menu::after, #menu h1, #play-btn { animation: none; }
+}
+
+/* ---------- U6-14/U6-15 COMMS (chat + voice) ---------- */
+#chat-panel {
+  margin-top: 20px; width: min(700px, 94vw);
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, .075), rgba(255, 255, 255, .028));
+  border: 1px solid rgba(182, 255, 176, .30); border-radius: 12px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .09);
+  backdrop-filter: blur(7px); padding: 16px 20px;
+}
+#chat-panel .loadout-label { text-align: center; }
+#chat-menu-log {
+  height: 132px; overflow-y: auto; text-align: left;
+  background: rgba(0, 0, 0, .28); border: 1px solid rgba(182, 255, 176, .18);
+  border-radius: 8px; padding: 8px 10px; font-size: 13px; line-height: 1.5; color: #d9e8db;
+}
+#chat-menu-log .chat-name { color: #ffd34d; font-weight: 700; }
+#chat-menu-log .chat-line.self .chat-name { color: #5cff85; }
+.chat-mute-btn {
+  pointer-events: auto; cursor: pointer; margin-left: 6px; padding: 0 5px;
+  background: none; border: 1px solid rgba(255, 255, 255, .25); border-radius: 4px;
+  color: #9fb8a4; font-size: 10px; line-height: 1.5;
+}
+.chat-mute-btn:hover { color: #ff8a7a; border-color: rgba(255, 120, 100, .6); }
+#chat-menu-input {
+  flex: 1; min-width: 180px; pointer-events: auto;
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(182, 255, 176, .35);
+  color: #d9e8db; padding: 8px 10px; font-size: 12px; letter-spacing: 1px; border-radius: 8px;
+}
+#chat-menu-input:disabled { opacity: .45; }
+#chat-menu-send, #chat-connect-btn {
+  pointer-events: auto; cursor: pointer; border-radius: 8px; padding: 9px 16px;
+  font-size: 12px; font-weight: 700; letter-spacing: 2px;
+  background: rgba(255, 255, 255, .06); border: 1px solid rgba(182, 255, 176, .35); color: #d9e8db;
+}
+#chat-menu-send:disabled { opacity: .45; cursor: default; }
+#chat-menu-status { font-size: 12px; color: #9fd8a8; letter-spacing: 1px; text-align: center; }
+/* In-game mini chat */
+#chat-box {
+  position: absolute; left: 22px; bottom: 118px; width: min(430px, 62vw);
+  pointer-events: none; text-align: left;
+}
+#chat-log { display: flex; flex-direction: column; gap: 2px; font-size: 13px; line-height: 1.45; color: #e8f0e9; text-shadow: 0 1px 3px rgba(0, 0, 0, .9); }
+#chat-log .chat-line { background: rgba(4, 10, 6, .42); border-radius: 4px; padding: 2px 7px; width: fit-content; max-width: 100%; }
+#chat-log .chat-name { color: #ffd34d; font-weight: 700; }
+#chat-log .chat-line.self .chat-name { color: #5cff85; }
+#chat-log .chat-line.team .chat-name { color: #35c4ff; }
+#chat-log .chat-chan-tag { color: #9fd8a8; font-size: 10px; letter-spacing: 1px; margin-right: 5px; }
+#chat-input-row { display: flex; gap: 6px; margin-top: 6px; pointer-events: auto; }
+#chat-chan {
+  cursor: pointer; border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: 800; letter-spacing: 1.5px;
+  background: rgba(53, 196, 255, .18); border: 1px solid rgba(53, 196, 255, .55); color: #bfe9ff;
+}
+#chat-chan.all { background: rgba(255, 211, 77, .16); border-color: rgba(255, 211, 77, .55); color: #ffe9a8; }
+#chat-input {
+  flex: 1; background: rgba(4, 10, 6, .72); border: 1px solid rgba(182, 255, 176, .5);
+  color: #fff; padding: 7px 9px; font-size: 13px; border-radius: 6px; outline: none;
+}
+#chat-hint { margin-top: 5px; font-size: 10px; letter-spacing: 2px; color: rgba(182, 255, 176, .55); text-shadow: 0 1px 3px rgba(0, 0, 0, .9); }
+#voice-peers .vp-row { display: inline-flex; align-items: center; gap: 7px; margin-right: 14px; }
+#voice-peers .vp-state { font-size: 10px; letter-spacing: 1px; color: #9fd8a8; }
+#voice-peers .vp-state.unavailable { color: #ff8a7a; }
+#voice-peers input[type="range"] { width: 74px; }
+.vp-mute { cursor: pointer; border-radius: 5px; padding: 3px 8px; font-size: 10px; font-weight: 700; letter-spacing: 1px; background: rgba(255,255,255,.06); border: 1px solid rgba(182,255,176,.35); color: #d9e8db; }
+.vp-mute.muted { color: #ff8a7a; border-color: rgba(255, 120, 100, .6); }
+#chat-muted-list .cm-name { display: inline-flex; align-items: center; gap: 6px; margin-right: 12px; }
