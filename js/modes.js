@@ -14,6 +14,18 @@
 
 export const MODE_ORDER = ['waves', 'tdm', 'domination', 'assault'];
 
+// TEAMS (V6 Update 6, U6-07): the two named sides, defined ONCE
+// here so solo HUD, results, the sim and the online snapshot
+// render can never drift apart. The player's side defends
+// Outpost Meridian (the fiction since V3); the enemy is the
+// Kestrel squad. Colours are the identification language
+// everywhere: HUD, score lines, bot visor/rig palettes
+// (js/bots.js BOT_PALETTES) and the team markers.
+export const TEAM = {
+  you:     { name: 'MERIDIAN', color: '#35c4ff' },
+  kestrel: { name: 'KESTREL',  color: '#ff5340' },
+};
+
 export const MODES = [
   {
     id: 'waves',
