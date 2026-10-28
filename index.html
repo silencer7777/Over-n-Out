@@ -65,6 +65,8 @@
         <button class="wpn" data-weapon="pistol">PISTOL</button>
       </div>
       <div id="att-pickers"></div>
+      <div class="loadout-label">CAMO — EARNED ON THE PRESTIGE TRACK</div>
+      <div class="loadout-row" id="camo-pickers"></div>
       <div id="gear-line">LETHAL — FRAG GRENADE · TACTICAL — FLASHBANG</div>
     </div>
     <div id="online-panel">
@@ -77,20 +79,35 @@
       <div class="online-row"><button id="online-btn">🌐 &nbsp;JOIN ONLINE</button><span id="online-status">Offline — solo deploy below.</span></div>
     </div>
     <button id="play-btn">▶ &nbsp;DEPLOY</button>
-    <button id="menu-more-btn" type="button">⚙ &nbsp;MORE OPTIONS — SETTINGS · STORY · CONTROLS</button>
+    <button id="menu-options-btn" type="button">⚙ &nbsp;OPTIONS — CONTROLS · SCREEN · MOVEMENT · AUDIO</button>
+    <button id="menu-more-btn" type="button">📜 &nbsp;STORY · CONTROLS REFERENCE</button>
     <p class="fine">One build for desktop + phone — on touch screens, on-screen controls appear automatically when you deploy.</p>
   </div>
   <div id="menu-page-more" class="menu-page hidden">
-    <div class="menu-page-title">MORE OPTIONS</div>
+    <div class="menu-page-title">OPTIONS</div>
     <div id="story-panel"><div class="story-label">TRANSMISSION — OUTPOST MERIDIAN</div><p id="story-text"></p></div>
-    <div id="settings"><label for="sens-slider">MOUSE SENSITIVITY</label><input type="range" id="sens-slider" min="0.4" max="2.5" step="0.05" value="1"><span id="sens-val">1.00</span></div>
+    <!-- OPTIONS (V6 Update 5, U5-08): controls, screen, movement,
+         audio — every value persists in the player profile and
+         applies live, from the start menu AND the pause overlay. -->
+    <div id="settings">
+      <div class="opt-row"><label for="sens-slider">MOUSE SENSITIVITY</label><input type="range" id="sens-slider" min="0.4" max="2.5" step="0.05" value="1"><span id="sens-val">1.00</span></div>
+      <div class="opt-row"><label for="opt-invert">INVERT Y (AIM)</label><input type="checkbox" id="opt-invert"></div>
+      <div class="opt-row"><label for="opt-fov">FIELD OF VIEW</label><input type="range" id="opt-fov" min="60" max="100" step="1" value="75"><span id="opt-fov-val">75</span></div>
+      <div class="opt-row"><label for="opt-quality">GRAPHICS QUALITY</label><select id="opt-quality"><option value="auto" selected>AUTO (RECOMMENDED)</option><option value="high">HIGH</option><option value="medium">MEDIUM</option><option value="low">LOW (FASTEST)</option></select></div>
+      <div class="opt-row"><label for="opt-sprint-toggle">SPRINT — TAP TO TOGGLE</label><input type="checkbox" id="opt-sprint-toggle"><span class="opt-note">off = hold Shift</span></div>
+      <div class="opt-row"><label for="opt-music">MENU MUSIC VOLUME</label><input type="range" id="opt-music" min="0" max="1" step="0.05" value="0.8"><span id="opt-music-val">80%</span></div>
+      <div class="opt-row"><label for="opt-sfx">SOUND EFFECTS VOLUME</label><input type="range" id="opt-sfx" min="0" max="1" step="0.05" value="1"><span id="opt-sfx-val">100%</span></div>
+      <div class="opt-row"><label>FULLSCREEN</label><button id="opt-fullscreen" type="button">TOGGLE FULLSCREEN</button></div>
+    </div>
     <div class="controls">
       <div><b>W A S D</b> Move</div>
       <div><b>MOUSE</b> Aim</div>
       <div><b>CLICK</b> Fire</div>
       <div><b>RIGHT-CLICK</b> Aim down sights</div>
-      <div><b>SHIFT</b> Sprint</div>
+      <div><b>SHIFT</b> Sprint (hold — or toggle, in Options)</div>
+      <div><b>C / CTRL</b> Slide (while sprinting)</div>
       <div><b>SPACE</b> Jump</div>
+      <div><b>ESC</b> Pause — options are in the pause menu too</div>
       <div><b>R</b> Reload</div>
       <div><b>G</b> Frag grenade</div>
       <div><b>T</b> Flashbang</div>
