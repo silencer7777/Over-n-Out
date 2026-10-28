@@ -103,11 +103,29 @@ function fitRenderer() {
 }
 addEventListener('resize', fitRenderer);
 addEventListener('orientationchange', () => {
+  // U9: iOS can take longer than 250 ms to settle the URL bar
+  // after a turn — the refit series runs longer; every refit is
+  // the same idempotent fit, so extra firings cost nothing.
   fitRenderer();
   requestAnimationFrame(fitRenderer);
-  setTimeout(fitRenderer, 250);
+  setTimeout(fitRenderer, 120);
+  setTimeout(fitRenderer, 300);
+  setTimeout(fitRenderer, 600);
 });
 if (window.visualViewport) visualViewport.addEventListener('resize', fitRenderer);
+// U9 REDUNDANT ORIENTATION SIGNALS: iOS Safari does not fire
+// every event on every turn (bfcache restores, in-app webviews,
+// URL-bar settles), so the fit also listens to the media query,
+// the orientation API, and pageshow. Whichever arrives, wins.
+try {
+  const orientMq = matchMedia('(orientation: portrait)');
+  if (orientMq.addEventListener) orientMq.addEventListener('change', fitRenderer);
+  else if (orientMq.addListener) orientMq.addListener(fitRenderer);
+} catch (e) { /* matchMedia unavailable — the events above remain */ }
+try {
+  if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', fitRenderer);
+} catch (e) { /* orientation API unavailable */ }
+addEventListener('pageshow', () => fitRenderer());
 
 // U8-02: best-effort fullscreen + landscape lock (Android
 // Chrome). Every platform call is feature-detected and its
@@ -132,6 +150,22 @@ function goLandscape() {
     });
   } catch (e) { /* fullscreen unsupported — the prompt guides instead */ }
 }
+
+// U9 BUILD WITNESS (the stale-build tell): GitHub Pages serves
+// max-age=600 and iOS holds open tabs indefinitely, so a phone
+// can sit on the previous build's page while a new one is live
+// — the prime suspect in the U8 "rotation not working" report,
+// where the served bytes were already correct. The build
+// number is mirrored by the ono-build meta tag in index.html
+// and by the BUILD stamp in the menu footer — what Brett reads
+// us when something looks old. A fetch-based self-update reload
+// was built for this and CUT before landing: the repo's
+// security lint (zero network calls from game code — the
+// hardening law) forbids it, and the lint outranks the
+// convenience. The stamp + versioned asset URLs are the
+// shipped witness; see the U9 report.
+const BUILD_NO = 9;
+try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
 const $ = id => document.getElementById(id);
@@ -750,7 +784,7 @@ function explodeBarrel(mesh) {
     const d = Math.hypot(b.root.position.x - mesh.position.x, b.root.position.z - mesh.position.z);
     if (d <= spec.radius) {
       const dmg = spec.damage * (1 - (d / spec.radius) * 0.6);
-      if (b.damage(dmg, false)) onBotKilled(b);
+      if (b.damage(dmg, false, b.root.position.x - mesh.position.x, b.root.position.z - mesh.position.z)) onBotKilled(b); // U9: knocked away from the blast
     }
   }
   const pd = Math.hypot(player.position.x - mesh.position.x, player.position.z - mesh.position.z);
@@ -963,7 +997,7 @@ function shoot() {
         hitAny = true;
         const isHead = hit.object.userData.part === 'head';
         if (isHead) headAny = true;
-        const killed = bot.damage(falloffDamage(weapon, hit.distance), isHead);
+        const killed = bot.damage(falloffDamage(weapon, hit.distance), isHead, _dir.x, _dir.z); // U9: the corpse falls along the shot
         if (killed) {
           killedAny = true;
           if (isHead) xpAdd('headshot', 1);
@@ -1064,7 +1098,7 @@ function explodeFrag(pos) {
     const d = Math.hypot(b.root.position.x - pos.x, b.root.position.z - pos.z);
     if (d <= spec.radius) {
       const dmg = spec.damage * (1 - (d / spec.radius) * 0.6);
-      if (b.damage(dmg, false)) onBotKilled(b);
+      if (b.damage(dmg, false, b.root.position.x - pos.x, b.root.position.z - pos.z)) onBotKilled(b); // U9: knocked away from the blast
     }
   }
   for (const m of barrelMeshes) {
@@ -2234,7 +2268,7 @@ function tick() {
         }
         if (best) {
           targetPos = best.root.position;
-          onShootFn = (d) => { if (!best.dead && best.damage(d, false)) onTeamBotKill(best); };
+          onShootFn = (d) => { if (!best.dead && best.damage(d, false, best.root.position.x - b.root.position.x, best.root.position.z - b.root.position.z)) onTeamBotKill(best); }; // U9: falls away from the shooter
         }
       } else if (bots.some(x => x.team === 'friendly' && !x.dead)) {
         b._aggroT = (b._aggroT || 0) - dt;
@@ -2251,7 +2285,7 @@ function tick() {
         if (b._aggroTarget !== 'player') {
           const t = b._aggroTarget;
           targetPos = t.root.position;
-          onShootFn = (d) => { if (!t.dead && t.damage(d, false)) onTeamBotKill(t); };
+          onShootFn = (d) => { if (!t.dead && t.damage(d, false, t.root.position.x - b.root.position.x, t.root.position.z - b.root.position.z)) onTeamBotKill(t); }; // U9: falls away from the shooter
         }
       }
       const keep = b.update(dt, targetPos, onShootFn, sfx);
