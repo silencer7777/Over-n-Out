@@ -42,6 +42,7 @@ export class QualityScaler {
     this._downTime = 0;        // sustained seconds below DOWN_FPS
     this._upTime = 0;          // sustained seconds above UP_FPS
     this._cooldown = 0;        // seconds remaining in post-change lockout
+    this._manual = null;       // U5-08: options-menu override (null = auto)
 
     // Find the sun once: the first directional light in the scene.
     // main.js configures its shadow camera elsewhere; only the first
@@ -57,8 +58,21 @@ export class QualityScaler {
     return this._level;
   }
 
+  // Options-menu override (U5-08): pin a level (0..MAX) or hand
+  // control back to the auto-scaler with null. Applies immediately.
+  setManualLevel(level) {
+    if (level === null || level === undefined || !Number.isFinite(level)) {
+      this._manual = null;
+      return;
+    }
+    this._manual = Math.max(0, Math.min(MAX_LEVEL, level | 0));
+    this._downTime = 0; this._upTime = 0; this._cooldown = 0;
+    this._applyLevel(this._manual);
+  }
+
   update(dt) {
     if (!(dt > 0) || !Number.isFinite(dt)) return;
+    if (this._manual !== null) return; // options pinned the level
 
     // EMA of frame time — seeded by the first valid sample.
     if (this._ema === 0) this._ema = dt;
