@@ -230,6 +230,49 @@ only when they cost the graphics mission nothing:
   is now 8.** Queue head for the coming sessions: characters
   realism, then Brett's 04:29 minimap + Domination guidance
   spec (see the MEMORY directive), scenery/mountains, meta.
+- **Update 9 LANDED + PUSHED LIVE** (Oct 28, commits `e3a23dc`
+  spec + `b229788` code + this landing): Brett's 04:41
+  playtest order — rotation not working on his iPhone,
+  soldiers still "very blocking", death fall not realistic.
+  Jumped the queue ahead of the minimap spec at his direct
+  order. **Rotation:** no service worker/manifest exists;
+  live U8 bytes re-verified exact, Last-Modified 04:38:20 PT
+  vs his 04:41 report — a cached pre-U8 page is the prime
+  suspect, and there was no way to tell which build his phone
+  ran. Shipped: menu-footer **BUILD U9 stamp** + ono-build
+  meta + `?v=9` entry assets (the cache witness), redundant
+  iOS fit triggers (matchMedia orientation, screen.orientation,
+  pageshow, orientationchange series to 600 ms), touch layer
+  re-feeds viewport on orientationchange (it only listened to
+  resize). A fetch-based self-update reload was built and
+  **CUT by the smoke security lint** (zero-network-calls
+  hardening law) — removed, not exempted. Honest remainder:
+  stamp reads U9 + still no rotation → device-side (Rotation
+  Lock / in-app browser); Brett's 5-second checks are in the
+  report. **Characters:** de-blockified over byte-identical
+  hit cores (hip-joint spheres, calf masses, ribcage barrel,
+  molded vest plate, rounded pack, true helmet dome + round
+  brim, curved jaw shell; segments up across legs/head/neck).
+  Proof: core-corner multisets intact (min copies 4/4/4) and
+  six raycast samples byte-identical vs the U8 baseline
+  ([miss, 4.6875, 4.804, 4.57, 4.6382, 4.4778]). Cost stated:
+  +1,392 tris/bot (2,970 → 4,362 metrics basis), calls held
+  at 8/bot, maps' statics Δ0, forest ≈266,276/300k.
+  **Death:** the feet-pivot plank is replaced by a procedural
+  articulated collapse — shot-direction falls with seeded
+  variation (no Math.random in the death path), front falls
+  twisted onto a shoulder (the merged gun arm cannot fold),
+  buckle → hip-pivot tip on a leg-geometry hip floor → late
+  pivot migration onto the contact surface, head loll, gun
+  droop, one soft settle; HP/marker hide at death; corpse
+  lifetime exactly 1.5 s (removal frame 90 verified). Vertex
+  audit: rest-pose lowest vertex −0.096…+0.133 m across 24
+  randomized falls (baseline was −0.41 m at rest). New pins:
+  smoke D9 ×2, mobile-check T7 ×5; **no re-pins**. All five
+  gates green on tree + snapshot; live byte-verified.
+  Report: `docs/sessions/v6-update-09-report.md`. **The
+  count is now 9.** Queue head: Brett's minimap + Domination
+  guidance spec, then scenery/mountains, meta systems.
 
 ## Owner directives (Brett, Oct 28, 2026) — release law, lighting lock lifted, focus queue
 
