@@ -13,8 +13,9 @@ import { getMode, objectiveText } from './modes.js';
 import { SLOTS, attachmentsFor, getAttachment, effectiveWeapon, THROWABLES, getPerk } from './loadouts.js';
 import {
   loadProfile, saveProfile, migrateLegacySettings, levelForXp, levelProgress,
-  unlockedClassSlots, isAttachmentUnlocked, isPerkUnlocked, unlocksBetween, awardXp, XP_VALUES, UNLOCKS,
+  unlockedClassSlots, isAttachmentUnlocked, isPerkUnlocked, isCamoUnlocked, unlocksBetween, awardXp, XP_VALUES, UNLOCKS, PRESTIGE,
 } from './progression.js';
+import { CAMO_IDS, getCamo } from './camo.js';
 import { OnlineSession } from './online.js';
 import { TouchControls, isTouchDevice } from './touchcontrols.js';
 import { applyLightingProfile } from './lighting.js';
@@ -171,24 +172,105 @@ function classAttachments() {
   return cls.attachments.filter(a => isAttachmentUnlocked(myLevel(), a));
 }
 
-// Sensitivity — the profile is the source of truth now; the legacy
-// key is still written for continuity with older builds.
-if (profile.settings.sensitivity !== null && Number.isFinite(profile.settings.sensitivity)) {
-  player.sensitivity = profile.settings.sensitivity;
-  if (sensSlider) sensSlider.value = profile.settings.sensitivity;
-  if (sensVal) sensVal.textContent = profile.settings.sensitivity.toFixed(2);
+// ---------------------------------------------------------------
+// OPTIONS (V6 Update 5, U5-08) — the profile's settings block is
+// the single source of truth. applySettings() pushes it into the
+// player, the audio buses and the quality scaler, and syncs the
+// controls. Every options control writes the profile, persists,
+// and re-applies — live, from the start menu AND the pause
+// overlay (the same menu DOM serves both). Sensitivity keeps its
+// legacy localStorage mirror for continuity with older builds.
+// ---------------------------------------------------------------
+const optInvert = $('opt-invert'), optFov = $('opt-fov'), optFovVal = $('opt-fov-val');
+const optQuality = $('opt-quality'), optSprintToggle = $('opt-sprint-toggle');
+const optMusic = $('opt-music'), optMusicVal = $('opt-music-val');
+const optSfx = $('opt-sfx'), optSfxVal = $('opt-sfx-val');
+const optFullscreen = $('opt-fullscreen'), menuOptionsBtn = $('menu-options-btn');
+const camoPickersEl = $('camo-pickers');
+const QUALITY_BY_MODE = { high: 0, medium: 2, low: 3 };
+
+function applySettings() {
+  const s = profile.settings;
+  if (Number.isFinite(s.sensitivity)) player.sensitivity = s.sensitivity;
+  player.invertY = !!s.invertY;
+  player.baseFov = s.fov;
+  sfx.setMusicVolume(s.musicVolume);
+  sfx.setSfxVolume(s.sfxVolume);
+  quality.setManualLevel(s.qualityMode === 'auto' ? null : QUALITY_BY_MODE[s.qualityMode]);
+  if (!s.sprintToggle) input.sprint = false;
+  if (sensSlider && Number.isFinite(s.sensitivity)) {
+    sensSlider.value = s.sensitivity;
+    if (sensVal) sensVal.textContent = Number(s.sensitivity).toFixed(2);
+  }
+  if (optInvert) optInvert.checked = !!s.invertY;
+  if (optFov) { optFov.value = s.fov; if (optFovVal) optFovVal.textContent = s.fov; }
+  if (optQuality) optQuality.value = s.qualityMode;
+  if (optSprintToggle) optSprintToggle.checked = !!s.sprintToggle;
+  if (optMusic) { optMusic.value = s.musicVolume; if (optMusicVal) optMusicVal.textContent = `${Math.round(s.musicVolume * 100)}%`; }
+  if (optSfx) { optSfx.value = s.sfxVolume; if (optSfxVal) optSfxVal.textContent = `${Math.round(s.sfxVolume * 100)}%`; }
 }
+// (The first applySettings() call sits below the input object's
+// declaration — applySettings reads it, so it cannot run earlier.)
+
 if (sensSlider) {
   sensSlider.addEventListener('input', () => {
     const sensValue = Number(sensSlider.value);
     if (!Number.isFinite(sensValue)) return;
-    player.sensitivity = sensValue;
-    if (sensVal) sensVal.textContent = sensValue.toFixed(2);
     profile.settings.sensitivity = sensValue;
     persistProfile();
+    applySettings();
     try { localStorage.setItem('ono-sensitivity', String(sensValue)); } catch (e) { /* ignore */ }
   });
 }
+if (menuOptionsBtn) menuOptionsBtn.addEventListener('click', () => showMenuPage('more'));
+if (optInvert) optInvert.addEventListener('change', () => { profile.settings.invertY = optInvert.checked; persistProfile(); applySettings(); });
+if (optFov) optFov.addEventListener('input', () => { profile.settings.fov = Number(optFov.value); persistProfile(); applySettings(); });
+if (optQuality) optQuality.addEventListener('change', () => { profile.settings.qualityMode = optQuality.value; persistProfile(); applySettings(); });
+if (optSprintToggle) optSprintToggle.addEventListener('change', () => { profile.settings.sprintToggle = optSprintToggle.checked; persistProfile(); applySettings(); });
+if (optMusic) optMusic.addEventListener('input', () => { profile.settings.musicVolume = Number(optMusic.value); persistProfile(); applySettings(); });
+if (optSfx) optSfx.addEventListener('input', () => { profile.settings.sfxVolume = Number(optSfx.value); persistProfile(); applySettings(); });
+if (optFullscreen) optFullscreen.addEventListener('click', () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+});
+
+// Camo picker (U5-10): one button per design; prestige-locked
+// designs show the level they earn at and cannot be selected.
+// Picking a camo restyles the ACTIVE class and rebuilds the
+// viewmodel gun + arms with it, immediately.
+function renderCamoPickers() {
+  if (!camoPickersEl) return;
+  camoPickersEl.textContent = '';
+  const lvl = myLevel();
+  const active = activeClass().camo;
+  for (const id of CAMO_IDS) {
+    const unlocked = isCamoUnlocked(lvl, id);
+    const btn = document.createElement('button');
+    btn.className = 'wpn' + (id === active ? ' selected' : '') + (unlocked ? '' : ' locked');
+    const lock = PRESTIGE.find(x => x.kind === 'camo' && x.id === id);
+    btn.textContent = unlocked ? getCamo(id).name.toUpperCase() : `🔒 L${lock ? lock.level : '?'} ${getCamo(id).name.toUpperCase()}`;
+    btn.disabled = !unlocked;
+    btn.addEventListener('click', () => {
+      const cls = activeClass();
+      cls.camo = id;
+      persistProfile();
+      player.camoId = id;
+      player.setWeaponVisual(currentWeapon(), classAttachmentsForView());
+      renderCamoPickers();
+    });
+    camoPickersEl.appendChild(btn);
+  }
+}
+
+// Menu theme (U5-01): starts on the first user gesture anywhere
+// (autoplay law), but only while a menu is actually up; the
+// countdown ducks it and GO stops it (see tick()).
+function musicKick() {
+  sfx.ensure();
+  if (state === 'menu' || state === 'over' || state === 'paused') sfx.startMenuMusic();
+}
+document.addEventListener('pointerdown', musicKick);
+document.addEventListener('keydown', musicKick);
 
 function refreshProfileLine() {
   if (!profileLineEl) return;
@@ -275,12 +357,17 @@ function syncLoadoutUi() {
   document.querySelectorAll('.wpn').forEach(b => b.classList.toggle('selected', b.dataset.weapon === startingId));
   renderClassTabs();
   renderAttPickers();
+  renderCamoPickers(); // U5-10: after the .wpn sweep, so camo selection state wins
   refreshGearLine();
   refreshProfileLine();
 }
 
 // ---------------- state ----------------
-let state = 'menu';           // menu | playing | paused | over | online
+let state = 'menu';           // menu | countdown | playing | paused | over | online
+// U5-09 pre-match countdown: seconds on the clock, the last
+// number shown, and which live state a pause returns to.
+const COUNTDOWN_SECONDS = 10;
+let countdownT = 0, countdownShown = -1, pausedFrom = 'playing';
 let wave = 0, kills = 0, shots = 0, hits = 0;
 let bots = [], toSpawn = 0, spawnTimer = 0;
 let reloading = 0, fireCooldown = 0;
@@ -428,7 +515,9 @@ let spawnsThisWave = 0;
 const spawnCountsThisWave = {};
 let lastSpawnedId = null;
 
-const input = { forward: false, back: false, left: false, right: false, sprint: false, jump: false, aim: false };
+const input = { forward: false, back: false, left: false, right: false, sprint: false, jump: false, aim: false, slide: false };
+applySettings(); // U5-08: first application of the saved options
+player.camoId = activeClass().camo; // U5-10: held gun + arms wear the class camo
 let firing = false;
 let triggerPressed = false;
 // V6 mobile: the TouchControls instance (touch devices only; the
@@ -1030,6 +1119,8 @@ function endMatch(result) {
   refreshProfileLine();
   renderClassTabs();
   renderAttPickers();
+  renderCamoPickers();
+  sfx.startMenuMusic(); // U5-01: the theme returns with the menu
 }
 
 function startRun() {
@@ -1062,15 +1153,33 @@ function startRun() {
   player.reset();
   const weapon = currentWeapon();
   weaponName.textContent = weapon.name;
+  player.camoId = activeClass().camo; // U5-10
   player.setWeaponVisual(weapon, classAttachmentsForView());
   uiKills.textContent = '0';
   ammoNum.textContent = mags[currentId];
   updateHealth();
-  state = 'playing';
+  runClass = JSON.parse(JSON.stringify(activeClass()));
+  // U5-09: DEPLOY no longer starts the match outright — it starts
+  // the pre-match countdown. The player stands at spawn with
+  // look-around only; beginMatchSpawns() runs at GO.
+  state = 'countdown';
+  countdownT = COUNTDOWN_SECONDS;
+  countdownShown = -1;
+  sfx.duckMenuMusic(true);
   menu.classList.add('hidden');
   hud.classList.remove('hidden');
   if (resultsEl) resultsEl.classList.add('hidden');
-  runClass = JSON.parse(JSON.stringify(activeClass()));
+  if (briefingEl) {
+    briefingEl.textContent = briefingForMode(selectedMode);
+    briefingEl.style.opacity = 1;
+    setTimeout(() => briefingEl.style.opacity = 0, 4200);
+  }
+  if (objectiveEl) objectiveEl.textContent = objectiveText(selectedMode, { wave: 1 });
+}
+
+// The spawns that used to happen inside startRun — now fired at
+// GO by the countdown (U5-09). Identical rosters, identical order.
+function beginMatchSpawns() {
   if (selectedMode === 'waves' || selectedMode === 'assault') {
     startWave();
   } else {
@@ -1080,12 +1189,6 @@ function startRun() {
       spawnBot(i === 0 && selectedMode === 'tdm' ? 'veteran' : undefined);
     }
   }
-  if (briefingEl) {
-    briefingEl.textContent = briefingForMode(selectedMode);
-    briefingEl.style.opacity = 1;
-    setTimeout(() => briefingEl.style.opacity = 0, 4200);
-  }
-  if (objectiveEl) objectiveEl.textContent = objectiveText(selectedMode, { wave: 1 });
 }
 
 // ---------------- input ----------------
@@ -1100,22 +1203,28 @@ document.addEventListener('pointerlockchange', () => {
   const locked = document.pointerLockElement === canvas;
   if (locked && state === 'paused') {
     menu.classList.add('hidden');
-    state = 'playing';
+    state = pausedFrom; // U5-09: resume returns to countdown if that's where the pause hit
+    if (pausedFrom === 'playing') sfx.stopMenuMusic();
+    else if (pausedFrom === 'countdown') sfx.duckMenuMusic(true);
   }
-  else if (locked && state !== 'playing' && state !== 'online' && !joiningOnline) startRun();
-  else if (!locked && state === 'playing') {
+  else if (locked && state !== 'playing' && state !== 'countdown' && state !== 'online' && !joiningOnline) startRun();
+  else if (!locked && (state === 'playing' || state === 'countdown')) {
+    pausedFrom = state;
     menuMsg.textContent = 'Paused — hostiles are waiting.';
     playBtn.textContent = '▶  RESUME';
     menu.classList.remove('hidden');
     showMenuPage('main');
     state = 'paused';
+    sfx.startMenuMusic(); // U5-01: pause is a menu — theme on
+    sfx.duckMenuMusic(false);
   }
   else if (!locked && state === 'online') {
     leaveOnline('Left the session.');
   }
 });
 document.addEventListener('mousemove', e => {
-  if (document.pointerLockElement === canvas && (state === 'playing' || state === 'online')) player.look(e.movementX, e.movementY);
+  // U5-09: look-around is live during the countdown too.
+  if (document.pointerLockElement === canvas && (state === 'playing' || state === 'online' || state === 'countdown')) player.look(e.movementX, e.movementY);
 });
 document.addEventListener('mousedown', e => {
   if ((state === 'playing' || state === 'online') && e.button === 0) { firing = true; triggerPressed = true; }
@@ -1161,7 +1270,12 @@ const KEYMAP = { KeyW: 'forward', KeyS: 'back', KeyA: 'left', KeyD: 'right', Shi
 // Online input edges (consumed by the 30 Hz sample builder).
 let edgeReload = false, edgeThrowL = false, edgeThrowT = false;
 addEventListener('keydown', e => {
-  if (KEYMAP[e.code] !== undefined) { input[KEYMAP[e.code]] = true; if (e.code === 'Space') e.preventDefault(); }
+  // U5-08: sprint hold vs tap-to-toggle is an options setting.
+  if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && profile.settings.sprintToggle) {
+    if (!e.repeat) input.sprint = !input.sprint;
+  } else if (KEYMAP[e.code] !== undefined) { input[KEYMAP[e.code]] = true; if (e.code === 'Space') e.preventDefault(); }
+  // SLIDE (U5-07b): C or Ctrl — the player edge-triggers it.
+  if (e.code === 'KeyC' || e.code === 'ControlLeft') input.slide = true;
   if (e.code === 'KeyR' && state === 'playing') reload();
   if (e.code === 'KeyR' && state === 'online') edgeReload = true;
   if (e.code === 'KeyF' && state === 'playing' && inspectT <= 0) inspectT = INSPECT_LEN;
@@ -1175,7 +1289,12 @@ addEventListener('keydown', e => {
     if (n >= 1 && n <= WEAPON_ORDER.length) switchWeapon(WEAPON_ORDER[n - 1]);
   }
 });
-addEventListener('keyup', e => { if (KEYMAP[e.code] !== undefined) input[KEYMAP[e.code]] = false; });
+addEventListener('keyup', e => {
+  if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && profile.settings.sprintToggle) {
+    // toggle mode: releasing Shift changes nothing
+  } else if (KEYMAP[e.code] !== undefined) input[KEYMAP[e.code]] = false;
+  if (e.code === 'KeyC' || e.code === 'ControlLeft') input.slide = false;
+});
 
 // ---------------- V6 mobile (Directive V6-2) ----------------
 // Touch equivalents of the pointer-lock transitions above: DEPLOY
@@ -1184,17 +1303,22 @@ addEventListener('keyup', e => { if (KEYMAP[e.code] !== undefined) input[KEYMAP[
 function touchStartOrResume() {
   if (state === 'paused') {
     menu.classList.add('hidden');
-    state = 'playing';
+    state = pausedFrom;
+    if (pausedFrom === 'playing') sfx.stopMenuMusic();
+    else if (pausedFrom === 'countdown') sfx.duckMenuMusic(true);
   }
-  else if (state !== 'playing' && state !== 'online' && !joiningOnline) startRun();
+  else if (state !== 'playing' && state !== 'countdown' && state !== 'online' && !joiningOnline) startRun();
 }
 function touchPause() {
-  if (state === 'playing') {
+  if (state === 'playing' || state === 'countdown') {
+    pausedFrom = state;
     menuMsg.textContent = 'Paused — hostiles are waiting.';
     playBtn.textContent = '▶  RESUME';
     menu.classList.remove('hidden');
     showMenuPage('main');
     state = 'paused';
+    sfx.startMenuMusic();
+    sfx.duckMenuMusic(false);
   }
   else if (state === 'online') {
     leaveOnline('Left the session.');
@@ -1472,14 +1596,14 @@ function tickModes(dt) {
 
 // ---------------- loop ----------------
 const clock = new THREE.Clock();
-const DOWN_INPUT = { forward: false, back: false, left: false, right: false, sprint: false, jump: false, aim: false };
+const DOWN_INPUT = { forward: false, back: false, left: false, right: false, sprint: false, jump: false, aim: false, slide: false };
 function tick() {
   requestAnimationFrame(tick);
   const dt = Math.min(clock.getDelta(), 0.05);
 
   // V6 mobile: the touch overlay exists exactly while a run is live
   // (frame-driven, so pause/death/menu paths need no extra hooks).
-  if (touchControls) touchControls.setActive(state === 'playing' || state === 'online');
+  if (touchControls) touchControls.setActive(state === 'playing' || state === 'online' || state === 'countdown');
 
   // Flash white-out decay runs in every live state.
   if (flashBlindT > 0) {
@@ -1529,6 +1653,30 @@ function tick() {
       if (t.life <= 0) t.line.visible = false;
     }
     vignette.style.opacity = Math.max(0, vignette.style.opacity - dt * 1.6);
+  }
+
+  // Pre-match countdown (U5-09): the player updates on a zeroed
+  // input — look-around works (mousemove), but nothing moves,
+  // nothing fires, and nothing has spawned yet. At GO the exact
+  // pre-U5 spawn paths run.
+  if (state === 'countdown') {
+    countdownT -= dt;
+    const n = Math.ceil(countdownT);
+    if (n !== countdownShown && n >= 1) {
+      countdownShown = n;
+      waveBanner.textContent = `DEPLOY IN ${n}`;
+      waveBanner.style.opacity = 1;
+      sfx.countTick(false);
+    }
+    player.update(dt, DOWN_INPUT);
+    if (countdownT <= 0) {
+      state = 'playing';
+      waveBanner.textContent = 'GO!';
+      sfx.countTick(true);
+      sfx.stopMenuMusic();
+      setTimeout(() => { if (waveBanner.textContent === 'GO!') waveBanner.style.opacity = 0; }, 750);
+      beginMatchSpawns();
+    }
   }
 
   if (state === 'playing') {
