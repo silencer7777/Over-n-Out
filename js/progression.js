@@ -77,7 +77,7 @@ export const UNLOCKS = [
   { level: 4, kind: 'classSlot', slot: 2, label: 'CLASS SLOT 2' },
   { level: 5, kind: 'attachment', id: 'laser', label: 'LASER' },
   { level: 6, kind: 'attachment', id: 'grip', label: 'FOREGRIP' },
-  { level: 7, kind: 'attachment', id: 'scope', label: 'SCOPE 4×' },
+  { level: 7, kind: 'attachment', id: 'scope', label: 'MID SCOPE 3×' },
   { level: 8, kind: 'classSlot', slot: 3, label: 'CLASS SLOT 3' },
   { level: 9, kind: 'attachment', id: 'longbarrel', label: 'LONG BARREL' },
   { level: 10, kind: 'attachment', id: 'fastmag', label: 'FAST MAG' },
@@ -87,6 +87,7 @@ export const UNLOCKS = [
   { level: 16, kind: 'attachment', id: 'shortbarrel', label: 'SHORT BARREL' },
   { level: 17, kind: 'attachment', id: 'suppressor', label: 'SUPPRESSOR' },
   { level: 18, kind: 'classSlot', slot: 5, label: 'CLASS SLOT 5' },
+  { level: 19, kind: 'attachment', id: 'sniper', label: 'SNIPER SCOPE 5×' },
   // V5 perks (Board 005 Addendum 3 — Havoc's frame: sprinkled
   // L3–L17 beside the attachment rungs; rungs assigned by the
   // Coordinator). Perks are power-lane (bounded single-axis
