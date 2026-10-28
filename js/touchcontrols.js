@@ -175,6 +175,7 @@ export class TouchCore {
   pressLethal() { this._noteFirstTouch(); if (this.hooks.lethal) this.hooks.lethal(); }
   pressTactical() { this._noteFirstTouch(); if (this.hooks.tactical) this.hooks.tactical(); }
   pressStreak() { this._noteFirstTouch(); if (this.hooks.streak) this.hooks.streak(); }
+  pressStance() { this._noteFirstTouch(); if (this.hooks.stance) this.hooks.stance(); } // U6-10: CROUCH tap (a stance tap; double-tap = prone via the shared machine)
   pressWeapon(i) { this._noteFirstTouch(); if (this.hooks.weapon) this.hooks.weapon(i); }
   pressPause() { this._noteFirstTouch(); if (this.hooks.pause) this.hooks.pause(); }
 }
@@ -233,8 +234,10 @@ export class TouchControls {
       () => this.core.pressStreak());
     this.pauseBtn = this._tapButton('tc-btn tc-pause', 'II',
       () => this.core.pressPause());
+    this.stanceBtn = this._tapButton('tc-btn tc-stance', 'CROUCH',
+      () => this.core.pressStance());
     for (const b of [this.fireBtn, this.adsBtn, this.jumpBtn, this.reloadBtn,
-                     this.lethalBtn, this.tacticalBtn, this.streakBtn, this.pauseBtn]) {
+                     this.lethalBtn, this.tacticalBtn, this.streakBtn, this.pauseBtn, this.stanceBtn]) {
       root.appendChild(b);
     }
 
