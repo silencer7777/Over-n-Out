@@ -165,8 +165,23 @@ export class Sfx {
       const gain = this.ctx.createGain();
       gain.gain.value = this.musicVolume * 0.5;
       gain.connect(this.master);
+      // U6-03 BUZZ FIX: tones route through a tone bus with a
+      // gentle 2.8 kHz lowpass. Raw triangle partials beating in
+      // the 1–4 kHz band were the "fuzzy buzz" behind the theme;
+      // the filter rolls that hash off while the musical band
+      // (roots ≤ 220 Hz, lead ≤ 350 Hz + their low partials)
+      // passes untouched. Hat/kick keep the direct path (the
+      // hat IS high-frequency content — filtering it would
+      // change the approved percussion).
+      const toneBus = this.ctx.createGain();
+      const toneFilter = this.ctx.createBiquadFilter();
+      toneFilter.type = 'lowpass';
+      toneFilter.frequency.value = 2800;
+      toneFilter.Q.value = 0.4;
+      toneBus.connect(toneFilter);
+      toneFilter.connect(gain);
       this._music = {
-        gain, step: 0,
+        gain, toneBus, step: 0,
         nextTime: this.ctx.currentTime + 0.08,
         timer: setInterval(() => this._musicPump(), 120),
       };
@@ -179,7 +194,7 @@ export class Sfx {
     clearInterval(m.timer);
     try {
       m.gain.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.12);
-      setTimeout(() => { try { m.gain.disconnect(); } catch (e) { /* already gone */ } }, 500);
+      setTimeout(() => { try { m.gain.disconnect(); if (m.toneBus) m.toneBus.disconnect(); } catch (e) { /* already gone */ } }, 500);
     } catch (e) { /* silent is fine */ }
   }
   // Duck the theme under the pre-match countdown (U5-09).
@@ -188,14 +203,15 @@ export class Sfx {
     const target = this.musicVolume * 0.5 * (on ? 0.3 : 1);
     this._music.gain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.1);
   }
-  _musicTone(freq, t, dur, { type = 'sine', vol = 0.1, attack = 0.01 } = {}) {
+  _musicTone(freq, t, dur, { type = 'sine', vol = 0.1, attack = 0.01, detune = 0 } = {}) {
     if (!this._music) return;
     const c = this.ctx, o = c.createOscillator(), g = c.createGain();
     o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (detune) o.detune.setValueAtTime(detune, t);
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(vol, t + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g); g.connect(this._music.gain);
+    o.connect(g); g.connect(this._music.toneBus); // U6-03: via the filtered tone bus
     o.start(t); o.stop(t + dur + 0.05);
   }
   _musicHat(t) {
@@ -222,7 +238,16 @@ export class Sfx {
       const t = this._music.nextTime;
       const bar = Math.floor(s / 8), chord = CHORDS[bar], inBar = s % 8;
       if (inBar === 0) {
-        for (const f of chord.pad) this._musicTone(f, t, STEP * 8, { type: 'triangle', vol: 0.045, attack: 0.4 });
+        // U6-03: pad = sine body + triangle warmth at −12 dB,
+        // ±4-cent stagger across the triad. Same notes, same
+        // rhythm, same total level as U5 — but the partials no
+        // longer collide synchronously (the periodic beating
+        // Brett heard as a constant background buzz).
+        chord.pad.forEach((f, i) => {
+          const det = (i - 1) * 4;
+          this._musicTone(f, t, STEP * 8, { type: 'sine', vol: 0.040, attack: 0.4, detune: det });
+          this._musicTone(f, t, STEP * 8, { type: 'triangle', vol: 0.011, attack: 0.4, detune: det });
+        });
         // soft kick: pitched sine drop
         const o = this.ctx.createOscillator(), g = this.ctx.createGain();
         o.type = 'sine';
@@ -233,8 +258,10 @@ export class Sfx {
         o.connect(g); g.connect(this._music.gain);
         o.start(t); o.stop(t + 0.16);
       }
-      if (inBar === 0 || inBar === 3 || inBar === 6) this._musicTone(chord.root, t, STEP * 1.8, { type: 'triangle', vol: 0.14, attack: 0.005 });
-      if (inBar === 4) this._musicTone(chord.root * 2, t, STEP * 1.5, { type: 'triangle', vol: 0.10, attack: 0.005 });
+      // U6-03: bass attack 5 ms → 12 ms — the 5 ms edge on a
+      // 55–73 Hz triangle was a per-note click riding the loop.
+      if (inBar === 0 || inBar === 3 || inBar === 6) this._musicTone(chord.root, t, STEP * 1.8, { type: 'triangle', vol: 0.14, attack: 0.012 });
+      if (inBar === 4) this._musicTone(chord.root * 2, t, STEP * 1.5, { type: 'triangle', vol: 0.10, attack: 0.012 });
       if (inBar % 4 === 2) this._musicHat(t);
       if (LEAD[s]) this._musicTone(LEAD[s], t, STEP * 2.6, { type: 'sine', vol: 0.075, attack: 0.01 });
       this._music.step++;
