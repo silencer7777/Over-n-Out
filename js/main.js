@@ -90,11 +90,48 @@ for (const m of barrelMeshes) {
 const perfMeter = new FpsMeter(renderer);
 const quality = new QualityScaler(renderer, scene, { startLevel: TOUCH_MODE ? 1 : 0 });
 
-addEventListener('resize', () => {
+// U8-03: one sizing path, bound from boot so flipping the phone
+// re-fits the renderer in the menu AND mid-match — landscape is
+// automatic, no manual step. Mobile browsers fire
+// orientationchange before the new dimensions settle, so the fit
+// re-runs on the next frame and once more after 250 ms.
+function fitRenderer() {
+  if (!innerWidth || !innerHeight) return;
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+}
+addEventListener('resize', fitRenderer);
+addEventListener('orientationchange', () => {
+  fitRenderer();
+  requestAnimationFrame(fitRenderer);
+  setTimeout(fitRenderer, 250);
 });
+if (window.visualViewport) visualViewport.addEventListener('resize', fitRenderer);
+
+// U8-02: best-effort fullscreen + landscape lock (Android
+// Chrome). Every platform call is feature-detected and its
+// rejection swallowed: on iOS Safari (no element fullscreen on
+// iPhone, no orientation lock) this is a harmless no-op and the
+// U8-01 rotate prompt guides the physical turn instead. Never
+// throws, never blocks play.
+function goLandscape() {
+  try {
+    const el = document.documentElement;
+    const fs = document.fullscreenElement || !el.requestFullscreen
+      ? Promise.resolve()
+      : Promise.resolve(el.requestFullscreen()).catch(() => {});
+    fs.then(() => {
+      try {
+        if (screen.orientation && screen.orientation.lock) {
+          const p = screen.orientation.lock('landscape');
+          if (p && p.catch) p.catch(() => {});
+        }
+      } catch (e) { /* lock unsupported — the prompt guides instead */ }
+      setTimeout(fitRenderer, 300);
+    });
+  } catch (e) { /* fullscreen unsupported — the prompt guides instead */ }
+}
 
 // ---------------- DOM ----------------
 const $ = id => document.getElementById(id);
@@ -1462,9 +1499,12 @@ if (TOUCH_MODE) {
         if ((state === 'playing' || state === 'online') && i >= 0 && i < WEAPON_ORDER.length) switchWeapon(WEAPON_ORDER[i]);
       },
       pause: () => touchPause(),
+      orient: () => goLandscape(), // U8-02
       firstTouch: () => sfx.ensure(),
     },
   });
+  const landscapeBtn = $('landscape-btn'); // U8-02 menu entry (touch only; CSS-gated)
+  if (landscapeBtn) landscapeBtn.addEventListener('click', () => goLandscape());
 }
 
 // ---------------- online (V4) ----------------
