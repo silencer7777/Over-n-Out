@@ -31,6 +31,8 @@ import {
   isKnownType,
   validateHello,
   validateInput,
+  validateChat,
+  validateSignal,
   LIMITS,
   DEFAULT_MODE,
 } from './protocol.js';
@@ -286,11 +288,14 @@ export class GameServer {
     } catch {
       return this._error(playerId, 'bad_message', 'message is not JSON-serialisable');
     }
-    if (byteLength > LIMITS.MAX_MESSAGE_BYTES) {
+    // U6-15: signal messages carry SDP and get the larger cap;
+    // every field inside is still bounded by validateSignal.
+    const byteCap = msg.t === MSG.SIGNAL ? LIMITS.SIGNAL_MAX_BYTES : LIMITS.MAX_MESSAGE_BYTES;
+    if (byteLength > byteCap) {
       return this._error(
         playerId,
         'too_large',
-        `message exceeds ${LIMITS.MAX_MESSAGE_BYTES} bytes`,
+        `message exceeds ${byteCap} bytes`,
       );
     }
 
@@ -419,6 +424,62 @@ export class GameServer {
             simPlayer.lastSeq = msg.seq;
           }
         }
+        return null;
+      }
+
+      case MSG.CHAT: {
+        // U6-14 text chat relay. The sender must be a hello'd
+        // player (a name is required to stamp); validation is
+        // protocol-strict; the text is control-stripped here so
+        // what relays is safe to render as text anywhere.
+        const check = validateChat(msg);
+        if (!check.ok) {
+          return this._error(playerId, 'bad_chat', check.errors.join('; '));
+        }
+        const sender = room.players.get(playerId);
+        if (!sender || !sender.name) {
+          return this._error(playerId, 'no_hello', 'say hello before chatting');
+        }
+        // Rate limit: LIMITS.CHAT_MAX_PER_WINDOW per window.
+        const now = Date.now();
+        sender._chatTimes = (sender._chatTimes || []).filter(t => now - t < LIMITS.CHAT_WINDOW_MS);
+        if (sender._chatTimes.length >= LIMITS.CHAT_MAX_PER_WINDOW) {
+          return this._error(playerId, 'chat_rate', 'slow down — chat is rate limited');
+        }
+        sender._chatTimes.push(now);
+        const text = msg.text.replace(/[\u0000-\u001f\u007f]/g, '').trim();
+        if (!text) return null; // nothing survives sanitizing: drop quietly
+        const out = {
+          t: MSG.CHAT, from: playerId, name: sender.name,
+          channel: msg.channel, text, tick: room.tick,
+        };
+        // Routing: 'lobby'/'all' reach the whole room; 'team'
+        // reaches the sender's side (the sim's team field is
+        // the authority; a player with no sim seat — a pure
+        // lobby connection — teams with everyone in the room's
+        // default side, which is every lobby human).
+        const senderTeam = room.match?.players.get(playerId)?.team ?? null;
+        for (const pid of room.players.keys()) {
+          if (msg.channel === 'team' && pid !== playerId) {
+            const t = room.match?.players.get(pid)?.team ?? null;
+            if (senderTeam !== null && t !== null && t !== senderTeam) continue;
+          }
+          this._reply(pid, out);
+        }
+        return null; // the sender got their echo via _reply above
+      }
+
+      case MSG.SIGNAL: {
+        // U6-15 voice signaling relay: validated, targeted,
+        // verbatim. The server never interprets the payload.
+        const check = validateSignal(msg);
+        if (!check.ok) {
+          return this._error(playerId, 'bad_signal', check.errors.join('; '));
+        }
+        if (msg.to === playerId || !room.players.has(msg.to)) {
+          return this._error(playerId, 'bad_signal_target', 'signal target is not a player in this room');
+        }
+        this._reply(msg.to, { t: MSG.SIGNAL, from: playerId, kind: msg.kind, data: msg.data });
         return null;
       }
 
