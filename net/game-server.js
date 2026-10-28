@@ -2,8 +2,16 @@
 //
 // Division Zero — Vega (online systems). Run it:
 //
-//   node net/game-server.js            # ws://0.0.0.0:8081/play
-//   PORT=9000 HOST=127.0.0.1 node net/game-server.js
+//   node net/game-server.js            # ws://127.0.0.1:8081/play (localhost only)
+//   PORT=9000 HOST=0.0.0.0 node net/game-server.js   # explicit opt-in: beyond localhost
+//
+// HARDENING (V6 Update 10, Brett's Oct 28 order): the default
+// bind is LOCALHOST. The public face is the tunnel in front of
+// this process (cloudflared), which terminates TLS — players
+// reach wss://<tunnel-host>/play and the tunnel forwards to
+// this plain-ws localhost port. There are no raw public ports:
+// never port-forward 8081, and keep the host firewall denying
+// inbound 8081 from non-loopback (see net/README.md).
 //
 // This is the process a host runs (see docs/sessions/
 // v4-hosting-brief.md). GitHub Pages serves the static client;
@@ -30,7 +38,7 @@ import { GameServer } from './server.js';
 import { WebSocketTransport } from './ws-transport.js';
 import { PROTOCOL_VERSION } from './protocol.js';
 
-export function createOnlineServer({ port = 8081, host = '0.0.0.0' } = {}) {
+export function createOnlineServer({ port = 8081, host = '127.0.0.1' } = {}) {
   const game = new GameServer();
   const transport = new WebSocketTransport();
   game.attachTransport(transport);
@@ -74,7 +82,7 @@ const isDirectRun = (() => {
 
 if (isDirectRun) {
   const port = Number(process.env.PORT) || 8081;
-  const host = process.env.HOST || '0.0.0.0';
+  const host = process.env.HOST || '127.0.0.1'; // U10: localhost by default; HOST= is the operator's explicit opt-in
   const { game, httpServer, close } = createOnlineServer({ port, host });
   game.start();
   httpServer.listen(port, host, () => {
@@ -84,6 +92,11 @@ if (isDirectRun) {
     console.log('[game-server] rooms are created by hello; tick 30 Hz, snapshots 20 Hz.');
     console.log('[game-server] ⚠ DEV AUTH: session tokens are shape-checked only (Stage 2 pending).');
     console.log('[game-server] ⚠ Localhost / LAN / private tunnel ONLY — do not expose publicly yet.');
+    if (host === '127.0.0.1' || host === '::1') {
+      console.log('[game-server] posture: bound to localhost — public play goes through the TLS tunnel (wss://), never a raw port.');
+    } else {
+      console.log(`[game-server] ⚠ HOST=${host} binds beyond localhost (explicit opt-in) — Stage 2 auth is still pending; a tunnel is strongly preferred.`);
+    }
   });
   let closing = false;
   const shutdown = async (sig) => {
