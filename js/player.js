@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { collide } from './world.js';
 import { buildViewmodelGun, buildViewmodelArms } from './gunmodels.js';
+import { STANCE, createStanceState, stepStance } from './stance.js';
 
 const EYE = 1.66;
 
@@ -83,6 +84,11 @@ export class Player {
     this.slideDirZ = 0;
     this.slideEyeK = 0;          // eased camera dip amount (0..1)
     this.prevSlideInput = false; // slide edge detection
+    // --- V6 Update 6 (U6-10): stance state (js/stance.js) ---
+    this.stanceState = createStanceState();
+    this.stance = 'stand';
+    this.eyeCur = EYE;           // eased eye height (stance-driven)
+    this.spreadMult = 1;         // stance spread multiplier (main.js shoot reads it)
     this.gunKick = 0;            // view-model kickback offset on +Z
     // --- V6-3 feel state (cosmetic smoothing only; no sim value) ---
     this.bobAmp = 0;             // head-bob envelope (eases in/out, no pop)
@@ -113,6 +119,16 @@ export class Player {
     this._attKey = '';
     this.aiming = false;         // right-mouse held (input.aim)
     this.adsZoom = 1;            // set from the effective weapon (optic)
+    // U6-01 USABLE SCOPES: which optic picture the player is
+    // looking through ('iron' | 'reddot' | 'holo' | 'scope'),
+    // derived in setWeaponVisual from the fitted attachments
+    // (the DMR's built-in glass counts as 'scope'), and the
+    // eased 0..1 ADS blend that drives the overlay + the
+    // viewmodel rule (inside a magnified scope you see the
+    // optic picture, not the gun).
+    this.adsKind = 'iron';
+    this.aimBlend = 0;
+    this._scopeInner = false;
     this.aimMoveMult = 1;        // movement multiplier while aiming
     camera.add(gun);
 
@@ -190,10 +206,18 @@ export class Player {
     this.landDip = 0; this.landDipMax = 0; this.landDipT = 1;
     this.slideT = 0; this.slideDirX = 0; this.slideDirZ = 0;
     this.slideEyeK = 0; this.prevSlideInput = false;
+    this.stanceState = createStanceState();
+    this.stance = 'stand'; this.eyeCur = EYE; this.spreadMult = 1;
     this.gunKick = 0;
     this.bobAmp = 0; this.leanZ = 0; this.swayX = 0; this.swayY = 0;
     this._prevYaw = this.yaw; this._prevPitch = this.pitch;
     this.aiming = false;
+    this.aimBlend = 0;
+    if (this._scopeInner) {
+      this._scopeInner = false;
+      if (this.gunModel) this.gunModel.visible = true;
+      if (this.armsMesh) this.armsMesh.visible = true;
+    }
     if (Math.abs(this.camera.fov - this.baseFov) > 0.01) {
       this.camera.fov = this.baseFov;
       this.camera.updateProjectionMatrix();
@@ -228,6 +252,13 @@ export class Player {
     // ADS profile rides the effective weapon (set by main.js).
     if (Number.isFinite(weapon.adsZoom)) this.adsZoom = weapon.adsZoom;
     if (Number.isFinite(weapon.moveAds)) this.aimMoveMult = weapon.moveAds;
+    // U6-01: optic kind — the fitted optic wins; the DMR's
+    // built-in scope is glass even with no optic attachment.
+    const atts = attachments || [];
+    this.adsKind = atts.includes('scope') ? 'scope'
+      : atts.includes('holo') ? 'holo'
+      : atts.includes('reddot') ? 'reddot'
+      : weapon.id === 'dmr' ? 'scope' : 'iron';
     // Suppressor identity (Havoc §3): minimal muzzle flash.
     this.flashDim = weapon.stealth ? 0.3 : 1;
   }
@@ -253,27 +284,40 @@ export class Player {
     // ADS (V4): aiming forbids sprint and scales movement by the
     // optic's moveAds (attachments) — irons/no-optic stays 1.
     this.aiming = !!input.aim;
-    const speed = (input.sprint && !this.aiming ? 9.2 * (this.sprintMult || 1) : 5.6 * (this.walkMult || 1)) * (this.aiming ? Math.min(1, this.aimMoveMult + (this.stalkerAdd || 0)) : 1);
+    // --- STANCE (U6-10) ordering: slide entry is decided FIRST
+    // (a sprinting press becomes a slide and consumes the press),
+    // then the shared stance machine advances, then speed takes
+    // the stance multiplier (an active slide overrides it).
+    const slidePressed = !!input.slide && !this.prevSlideInput;
+    this.prevSlideInput = !!input.slide;
+    const hSpeedNow0 = Math.hypot(this.vel.x, this.vel.z);
+    let slideStarted = false;
+    if (slidePressed && this.onGround && this.slideT <= 0 && hSpeedNow0 > SLIDE_MIN_SPEED && !this.aiming) {
+      this.slideT = SLIDE_TIME;
+      this.slideDirX = this.vel.x / hSpeedNow0;
+      this.slideDirZ = this.vel.z / hSpeedNow0;
+      slideStarted = true;
+    }
+    this.stance = stepStance(this.stanceState, {
+      held: !!input.stance, proneHeld: !!input.prone, tapRequest: !!input.stanceTap,
+      jumpPressed: !!input.jump && !this.prevJump,
+      sprintActive: !!input.sprint && !!(((input.forward ? 1 : 0) - (input.back ? 1 : 0)) || ((input.right ? 1 : 0) - (input.left ? 1 : 0))),
+      slideStarted,
+      slideEnded: (this._prevSlideT || 0) > 0 && this.slideT <= 0,
+    }, dt);
+    this.spreadMult = STANCE[this.stance].spread;
+    const speed = (input.sprint && !this.aiming ? 9.2 * (this.sprintMult || 1) : 5.6 * (this.walkMult || 1)) * (this.aiming ? Math.min(1, this.aimMoveMult + (this.stalkerAdd || 0)) : 1) * (this.slideT > 0 ? 1 : STANCE[this.stance].speed);
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
     const wx = (-sin * f + cos * s);
     const wz = (-cos * f - sin * s);
     const len = Math.hypot(wx, wz) || 1;
 
-    // --- SLIDE (U5-07b): edge-triggered from input.slide, only
-    // out of a real sprint (horizontal speed > SLIDE_MIN_SPEED),
-    // grounded, not aiming. Direction locks at entry with light
+    // --- SLIDE (U5-07b): entry is decided above with the stance
+    // step (U6-10 ordering). While the slide runs it OWNS
+    // vel.x/vel.z (the accel model below is skipped) with light
     // steering toward the wish direction; speed boosts to
-    // SLIDE_SPEED_START and decays to SLIDE_SPEED_END. While the
-    // slide runs it OWNS vel.x/vel.z (the accel model below is
-    // skipped). Jump or leaving the ground cancels it.
-    const slidePressed = !!input.slide && !this.prevSlideInput;
-    this.prevSlideInput = !!input.slide;
-    const hSpeedNow = Math.hypot(this.vel.x, this.vel.z);
-    if (slidePressed && this.onGround && this.slideT <= 0 && hSpeedNow > SLIDE_MIN_SPEED && !this.aiming) {
-      this.slideT = SLIDE_TIME;
-      this.slideDirX = this.vel.x / hSpeedNow;
-      this.slideDirZ = this.vel.z / hSpeedNow;
-    }
+    // SLIDE_SPEED_START and decays to SLIDE_SPEED_END. Jump or
+    // leaving the ground cancels it.
     if (this.slideT > 0) {
       this.slideT = Math.max(0, this.slideT - dt);
       const hasWish = !!(f || s);
@@ -432,7 +476,10 @@ export class Player {
     // while sliding and back out after — no pop at either end,
     // and the bob is damped while you're on the ground sliding.
     this.slideEyeK += ((this.slideT > 0 ? 1 : 0) - this.slideEyeK) * Math.min(1, dt * 11);
-    this.camera.position.y = EYE - (EYE - SLIDE_EYE) * this.slideEyeK
+    // U6-10: the eye eases between stance heights (~200 ms —
+    // no pop in or out of crouch/prone).
+    this.eyeCur += (STANCE[this.stance].eye - this.eyeCur) * Math.min(1, dt * 9);
+    this.camera.position.y = this.eyeCur - (this.eyeCur - SLIDE_EYE) * this.slideEyeK
       + bobY * (1 - 0.65 * this.slideEyeK) + this.landDip;
     // Strafe lean (V6-3): a whisper of camera roll into lateral
     // motion — the world tilts a degree, at most, when you strafe
@@ -457,6 +504,19 @@ export class Player {
     const swayK = Math.min(1, dt * 10);
     this.swayX += (Math.max(-0.02, Math.min(0.02, yawVel * 0.0035)) - this.swayX) * swayK;
     this.swayY += (Math.max(-0.012, Math.min(0.012, -pitchVel * 0.0025)) - this.swayY) * swayK;
+    // U6-01: ADS blend eases over ~150 ms (matches the FOV ease
+    // family); the overlay in main.js keys off aimBlend via
+    // this.aiming, and the scope viewmodel rule below keys off
+    // the blend so the gun never pops.
+    this.aimBlend += ((this.aiming ? 1 : 0) - this.aimBlend) * Math.min(1, dt * 11);
+    if (this.aimBlend < 0.001) this.aimBlend = 0;
+    if (this.aimBlend > 0.999) this.aimBlend = 1;
+    const scopeInner = this.adsKind === 'scope' && this.aimBlend > 0.55;
+    if (scopeInner !== this._scopeInner) {
+      this._scopeInner = scopeInner;
+      if (this.gunModel) this.gunModel.visible = !scopeInner;
+      if (this.armsMesh) this.armsMesh.visible = !scopeInner;
+    }
     const swayScale = this.aiming ? 0.35 : 1;
     // View-model kickback recovery (fast exponential ease back to rest).
     this.gunKick *= Math.pow(0.0001, dt);
@@ -475,6 +535,7 @@ export class Player {
     // Muzzle flash decay
     if (this.flash.material.opacity > 0) this.flash.material.opacity = Math.max(0, this.flash.material.opacity - dt * 14);
     if (this.flashLight.intensity > 0) this.flashLight.intensity = Math.max(0, this.flashLight.intensity - dt * 260);
+    this._prevSlideT = this.slideT; // U6-10: slide-end detection for the stance step
   }
 
   kick(strength = 0.021) {
@@ -490,5 +551,5 @@ export class Player {
   }
 
   get position() { return this.rig.position; }
-  eyePos(out) { return out.copy(this.rig.position).setY(this.rig.position.y + EYE); }
+  eyePos(out) { return out.copy(this.rig.position).setY(this.rig.position.y + (this.eyeCur ?? EYE)); }
 }
