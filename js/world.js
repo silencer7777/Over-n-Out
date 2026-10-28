@@ -1014,19 +1014,32 @@ export function buildWorld(scene) {
     scene.add(apron);
   }
 
-  // Two silhouette ridge rings outside the walls (nearest point ~85 units out,
-  // well clear of the arena corner at ~71). Flat dark Basic materials read as
-  // dusk silhouettes; fog is off so they don't wash out at range — the far ring
-  // is pre-lightened to fake atmospheric perspective.
-  function ridgeRing(baseR, rVar, baseH, hVar, color, phase) {
-    const seg = 72, positions = [], indices = [];
+  // U11 HORIZON (queue item 5 — scenery realism + background
+  // mountains): four vertex-coloured ridge rings plus one merged
+  // distant-peak range, ALL outside the ±80 playable square
+  // (corner at ~113.1). The pre-U11 rings sat at r 100/124, placed
+  // for the old ±50 arena ("clear of the corner at ~71"): r 100
+  // crosses the expanded square at its diagonals. Every ring's
+  // minimum radius (baseR − rVar − hash swing) now stays above
+  // 113.1. Vertex colours carry the shading — dark base, lighter
+  // crest, deterministic per-vertex jitter — so the rings read as
+  // lit mountain silhouettes instead of flat curtains; MeshBasic +
+  // fog:false is the established silhouette read (fog would wash
+  // them out at range; the gradient does the atmospheric
+  // perspective instead). Visual only: no colliders, no
+  // shootables, castShadow off — shadow budget Δ0.
+  function ridgeRing(name, baseR, rVar, baseH, hVar, baseColor, crestColor, phase) {
+    const seg = 72, positions = [], colors = [], indices = [];
     const hash = n => { const s = Math.sin(n * 127.1 + phase * 311.7) * 43758.5453; return s - Math.floor(s); };
+    const base = new THREE.Color(baseColor), crest = new THREE.Color(crestColor), tmp = new THREE.Color();
     for (let i = 0; i <= seg; i++) {
       const a = (i / seg) * Math.PI * 2;
       const bump = Math.sin(a * 3 + phase) * 0.45 + Math.sin(a * 7 + phase * 2.3) * 0.3 + Math.sin(a * 13 + phase * 4.1) * 0.25;
       const r = baseR + bump * rVar + (hash(i) - 0.5) * rVar * 0.5;
       const h = Math.max(2.5, baseH + bump * hVar + (hash(i + 57) - 0.5) * hVar * 0.6);
       positions.push(Math.cos(a) * r, -2, Math.sin(a) * r, Math.cos(a) * r, h, Math.sin(a) * r);
+      tmp.copy(base).offsetHSL(0, 0, (hash(i + 131) - 0.5) * 0.08); colors.push(tmp.r, tmp.g, tmp.b);
+      tmp.copy(crest).offsetHSL(0, 0, (hash(i + 197) - 0.5) * 0.10); colors.push(tmp.r, tmp.g, tmp.b);
     }
     for (let i = 0; i < seg; i++) {
       const b = i * 2, t = b + 1, b2 = b + 2, t2 = b + 3;
@@ -1034,12 +1047,55 @@ export function buildWorld(scene) {
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     g.setIndex(indices);
-    const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, fog: false, side: THREE.DoubleSide }));
+    const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, fog: false, side: THREE.DoubleSide }));
+    mesh.name = name;
     scene.add(mesh);
   }
-  ridgeRing(124, 14, 22, 13, 0x2a2044, 1.7); // far ridge — taller, lighter
-  ridgeRing(100, 10, 11, 7, 0x181126, 4.2);  // near ridge — lower, darker
+  ridgeRing('horizon-foothill', 122, 5, 5, 3, 0x1c1626, 0x2e2742, 2.9);   // low rolling foothills — just outside the corner
+  ridgeRing('horizon-near', 132, 9, 13, 8, 0x181126, 0x342a52, 4.2);      // near ridge — lower, darker (was r100 flat)
+  ridgeRing('horizon-mid', 152, 11, 19, 10, 0x211a38, 0x453a68, 5.6);     // mid ridge — new parallax layer
+  ridgeRing('horizon-far', 178, 13, 27, 14, 0x2a2044, 0x5a4c82, 1.7);     // far ridge — taller, lighter (was r124 flat)
+
+  // Distant peaks — ONE merged geometry: 18 irregular summits at
+  // r 195–225, heights ~34–58, pale apex vertices (the snow/light
+  // cap read), flanks in the far-ridge family so the range reads
+  // as one mountain system behind the rings. Each peak is a
+  // 4-face pyramid on an irregular quad footprint with an offset
+  // apex; placement is hash-deterministic like the ridges.
+  {
+    const positions = [], colors = [], indices = [];
+    const flank = new THREE.Color(0x3a2f58), cap = new THREE.Color(0x9d92c4), tmp = new THREE.Color();
+    const hash = n => { const s = Math.sin(n * 269.5 + 17.31) * 43758.5453; return s - Math.floor(s); };
+    let v = 0;
+    const PEAKS = 18;
+    for (let p = 0; p < PEAKS; p++) {
+      const a = (p / PEAKS) * Math.PI * 2 + (hash(p * 3 + 1) - 0.5) * 0.22;
+      const r = 195 + hash(p * 3 + 2) * 30;
+      const cx = Math.cos(a) * r, cz = Math.sin(a) * r;
+      const h = 34 + hash(p * 5 + 3) * 24;
+      const w = 16 + hash(p * 5 + 4) * 14;        // footprint half-width (tangential)
+      const d = 10 + hash(p * 5 + 5) * 9;         // footprint half-depth (radial)
+      const tx = -Math.sin(a), tz = Math.cos(a);  // tangent
+      const rx = Math.cos(a), rz = Math.sin(a);   // radial
+      const apexOff = (hash(p * 7 + 6) - 0.5) * w * 0.7;
+      const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([sx, sz]) => [
+        cx + tx * sx * w + rx * sz * d, -2, cz + tz * sx * w + rz * sz * d]);
+      const apex = [cx + tx * apexOff, h, cz + tz * apexOff];
+      corners.forEach(c => { positions.push(...c); tmp.copy(flank).offsetHSL(0, 0, (hash(v) - 0.5) * 0.06); colors.push(tmp.r, tmp.g, tmp.b); v++; });
+      positions.push(...apex); colors.push(cap.r, cap.g, cap.b); v++;
+      const apexIdx = v - 1, base0 = apexIdx - 4;
+      for (let f = 0; f < 4; f++) indices.push(base0 + f, base0 + (f + 1) % 4, apexIdx);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    g.setIndex(indices);
+    const peaks = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, fog: false, side: THREE.DoubleSide }));
+    peaks.name = 'horizon-peaks';
+    scene.add(peaks);
+  }
 
   // ================= LANDSCAPING =================
   // Procedural only, no textures, no new imports. Deterministic seeded
