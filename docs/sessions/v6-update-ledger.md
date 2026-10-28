@@ -182,7 +182,31 @@ only when they cost the graphics mission nothing:
   (bar 165), shadow est 199/200 — the binding constraint now.
   All four gates green. Report:
   `docs/sessions/v6-update-06-report.md`. **Not pushed —
-  awaiting Brett's playtest + tap.**
+  awaiting Brett's playtest + tap.** (Pushed live Oct 28 at
+  Brett's tap, ~00:41.)
+- **Update 7 LANDED + PUSHED LIVE** (Oct 28, commits `2808fd3`
+  + `96d7723`, first build under the Oct 28 auto-push law —
+  no tap needed or taken): **U7-01 scope rework** (Brett:
+  "still can't use the scope" — root causes: no baseline sight,
+  iron overlay suppressed outright, "SCOPE 4×" really 2.4×, no
+  in-game teaching). Five kinds now — iron 1.15× (every gun,
+  level 1), reddot 1.35×, holo 1.6× window, MID SCOPE 3×
+  (honest rename), SNIPER 5× (DMR built-in + L19 fit) — each a
+  distinct picture, label names kind + zoom, one-time ADS hint
+  chip + rewritten controls line, touch ADS verified.
+  **U7-02 bushes:** third grounding skirt mass in both bush
+  systems (local PRNG — shared scatter streams byte-untouched,
+  no re-pins). **U7-03 movement feel slice:** error-adaptive
+  look smoothing + locomotion soft-start, Havoc numbers held.
+  **U7-04 lighting (lock lifted):** shadow camera 72/68 → 86
+  (the ±80 ring POIs were shadowless), normalBias 0.35, forest
+  /mars hemi lifts. Perf: calls Δ0 on all maps (131/144/143/
+  145, v6-metrics instrument), tris +2.8k–15.7k (skirts only),
+  shadow est. Δ0. Fire-rate §D exact. **One named re-pin:**
+  smoke PG2 ladder 26 → 27 (sniper rung). All five gates green
+  on tree + snapshot; live byte-verified (10 files exact).
+  Report: `docs/sessions/v6-update-07-report.md`. **The count
+  is now 7. Awaiting Brett's playtest verdicts — scopes first.**
 
 ## Owner directives (Brett, Oct 28, 2026) — release law, lighting lock lifted, focus queue
 
