@@ -36,9 +36,15 @@ export const ATTACHMENTS = [
   { id: 'holo', name: 'HOLO SIGHT', slot: 'optic', weapons: 'all',
     benefit: 'Aimed spread ×0.80, 1.6× aim zoom', tradeoff: 'Aim movement ×0.95',
     mods: { spreadAds: 0.80, adsZoom: 1.6, moveAds: 0.95 } },
-  { id: 'scope', name: 'SCOPE 4×', slot: 'optic', weapons: ['ar', 'dmr'],
-    benefit: 'Aimed spread ×0.70, 2.4× aim zoom', tradeoff: 'Aim movement ×0.90 — slow to track up close',
-    mods: { spreadAds: 0.70, adsZoom: 2.4, moveAds: 0.90 } },
+  { id: 'scope', name: 'MID SCOPE 3×', slot: 'optic', weapons: ['ar', 'dmr'],
+    benefit: 'Aimed spread ×0.70, 3× aim zoom', tradeoff: 'Aim movement ×0.90 — slow to track up close',
+    mods: { spreadAds: 0.70, adsZoom: 3.0, moveAds: 0.90 } },
+  // U7-01: the high-power glass. DMR-only — and the DMR already
+  // carries a built-in 5× (see effectiveWeapon's baseline rule);
+  // fitting this buys the steadier aimed spread on top of it.
+  { id: 'sniper', name: 'SNIPER SCOPE 5×', slot: 'optic', weapons: ['dmr'],
+    benefit: 'Aimed spread ×0.62, 5× aim zoom', tradeoff: 'Aim movement ×0.85 — a long-range tool only',
+    mods: { spreadAds: 0.62, adsZoom: 5.0, moveAds: 0.85 } },
   { id: 'laser', name: 'LASER', slot: 'underbarrel', weapons: ['ar', 'smg', 'shotgun', 'pistol'],
     benefit: 'Hip spread ×0.75, visible beam', tradeoff: 'Aimed spread ×1.10 — the beam gives you away',
     mods: { spread: 0.75, spreadAds: 1.10 }, beam: true },
@@ -93,14 +99,17 @@ export function attachmentsFor(weaponId, slot) {
 // effectiveWeapon(weaponRow, attachmentIds) -> a NEW weapon-shaped
 // object with every attachment multiplier applied. The base row in
 // js/weapons.js is never mutated. Extra fields for callers:
-//   adsZoom    FOV zoom factor while aiming (1 = irons)
+//   adsZoom    FOV zoom factor while aiming (baselines when no
+//              optic is fitted: DMR 5 = its built-in glass,
+//              everything else 1.15 = iron sights — U7-01: every
+//              gun aims through SOMETHING from level 1)
 //   spreadAds  spread multiplier while aiming
 //   moveAds    movement-speed multiplier while aiming
 //   hasLaser   render the beam
 //   mag        already rounded to a whole round count
 export function effectiveWeapon(weapon, attachmentIds = []) {
   const w = { ...weapon, bot: weapon.bot };
-  let adsZoom = 1, spreadAds = 1, moveAds = 1, hasLaser = false;
+  let adsZoom = 1, spreadAds = 1, moveAds = 1, hasLaser = false, opticFitted = false;
   const seenSlots = new Set();
   const applied = [];
   for (const id of attachmentIds || []) {
@@ -119,10 +128,16 @@ export function effectiveWeapon(weapon, attachmentIds = []) {
     if (m.falloffMin) w.falloffMin = Math.min(1, +(w.falloffMin * m.falloffMin).toFixed(3));
     if (m.spreadAds) spreadAds *= m.spreadAds;
     if (m.moveAds) moveAds *= m.moveAds;
-    if (m.adsZoom) adsZoom = m.adsZoom;
+    if (m.adsZoom) { adsZoom = m.adsZoom; if (att.slot === 'optic') opticFitted = true; }
     if (att.beam) hasLaser = true;
     if (att.stealth) w.stealth = true;   // suppressor identity (Havoc §3): dim flash, no tracer
   }
+  // U7-01 baseline sights: with no optic fitted the player still
+  // aims through the gun's own sight — the DMR's built-in 5×
+  // glass, iron sights (a gentle 1.15× settle) on everything
+  // else. Zoom is FOV/feel only: spreadAds stays 1.0 on both
+  // baselines, so a bare gun never gains a hidden accuracy buff.
+  if (!opticFitted) adsZoom = weapon.id === 'dmr' ? 5 : 1.15;
   w.adsZoom = adsZoom;
   w.spreadAds = +spreadAds.toFixed(3);
   w.moveAds = +moveAds.toFixed(3);
