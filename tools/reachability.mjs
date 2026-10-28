@@ -167,12 +167,14 @@ if (worldSrc) {
   else ok('V4 pin relay tower L1 exists in js/world.js (solid(40, -54, 14, 2.3, 14))');
   if (!worldSrc.includes('elevated(40, 2.3, -57.75, 6.5, 2.3, 6.5')) fail('V4 pin — relay tower L2 missing from js/world.js');
   else ok('V4 pin relay tower L2 exists in js/world.js (elevated(40, 2.3, -57.75, ...))');
-  if (!worldSrc.includes('bounds: 62')) fail('V4 pin — buildWorld bounds: 62 missing from js/world.js');
-  else ok('V4 pin buildWorld returns bounds: 62 in js/world.js');
+  // U6-12 RE-PIN (named): the expansion moved the walls out —
+  // bounds 62 -> 80 in both sources, by design.
+  if (!worldSrc.includes('bounds: 80')) fail('U6-12 pin — buildWorld bounds: 80 missing from js/world.js');
+  else ok('U6-12 pin buildWorld returns bounds: 80 in js/world.js (re-pinned from 62)');
 }
 if (worlddataSrc) {
-  if (!worlddataSrc.includes('export const BOUNDS = 62')) fail('V4 pin — worlddata BOUNDS = 62 missing (sim mirror)');
-  else ok('V4 pin worlddata BOUNDS === 62 (sim mirror agrees)');
+  if (!worlddataSrc.includes('export const BOUNDS = 80')) fail('U6-12 pin — worlddata BOUNDS = 80 missing (sim mirror)');
+  else ok('U6-12 pin worlddata BOUNDS === 80 (sim mirror agrees; re-pinned from 62)');
 }
 for (const r of ROUTES) if (r.pass === 'PIN_RUIN') r.pass = ruinPin;
 
@@ -180,10 +182,11 @@ for (const r of ROUTES) if (r.pass === 'PIN_RUIN') r.pass = ruinPin;
 // numeric route proofs on the pure data module (the same
 // step/jump model as the course above: step 0.6, jump 1.6).
 if (worldSrc) {
-  if (!worldSrc.includes('solid(-32, 40.15, 10, 3.2, 0.3')) fail('V5 pin — Ops Building north wall missing from js/world.js');
-  else ok('V5 pin Ops Building exists in js/world.js (solid(-32, 40.15, 10, 3.2, 0.3 ...))');
-  if (!worldSrc.includes('elevated(-32, 3.2, 44, 10.4, 0.25, 8.4')) fail('V5 pin — Ops Building roof missing from js/world.js');
-  else ok('V5 pin Ops Building roof exists in js/world.js (elevated(-32, 3.2, 44, ...))');
+  // U6-12 RE-PINS (named): Ops grew 10x8 -> 12x10 on its centre.
+  if (!worldSrc.includes('solid(-32, 39.15, 12, 3.2, 0.3')) fail('U6-12 pin — Ops Building north wall (grown) missing from js/world.js');
+  else ok('U6-12 pin Ops Building exists, grown (solid(-32, 39.15, 12, 3.2, 0.3 ...))');
+  if (!worldSrc.includes('elevated(-32, 3.2, 44, 12.4, 0.25, 10.4')) fail('U6-12 pin — Ops Building roof (grown) missing from js/world.js');
+  else ok('U6-12 pin Ops Building roof exists, grown (elevated(-32, 3.2, 44, 12.4, 0.25, 10.4))');
   if (!worldSrc.includes('solid(24, 53.65, 6, 2.4, 0.3')) fail('V5 pin — Comms Shed missing from js/world.js');
   else ok('V5 pin Comms Shed exists in js/world.js (solid(24, 53.65, 6, 2.4, 0.3 ...))');
 }
@@ -197,17 +200,23 @@ if (worldSrc) {
   const solidTopAt = (x, z) => { let t = 0; for (const s of wd.SOLIDS) if (x >= s.min[0] && x <= s.max[0] && z >= s.min[2] && z <= s.max[2]) t = Math.max(t, s.max[1]); return t; };
   const hasSolidTop = (x, z, top) => wd.SOLIDS.some(s => x >= s.min[0] && x <= s.max[0] && z >= s.min[2] && z <= s.max[2] && s.max[1] === top);
   // South door: gap passable, wall beside it solid, interior
-  // floor is open ground.
-  if (!blockedAt(-30.2, 47.85) && blockedAt(-34, 47.85) && !blockedAt(-30.2, 44) && g(-30.2, 44, 0) === 0) {
+  // floor is open ground. (U6-12: the door plane moved with
+  // the wall, z 47.85 -> 48.85; the gap x -31..-29.4 did not.)
+  if (!blockedAt(-30.2, 48.85) && blockedAt(-34, 48.85) && !blockedAt(-30.2, 44) && g(-30.2, 44, 0) === 0) {
     ok('V5 route Ops Building south door: gap passable, wall blocks beside it, interior floor 0');
   } else fail('V5 route Ops south door — body-space probes disagree with the door design');
-  // East door likewise.
-  if (!blockedAt(-27.15, 44) && blockedAt(-27.15, 41.65)) ok('V5 route Ops Building east door: gap passable');
+  // East door likewise. (U6-12: the probe moves to the new
+  // wall plane x -26.15; the old point (-27.15, 44) is now
+  // mid-room, where partition B's east run legitimately
+  // stands — the door enters SE storage, then gap B.)
+  if (!blockedAt(-26.15, 44) && blockedAt(-26.15, 41.65)) ok('V5 route Ops Building east door: gap passable');
   else fail('V5 route Ops east door — body-space probes disagree');
   // Roof chain: crate 1.15 -> crate 2.3 -> roof 3.45, probed
   // the way a jumper experiences it (refY = feet mid-rise);
   // every rise <= 1.6 (this gate's discrete jump line).
-  const c1 = g(-25.6, 44, 0.55), c2 = g(-25.6, 41.6, 1.7), roof = g(-28, 44, 2.85);
+  // (U6-12: the chain moved to the WEST exterior — the east
+  // side is the 1.35 m HQ/Ops alley now.)
+  const c1 = g(-39.6, 44, 0.55), c2 = g(-39.6, 41.6, 1.7), roof = g(-36, 44, 2.85);
   if (c1 === 1.15 && c2 === 2.3 && roof === 3.45 && (c2 - c1) <= 1.6 && (roof - c2) <= 1.6) {
     ok('V5 route Ops roof chain: 0 -> 1.15 -> 2.3 -> 3.45 (every rise jumpable)');
   } else fail(`V5 route Ops roof chain — ${c1} / ${c2} / ${roof}`);
@@ -235,8 +244,9 @@ if (worldSrc) {
   if (!blockedAt(-32, 44.1) && blockedAt(-32, 42) && !blockedAt(-29.9, 44) && blockedAt(-31.2, 44)) {
     ok('V6-3 Ops interior: gap A + gap B passable, partitions block beside them');
   } else fail('V6-3 Ops interior — door-gap probes disagree');
-  // The full indoor route, waypoint by waypoint.
-  const route = [[-30.2, 47.85], [-31, 46.5], [-29.9, 44], [-29.6, 42.7], [-32, 44.1], [-34.4, 44]];
+  // The full indoor route, waypoint by waypoint. (U6-12: the
+  // first waypoint is the moved south-door plane, z 48.85.)
+  const route = [[-30.2, 48.85], [-31, 46.5], [-29.9, 44], [-29.6, 42.7], [-32, 44.1], [-34.4, 44]];
   if (route.every(([x, z]) => !blockedAt(x, z) && g(x, z, 0) === 0)) {
     ok('V6-3 Ops interior route: south door -> SE -> NE -> west office, all waypoints walkable');
   } else fail('V6-3 Ops interior route — a waypoint is blocked or lifted');
@@ -279,6 +289,41 @@ if (worldSrc) {
   if (blockedAtY(-18.4, 39.56, 3.125) && g(-18, 38.6, 3.4) === 1.725 && hasSolidTop(-12, 42, 6.25) && g(-12, 42, 3.4) === 3.125) {
     ok('V6-3 HQ: railing guards the well, well drops to the stair (1.725), roof 6.25 is a lid');
   } else fail('V6-3 HQ — railing/well/roof probes disagree');
+  // U6-12: the HQ grew west — the widened bunk room's new
+  // ground (x -23) is open floor at 0, standing on the plate.
+  if (g(-23, 44, 0) === 0 && !blockedAtY(-23, 44, 0) && g(-23, 44, 3.4) === 3.125) {
+    ok('U6-12 HQ west growth: new bunk-room floor open at 0, plate above at 3.125');
+  } else fail('U6-12 HQ west growth — floor probes disagree');
+}
+
+// --- U6-12 expansion ring (Atlas): the new band must be real
+// ground with real doors — warehouse entries passable, walls
+// blocking, the ring lanes open, cover honestly modelled.
+{
+  const wd = await import('../js/worlddata.js');
+  const g = wd.groundHeightAt;
+  const all = wd.allColliders();
+  const blockedAt = (x, z) => all.some(e => x > e.min[0] && x < e.max[0] && z > e.min[2] && z < e.max[2] && e.min[1] < 1.75 && e.max[1] > 0.05);
+  // The warehouse stands on a 0.15 floor SLAB (itself a
+  // collider), so body-band probes inside it need the
+  // wall-height variant: blocked only by something taller
+  // than a step (top > 1.0).
+  const blockedHigh = (x, z) => all.some(e => x > e.min[0] && x < e.max[0] && z > e.min[2] && z < e.max[2] && e.min[1] < 1.75 && e.max[1] > 1.0);
+  // Warehouse: both doors passable, walls block beside them,
+  // the floor inside is the 0.15 slab.
+  if (!blockedHigh(60.5, -56.5) && blockedHigh(55.5, -56.5) && !blockedHigh(62, -67.5) && blockedHigh(56.5, -67.5) && g(62, -62, 0) === 0.15) {
+    ok('U6-12 Warehouse: S loading door + N door passable, walls block, floor slab 0.15');
+  } else fail('U6-12 Warehouse — door/floor probes disagree');
+  // Ring lanes: open ground on all four sides of the new band.
+  if (g(0, -75, 0) === 0 && g(0, 75, 0) === 0 && g(-75, 0, 0) === 0 && g(75, 0, 0) === 0
+    && !blockedAt(0, -75) && !blockedAt(0, 75) && !blockedAt(-75, 0) && !blockedAt(75, 0)) {
+    ok('U6-12 ring lanes: N/S/E/W traversal ground open at 0');
+  } else fail('U6-12 ring lanes — a traversal probe disagrees');
+  // Solar panels: 0.95 tops are jump-on cover (apex 1.6 > 0.95),
+  // probed the jumper's way; the tanks are honest obstacles.
+  if (g(-68, 56, 0.5) === 0.95 && blockedAt(-68, -62) && blockedHigh(62, -62) === false) {
+    ok('U6-12 cover: solar top 0.95 jumpable, depot tank blocks, warehouse floor does not');
+  } else fail('U6-12 cover — solar/tank probes disagree');
 }
 
 console.log('\nRoute table:');
