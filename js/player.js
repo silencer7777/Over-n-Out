@@ -14,9 +14,20 @@ export const JUMP_BUFFER_TIME = 0.12;
 export const JUMP_CUT_FACTOR = 0.5;
 export const JUMP_CUT_MIN_SPEED = 2;
 const LOOK_SMOOTHING_RATE = 30;
-const GROUND_ACCEL_INPUT = 40;
-const GROUND_ACCEL_STOP = 55;
-const AIR_ACCEL = 9;
+// V6 Update 5 (U5-07a, Havoc feel retune): slightly softer ground
+// accel/stop and a touch more air control — movement GLIDES
+// instead of snapping. Top speeds (walk 5.6 / sprint 9.2) and
+// every jump constant below are untouched (reachability law).
+const GROUND_ACCEL_INPUT = 36;
+const GROUND_ACCEL_STOP = 46;
+const AIR_ACCEL = 10.5;
+// SLIDE (U5-07b — the update's ONE new movement verb, Havoc's
+// pick): sprint-speed entry, 0.55 s, boost decay 10.6 -> 6.4.
+export const SLIDE_TIME = 0.55;
+export const SLIDE_SPEED_START = 10.6;
+export const SLIDE_SPEED_END = 6.4;
+export const SLIDE_MIN_SPEED = 6;
+const SLIDE_EYE = 1.02;
 
 // Cosmetic-only view-model shaping per weapon class, keyed by weapon id.
 // These numbers change how the held gun LOOKS (accent tint comes from
@@ -45,6 +56,7 @@ export class Player {
     this.yawTarget = 0;                        // aliases, kept in sync
     this.pitchTarget = 0;
     this.sensitivity = 1;                      // public, settable (menu slider)
+    this.invertY = false;                      // public, settable (options, U5-08)
     this.coyoteTimer = COYOTE_TIME;            // time left to jump after leaving ground
     this.coyoteTime = this.coyoteTimer;
     this.timeSinceGrounded = 0;
@@ -65,6 +77,12 @@ export class Player {
     this.landDip = 0;            // current landing-dip camera offset (<= 0)
     this.landDipMax = 0;         // dip depth captured at touchdown
     this.landDipT = 1;           // 0→1 recovery progress over ~0.18s
+    // --- V6 Update 5 (U5-07b): slide state ---
+    this.slideT = 0;             // seconds left in the current slide
+    this.slideDirX = 0;          // locked slide direction (unit)
+    this.slideDirZ = 0;
+    this.slideEyeK = 0;          // eased camera dip amount (0..1)
+    this.prevSlideInput = false; // slide edge detection
     this.gunKick = 0;            // view-model kickback offset on +Z
     // --- V6-3 feel state (cosmetic smoothing only; no sim value) ---
     this.bobAmp = 0;             // head-bob envelope (eases in/out, no pop)
@@ -83,6 +101,11 @@ export class Player {
     this.gunModel = null;
     this.accentMaterial = null;
     this._gunId = null;
+    // V6 Update 5 (U5-10): the deployed class's camo, set by
+    // main.js — the viewmodel gun + arms build with it. (Until
+    // now they silently always built woodland.)
+    this.camoId = 'woodland';
+    this._camoKey = 'woodland';
     // V4: soldier viewmodel (arms), ADS state, attachments.
     this.armsMesh = null;        // camo sleeves + gloves (gunmodels.js)
     this.laserBeam = null;       // THREE.Line when a laser is fitted
@@ -114,7 +137,7 @@ export class Player {
         if (o.material) o.material.dispose();
       });
     }
-    const built = buildViewmodelGun(weaponId, this._attachments);
+    const built = buildViewmodelGun(weaponId, this._attachments, this.camoId || 'woodland');
     this.gunModel = built.group;
     this.accentMaterial = built.accentMaterial;
     if (this.accentMaterial && tint !== undefined) this.accentMaterial.color.set(tint);
@@ -128,7 +151,7 @@ export class Player {
       this.armsMesh.material.dispose();
       this.armsMesh = null;
     }
-    this.armsMesh = buildViewmodelArms(weaponId);
+    this.armsMesh = buildViewmodelArms(weaponId, this.camoId || 'woodland');
     this.gun.add(this.armsMesh);
     // Laser beam: a thin red line forward from the underbarrel,
     // present only while a laser attachment is fitted.
@@ -165,6 +188,8 @@ export class Player {
     this.jumpActive = false;
     this.jumpCutDone = false; this.jumpCutApplied = false;
     this.landDip = 0; this.landDipMax = 0; this.landDipT = 1;
+    this.slideT = 0; this.slideDirX = 0; this.slideDirZ = 0;
+    this.slideEyeK = 0; this.prevSlideInput = false;
     this.gunKick = 0;
     this.bobAmp = 0; this.leanZ = 0; this.swayX = 0; this.swayY = 0;
     this._prevYaw = this.yaw; this._prevPitch = this.pitch;
@@ -178,7 +203,7 @@ export class Player {
   look(dx, dy) {
     const factor = 0.0021 * this.sensitivity;
     this.targetYaw -= dx * factor;
-    this.targetPitch -= dy * factor;
+    this.targetPitch -= dy * factor * (this.invertY ? -1 : 1);
     this.targetPitch = Math.max(-1.45, Math.min(1.45, this.targetPitch));
     this.yawTarget = this.targetYaw;
     this.pitchTarget = this.targetPitch;
@@ -192,9 +217,11 @@ export class Player {
     if (!weapon) return;
     const v = WEAPON_VISUALS[weapon.id] || WEAPON_VISUALS.ar;
     const attKey = [...(attachments || [])].sort().join(',');
-    const changed = weapon.id !== this._gunId || attKey !== this._attKey;
+    const camoKey = this.camoId || 'woodland';
+    const changed = weapon.id !== this._gunId || attKey !== this._attKey || camoKey !== this._camoKey;
     this._attachments = [...(attachments || [])];
     this._attKey = attKey;
+    this._camoKey = camoKey;
     if (changed) this._swapGunModel(weapon.id, weapon.tint);
     else if (this.accentMaterial) this.accentMaterial.color.set(weapon.tint);
     this.gunGroup.scale.setScalar(v.scale);
@@ -232,6 +259,36 @@ export class Player {
     const wz = (-cos * f - sin * s);
     const len = Math.hypot(wx, wz) || 1;
 
+    // --- SLIDE (U5-07b): edge-triggered from input.slide, only
+    // out of a real sprint (horizontal speed > SLIDE_MIN_SPEED),
+    // grounded, not aiming. Direction locks at entry with light
+    // steering toward the wish direction; speed boosts to
+    // SLIDE_SPEED_START and decays to SLIDE_SPEED_END. While the
+    // slide runs it OWNS vel.x/vel.z (the accel model below is
+    // skipped). Jump or leaving the ground cancels it.
+    const slidePressed = !!input.slide && !this.prevSlideInput;
+    this.prevSlideInput = !!input.slide;
+    const hSpeedNow = Math.hypot(this.vel.x, this.vel.z);
+    if (slidePressed && this.onGround && this.slideT <= 0 && hSpeedNow > SLIDE_MIN_SPEED && !this.aiming) {
+      this.slideT = SLIDE_TIME;
+      this.slideDirX = this.vel.x / hSpeedNow;
+      this.slideDirZ = this.vel.z / hSpeedNow;
+    }
+    if (this.slideT > 0) {
+      this.slideT = Math.max(0, this.slideT - dt);
+      const hasWish = !!(f || s);
+      if (hasWish) {
+        const steer = Math.min(1, dt * 2.4);
+        const nx = this.slideDirX + (wx / len - this.slideDirX) * steer;
+        const nz = this.slideDirZ + (wz / len - this.slideDirZ) * steer;
+        const nl = Math.hypot(nx, nz) || 1;
+        this.slideDirX = nx / nl; this.slideDirZ = nz / nl;
+      }
+      const slideSpeed = SLIDE_SPEED_END + (SLIDE_SPEED_START - SLIDE_SPEED_END) * (this.slideT / SLIDE_TIME);
+      this.vel.x = this.slideDirX * slideSpeed;
+      this.vel.z = this.slideDirZ * slideSpeed;
+    }
+
     // Wish-velocity acceleration: move vel.x/vel.z toward the wish
     // velocity (wishDir * speed cap, or zero with no input) with the
     // change vector-clamped to rate * dt. Top speeds are unchanged:
@@ -244,7 +301,7 @@ export class Player {
     const dvz = wishZ - this.vel.z;
     const dvLen = Math.hypot(dvx, dvz);
     const maxDelta = rate * dt;
-    if (dvLen > 0) {
+    if (dvLen > 0 && this.slideT <= 0) {
       if (dvLen <= maxDelta) {
         this.vel.x = wishX; this.vel.z = wishZ;
       } else {
@@ -296,6 +353,7 @@ export class Player {
     const wantsJump = !!input.jump || this.jumpBufferTimer > 0;
     if (wantsJump && canJump) {
       this.vel.y = JUMP_VELOCITY * (this.jumpMult ?? 1);
+      this.slideT = 0; // U5-07b: jumping cancels a slide
       this.onGround = false;
       this.coyoteTimer = 0;
       this.jumpBufferTimer = 0;
@@ -325,6 +383,7 @@ export class Player {
       // Still grounded but the floor fell away (walked off an edge):
       // become airborne and let gravity take over from here.
       this.onGround = false;
+      this.slideT = 0; // U5-07b: no air-sliding
     }
 
     collide(this.rig.position, this.radius, this.world.colliders, this.world.bounds, feetY);
@@ -369,7 +428,12 @@ export class Player {
     if (this.bobAmp > 0.01) this.bobT += dt * hSpeed * 1.4;
     const bobY = Math.sin(this.bobT * 2) * 0.028 * this.bobAmp;
     const bobX = Math.cos(this.bobT) * 0.018 * this.bobAmp;
-    this.camera.position.y = EYE + bobY + this.landDip;
+    // Slide camera dip (U5-07b): the eye eases toward SLIDE_EYE
+    // while sliding and back out after — no pop at either end,
+    // and the bob is damped while you're on the ground sliding.
+    this.slideEyeK += ((this.slideT > 0 ? 1 : 0) - this.slideEyeK) * Math.min(1, dt * 11);
+    this.camera.position.y = EYE - (EYE - SLIDE_EYE) * this.slideEyeK
+      + bobY * (1 - 0.65 * this.slideEyeK) + this.landDip;
     // Strafe lean (V6-3): a whisper of camera roll into lateral
     // motion — the world tilts a degree, at most, when you strafe
     // at full speed. Lateral velocity is vel in camera space;
