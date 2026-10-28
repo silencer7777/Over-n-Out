@@ -9,6 +9,11 @@
 <body>
 <canvas id="game"></canvas>
 
+<!-- U8-01 rotate prompt: touch + portrait only (pure CSS gate in
+     style.css), pointer-events none, gone the moment the device
+     turns. Icon is CSS-drawn — no emoji, no images. -->
+<div id="rotate-prompt" aria-hidden="true"><div class="rp-icon"><div class="rp-arc"></div><div class="rp-phone"></div></div><div class="rp-text">ROTATE YOUR DEVICE<span>LANDSCAPE PLAYS BEST</span></div></div>
+
 <!-- HUD -->
 <div id="hud" class="hidden">
   <div id="scope-overlay"><div class="scope-circle"></div><div class="scope-ring"></div><div class="scope-window"></div><div class="scope-h"></div><div class="scope-v"></div><div class="scope-mil scope-mil-1"></div><div class="scope-mil scope-mil-2"></div><div class="scope-dot"></div><div class="sight-post"></div><div class="sight-wing sight-wing-l"></div><div class="sight-wing sight-wing-r"></div><div class="scope-mag"></div></div>
@@ -104,6 +109,7 @@
       <div id="chat-menu-status">Chat connects to the SERVER above, with your CALLSIGN. Live when a server is up.</div>
     </div>
     <button id="play-btn">▶ &nbsp;DEPLOY</button>
+    <button id="landscape-btn" type="button"><span class="lb-icon"></span>GO LANDSCAPE</button>
     <button id="menu-options-btn" type="button">⚙ &nbsp;OPTIONS — CONTROLS · SCREEN · MOVEMENT · AUDIO</button>
     <button id="menu-more-btn" type="button">📜 &nbsp;STORY · CONTROLS REFERENCE</button>
     <p class="fine">One build for desktop + phone — on touch screens, on-screen controls appear automatically when you deploy.</p>
