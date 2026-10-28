@@ -15,7 +15,7 @@ or grades. No new gameplay systems.
 |---|--------|-------|--------|
 | 1 | Vegetation + buildings realism — Compound & Forest | Tapered textured trunks, layered irregular canopies, per-instance variation; rooflines/trim/doors/window grids/parapets/panel seams, beveled edges, procedural facade textures. Instancing/merging pays for all of it. (Atlas) | **LANDED Oct 24** (commits be2cb74, 21d2e7e, f9b1185 + report 45e3809) — awaiting Brett playtest; ships in the next push |
 | 2 | Vegetation + buildings parity — Snow Station & Mars Uplink | Update 1's treatment carried to the remaining two maps (snow-loaded pines, station architecture; Mars habitat/industrial structures, rock forms). (Atlas) | **LANDED Oct 24** (commits 553e9ad, 0ed4e0d, c2ac69c, d96e74c, febfa93 + report) — awaiting Brett playtest; ships in the next push |
-| 3 | Terrain & ground realness — all maps | Smooth-shaded undulation, blended ground materials (asphalt/concrete/grass/dirt/snow/rock), edge wear, instanced scatter (rocks, tufts, debris). (Atlas) | queued |
+| 3 | Terrain & ground realness — all maps | Smooth-shaded undulation, blended ground materials (asphalt/concrete/grass/dirt/snow/rock), edge wear, instanced scatter (rocks, tufts, debris). (Atlas) | **LANDED Oct 27** (commits 9c2c854, 5a577d2, 8821c8e, 584f46a, 281e459 + report) — awaiting Brett playtest; ships in the next push |
 | 4 | Soldiers & guns realism | Rounded, blended forms — capsule/sphere-blended limbs and kit, fabric-ish texture variation. Hit cores byte-identical (proof required); per-bot call budget held. (Atlas) | queued |
 | 5 | Materials & finish pass | Texture resolution/atlas uplift, anisotropy, per-instance color-variation audit across all maps; no large flat-color surface survives on any map. (Atlas + Odin) | queued |
 | 6 | Compound detail deepening II | Set dressing, props, signage, interior detail — sequenced by Brett's Update 1–5 playtest feedback. | planned slot |
@@ -222,6 +222,36 @@ only when they cost the graphics mission nothing:
   forest dressing). Layouts: geometry untouched (palette only).
   §2.5 flat-surface strikes: unchanged pre-existing warnings
   (ground-plane mesh), binding at Update 5 as scheduled.
+
+## Update 4 (wave) — Terrain & ground realness (ledger row 3)
+
+- **LANDED Oct 27** (commits 9c2c854, 5a577d2, 8821c8e,
+  584f46a, 281e459; local only, not pushed). Report:
+  `docs/sessions/v6-update-04-report.md`.
+  - **Compound:** world-space painted ground-blend overlay
+    (one mesh, not tiled) — dirt rim wear, gate-lane wear,
+    bare-earth mottling over the concrete slab. Visual only.
+  - **Forest:** the missing ground blanket (r 90, blended
+    grass/bare-earth/leaf-litter painter — the concrete slab
+    no longer shows under the trees) + 12 smooth perimeter
+    mounds (r 67–86, outside bounds, trunk/bush/mast-clear)
+    + 56 instanced floor stones. Own rng streams; shipped
+    scatter byte-identical (B3/B4/B6/B7 pass unmodified).
+  - **Mars:** 130 instanced smooth pebbles across the bands.
+  - **Snow:** deep-drift mottling appended in step in both
+    mirror snow painters; no new meshes.
+  - **Zero gameplay change:** no colliders, no shootables, no
+    spawns, SOLIDS still 147; smoke / biome-check /
+    reachability / map-reachability ALL PASS, no re-pins.
+  - **Metrics:** compound 118 → 119 calls, forest 127 → 131,
+    snow 129 → 130, mars 129 → 131 (veto 165); tris ≤ 217.8k
+    (veto 300k); shadow-pass est ≤ 192 calls (mobile bar 200)
+    with shadow tris byte-identical — every new mesh is
+    castShadow-off. Mars flat share improved 0.176 → 0.138.
+    §3.4 offsets: one draw per program (overlay / blanket /
+    each InstancedMesh) vs 198 unmerged draws for the same
+    dressing. §2.5 strikes unchanged — Update 5's scope, as
+    scheduled (client merged bucket + layout ground boxes).
 
 ---
 
