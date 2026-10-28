@@ -67,6 +67,28 @@ with a source commit/report. No lesson without evidence.
     port 8199; overlapping battery/guardian/builder smokes collide. Rig
     runners wait for port-free and retry once until smoke takes a random
     port. (Rig report, Findings-4)
+21. **Never pool a win rate across unlike objectives.** ASSAULT's pooled
+    0.16 mixed two ground-ring maps with two elevated-ring maps the
+    bot driver cannot climb to — the pooled number measured the
+    instrument, not the mode. Segment by map/objective first; a
+    structural zero is a finding, not a balance datum. (Training,
+    Oct 28, 2026: compound channelMax 0 in 8/8 matrix matches
+    (4 profiles × 2 seeds) + 8/8 trace seeds; pooled rate moved
+    0.16→0.22 on forest/mars alone)
+22. **A decaying progress metric must be reported as its peak.**
+    End-state channel hid real progress behind the 2%/s decay
+    (peaks of 84 / 60.2 / 49.5 all read as final 0–55.9). Any
+    progress value that decays gets a `channelMax`-style
+    max-over-time field, or partial progress reads as "never
+    happened." (Training, Oct 28, 2026; field landed in
+    `rig/vm2-balance/driver.mjs`, 32/32 field-identical rerun)
+23. **Attribute the objective before crediting the profile.** In
+    bot-vs-field instruments, record WHO satisfies the objective
+    condition — a stationary turret "winning" assault and a mobile
+    profile winning from 78 m away both proved friendly bots did
+    the channeling. A win rate without attribution is a claim
+    about the wrong agent. (Training, Oct 28, 2026; trace
+    player-vs-bot ring seconds)
 
 ## D. Build discipline
 
