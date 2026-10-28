@@ -139,11 +139,42 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   const touch = readFileSync(new URL('../js/touchcontrols.js', import.meta.url), 'utf8');
-  eq(html.includes('id="build-stamp"') && html.includes('BUILD U9'), true, 'T7 menu build stamp present (cache witness)');
-  eq(html.includes('name="ono-build" content="9"'), true, 'T7 ono-build meta present');
+  eq(html.includes('id="build-stamp"') && html.includes('BUILD U10'), true, 'T7 menu build stamp present (cache witness)'); // U10 named re-pin: witness 9 -> 10
+  eq(html.includes('name="ono-build" content="10"'), true, 'T7 ono-build meta present'); // U10 named re-pin
   eq(main.includes('__onoBuild'), true, 'T7 build number exposed for support reads');
   eq(main.includes("matchMedia('(orientation: portrait)')") && main.includes("'pageshow'"), true, 'T7 redundant iOS fit triggers present');
   eq(touch.includes("'orientationchange'"), true, 'T7 touch layer re-feeds viewport on orientationchange');
+}
+
+// T8: minimap + objective guidance (U10) — pure math pins on
+// js/minimap.js plus the HUD wiring. North-up frame: world -Z
+// is map-up; facing north (yaw 0) a target to the east bears
+// +90 degrees (right), matching the damage-arc convention.
+{
+  const mm = await import('../js/minimap.js');
+  const c = mm.worldToMap(0, 0, 148);
+  eq(c.px, 74, 'T8 map centre maps to canvas centre (x)');
+  eq(c.py, 74, 'T8 map centre maps to canvas centre (z)');
+  eq(mm.worldToMap(-80, -80, 148).px, 0, 'T8 NW corner maps to 0');
+  eq(mm.worldToMap(999, 999, 148).px, 148, 'T8 out-of-bounds clamps to the edge (anti-glitch)');
+  eq(mm.zoneColor('you'), '#35c4ff', 'T8 zone you = MERIDIAN cyan');
+  eq(mm.zoneColor('kestrel'), '#ff5340', 'T8 zone kestrel = KESTREL red');
+  eq(mm.zoneColor(null), '#9aa7a0', 'T8 zone neutral = grey');
+  const ahead = mm.guidanceFor('domination', 0, 0, 0, [{ id: 'A', name: 'NORTH DECK', x: 0, z: -32, owner: null }]);
+  eq(ahead.verb, 'CAPTURE', 'T8 unowned zone verb is CAPTURE');
+  eq(ahead.dist, 32, 'T8 guidance distance is exact metres');
+  eq(Math.abs(ahead.relRad) < 1e-9, true, 'T8 target straight ahead bears 0 rad');
+  const east = mm.guidanceFor('domination', 0, 0, 0, [{ id: 'B', name: 'ROOFTOP', x: 32, z: 0, owner: 'kestrel' }]);
+  eq(Math.abs(east.relRad - Math.PI / 2) < 1e-9, true, 'T8 target east of north-facing bears +90 deg (right)');
+  const held = mm.guidanceFor('domination', 0, 0, 0, [{ id: 'A', name: 'NORTH DECK', x: 0, z: -10, owner: 'you' }]);
+  eq(held.verb, 'DEFEND', 'T8 all zones held -> DEFEND the nearest');
+  eq(mm.guidanceFor('waves', 0, 0, 0, [{ id: 'A', x: 1, z: 1, owner: null }]), null, 'T8 waves has no guidance target');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  eq(html.includes('id="minimap"') && html.includes('id="objective-guide"'), true, 'T8 minimap + guidance markup present');
+  eq(main.includes('function drawMinimap') && main.includes('function updateObjectiveGuide'), true, 'T8 minimap/guidance wired in main');
+  eq(css.includes('#minimap') && css.includes('body.touch-mode #minimap'), true, 'T8 minimap has a touch placement (all devices)');
 }
 
 if (failures) { console.error(`\nmobile-check: ${failures} failure(s)`); process.exit(1); }
