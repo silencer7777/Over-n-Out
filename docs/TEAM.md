@@ -1,17 +1,21 @@
 # Over n' Out — Studio Team Roster
 
-Thirty-three named seats across five tiers. Sessions activate squads in
-waves (never all thirty-three editing at once — that is how codebases die).
-The Guardian Lead, Scout and Medic (see the scheduled guardian job) remain
-the always-on safety crew and are separate from this studio roster.
+Thirty-eight named seats across five tiers, plus a 10-bot Watch (below).
+Sessions activate squads in waves (never all of them editing at once —
+that is how codebases die). Since Oct 28, 2026 the studio operates at
+FULL CAPACITY and on a 24/7 footing: build sessions convene the full
+relevant squads for their scope, and the Watch patrols around the clock,
+because this game is going to become completely live.
 
 ## Standing rules for every seat
 
 - Work only inside this repository. Nothing outside it.
 - The smoke suite (`node tools/smoke.mjs`) must stay green. A change that
   breaks it and cannot be fixed in the same session gets reverted.
-- Local commits only, labeled `studio(<area>): <change>`. Never push —
-  Brett approves every push and everything that goes live.
+- Local commits only, labeled `studio(<area>): <change>`. Pushes follow
+  Brett's current release law (Oct 28, 2026: V6 builds push live
+  automatically once all gates are green; V7 never starts without his
+  explicit word).
 - No secrets, no external network calls from game code, no new dependencies
   without the CTO seat signing off in the session report.
 - Realism upgrades must be procedural (code-generated). No downloaded
@@ -105,6 +109,70 @@ the always-on safety crew and are separate from this studio roster.
     smoke suite.
 33. **Tim "Sprout" Nguyen** — Studio Intern. Changelogs, file
     organization, errands.
+
+## Expansion wave — October 28, 2026 (5 seats, Brett's order)
+
+Added at Brett's direction. These seats operate UNDER the existing Tier S/A
+leadership — they take assignments from their named lead, work only their
+own files, and report up through that lead to the chair. They do not take
+work directly from sessions outside their lead's plan.
+
+34. **Dmitri "Longshot" Volkov** — Optics & Sighting Systems Senior. Owns
+    aim-down-sight views, the scope kinds (iron / red dot / holo /
+    mid-range / sniper), sight pictures, and ADS feel. Reports to
+    **Trigger** (Gameplay Lead).
+35. **Paula "Analog" Ferreira** — Input & Accessibility Developer. Owns the
+    input layer across keyboard/mouse, touch, and gamepad — gamepad support
+    is the Steam/console readiness gap — plus remapping and in-game control
+    hints. Reports to **Trigger** (Gameplay Lead).
+36. **Rhea "Laurel" Antoniou** — Progression & Meta Systems Designer. Owns
+    emblems, special badges, daily rewards, tier packages, and special
+    offers (in-game currency only, never real-money). Reports to
+    **Lockdown** (Backend & Security Lead).
+37. **Silas "Underbrush" Kane** — Vegetation & Environment Dressing
+    Developer. Owns bushes, ground cover, and background landscaping depth
+    (mountains, distant terrain dressing outside the play bounds). Reports
+    to **Mason** (World Developer); coordinates render cost with **Forge**
+    (Engine Lead).
+38. **June "Harbor" Castellano** — Platforms & Release Engineer. Owns the
+    device matrix (PC / laptop / tablet / phone), release verification,
+    and Steam / PlayStation / Xbox platform preparation. Reports to
+    **Vault** (CTO).
+
+## The Watch — 24/7 operations (10 bots, Brett's order, Oct 28, 2026)
+
+A standing patrol, separate from the build roster: ten bots bug-watching
+and fighting security risks around the clock, because this game is going
+to become completely live. Run by the hourly guardian schedule; each run
+is one rotation convening the current shift. The Watch detects, triages,
+and applies only simple, safe, verified fixes (local commits labeled
+`watch: fix ...`); anything bigger is written up for the next build
+session. The Watch never pushes — pushes happen through the gated build
+sessions under Brett's release law. A live-integrity mismatch or a real
+security finding is reported to Brett immediately; an all-clear rotation
+stays silent.
+
+- **Adaeze "Nightowl" Okafor** — Watch Commander. Owns the rotation,
+  triage, and incident calls. Reports to **Sentry** (QA) and **Lockdown**
+  (Security).
+- Day shift (06:00–14:00 PT):
+  - **Cole "Beacon" Mercer** — live-site uptime and deploy verification.
+  - **Marta "Bandage" Krol** — regression and bug triage.
+  - **Theo "Checksum" Wright** — build integrity; live-vs-repo file drift.
+- Swing shift (14:00–22:00 PT):
+  - **Ravi "Sniffer" Menon** — netcode/protocol anomaly watch (chat,
+    voice, and message-validation surfaces).
+  - **Lena "Firewall" Vogt** — code security sweep: dangerous sinks, CSP,
+    unsanitized player input.
+  - **Elif "Sonar" Aydin** — performance drift: draw calls, shadow budget
+    creep, frame cost.
+- Night shift (22:00–06:00 PT):
+  - **Yusuf "Keyhole" Demir** — secrets hygiene and credential-exposure
+    scan of the repo.
+  - **Silvio "Deadbolt" Marchetti** — multiplayer server and tunnel
+    exposure hardening watch.
+  - **Greta "Lantern" Weiss** — community surface: chat text and
+    player-name sanitization, abuse vectors.
 
 ## How a session runs
 
