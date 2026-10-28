@@ -1189,6 +1189,77 @@ export function buildWorld(scene) {
     scene.add(rockIM);
   }
 
+  // ---- Ground blend overlay (V6 Update 4, Atlas — terrain) ----
+  // The compound floor stops being one uniform concrete slab: a
+  // world-space painted alpha overlay (512² over the full 136 m
+  // plane, NOT tiled — every mark sits where it is painted) blends
+  // dirt and gravel in at the arena rim, wears the two gate lanes
+  // down to dirt, and mottles bare-earth patches across the field.
+  // Visual only: no collider, no shootable (the slab beneath takes
+  // the hits), no height change. On biome maps the overlay is
+  // covered by the biome blanket (top y 0.04) and simply never
+  // seen; the +1 draw call there is the shared-base cost of the
+  // compound read, named here per the §3.4 offset discipline.
+  {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 512;
+    const c = cv.getContext('2d');
+    let seed = 777001;
+    const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    const S = 512, PX = S / 136; // canvas px per metre
+    const blob = (x, z, rx, ry, style) => {
+      c.fillStyle = style;
+      c.beginPath();
+      c.ellipse((x + 68) * PX, (z + 68) * PX, rx * PX, ry * PX, rand() * Math.PI, 0, Math.PI * 2);
+      c.fill();
+    };
+    // Rim wear: layered dirt blobs hugging the outer ~12 m, denser
+    // and darker the closer to the rim, feathering inward.
+    for (let i = 0; i < 260; i++) {
+      const side = Math.floor(rand() * 4), along = -66 + rand() * 132;
+      const depth = Math.pow(rand(), 1.7) * 12;
+      const edge = 66.5 - depth;
+      const x = side === 0 ? along : side === 1 ? along : side === 2 ? -edge : edge;
+      const z = side === 0 ? -edge : side === 1 ? edge : along;
+      blob(x, z, 2 + rand() * 5.5, 1.6 + rand() * 4,
+        `rgba(101,79,52,${0.05 + rand() * 0.11 + (12 - depth) * 0.006})`);
+    }
+    // Gate-lane wear: both centre axes (the N/S gate runs and the
+    // cross lane) scuffed down to dirt in overlapping soft passes.
+    for (let i = 0; i < 110; i++) {
+      const along = (rand() * 2 - 1) * 58, lat = (rand() - 0.5) * 2.6;
+      const vert = rand() > 0.42;
+      blob(vert ? lat : along, vert ? along : lat, 1.6 + rand() * 3.4, 1.2 + rand() * 2.4,
+        `rgba(96,76,50,${0.04 + rand() * 0.08})`);
+    }
+    // Bare-earth mottling across the field.
+    for (let i = 0; i < 36; i++) {
+      blob((rand() * 2 - 1) * 58, (rand() * 2 - 1) * 58, 2 + rand() * 5, 1.5 + rand() * 3.6,
+        `rgba(88,70,48,${0.04 + rand() * 0.06})`);
+    }
+    // Gravel speckle concentrated in the rim band.
+    for (let i = 0; i < 1000; i++) {
+      const x = (rand() * 2 - 1) * 67, z = (rand() * 2 - 1) * 67;
+      if (Math.max(Math.abs(x), Math.abs(z)) < 54) continue;
+      c.fillStyle = rand() > 0.5 ? `rgba(168,156,138,${0.05 + rand() * 0.08})` : `rgba(40,32,22,${0.05 + rand() * 0.07})`;
+      c.fillRect((x + 68) * PX, (z + 68) * PX, 1 + rand() * 2, 1 + rand() * 2);
+    }
+    // Fine dust speckle everywhere.
+    for (let i = 0; i < 1200; i++) {
+      c.fillStyle = rand() > 0.5 ? `rgba(0,0,0,${0.03 + rand() * 0.04})` : `rgba(200,190,170,${0.02 + rand() * 0.04})`;
+      c.fillRect(rand() * S, rand() * S, 1 + rand() * 2, 1 + rand() * 2);
+    }
+    const blendTex = new THREE.CanvasTexture(cv);
+    blendTex.colorSpace = THREE.SRGBColorSpace;
+    const blend = new THREE.Mesh(
+      new THREE.PlaneGeometry(136, 136),
+      new THREE.MeshStandardMaterial({ map: blendTex, transparent: true, roughness: 1, depthWrite: false }));
+    blend.rotation.x = -Math.PI / 2;
+    blend.position.y = 0.012;
+    blend.name = 'ground-blend';
+    blend.receiveShadow = true;
+    scene.add(blend);
+  }
+
   const spawnPoints = [
     new THREE.Vector3(-42, 0, -42), new THREE.Vector3(42, 0, -42),
     new THREE.Vector3(-42, 0, 42), new THREE.Vector3(42, 0, 42),
