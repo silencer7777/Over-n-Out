@@ -377,6 +377,23 @@ try {
   else fail('G5 bots.js not using merged gun/body builds');
 } catch (e) { fail('G gunmodels checks: ' + e.message); }
 
+// 1f2) Death articulation + hit-core law (U9) — the corpse path
+// carries the articulated collapse machinery (buckle, hip floor,
+// pivot migration), and the three HIT CORE part lines stay
+// byte-identical: de-blockifying may only touch the overlays.
+try {
+  const botsSrc = readFileSync(join(ROOT, 'js/bots.js'), 'utf8');
+  if (botsSrc.includes('_updateCorpse') && botsSrc.includes('deathPivotX') && botsSrc.includes('deathLegR') && botsSrc.includes('_setupDeath')) ok('D9 articulated death: buckle + hip floor + pivot migration present in bots.js');
+  else fail('D9 death articulation markers missing from bots.js');
+  const CORE_LINES = [
+    '_part(L, _box(0.21, 0.78, 0.25), pal.camoDark, s * 0.145, 0.48, 0);',
+    '_part(L, _box(0.66, 0.72, 0.38), pal.camo, 0, 1.11, 0);',
+    '_part(L, _box(0.34, 0.36, 0.34), pal.skin, 0, 1.66, 0);'
+  ];
+  if (CORE_LINES.every(l => botsSrc.includes(l))) ok('D9 hit cores byte-identical (legs / torso / head core part lines unchanged)');
+  else fail('D9 hit-core lines drifted — HITBOX LAW breach');
+} catch (e) { fail('D9 checks: ' + e.message); }
+
 // 1g) Fun features (V3 Phase 2, Board 003 set) — source contract +
 // streak behaviour via the real story module.
 try {
