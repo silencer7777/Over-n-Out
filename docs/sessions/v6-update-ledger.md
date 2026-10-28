@@ -9,6 +9,17 @@ only. Lighting is LOCKED by the owner's play verdict ("probably
 perfect") — no update in this ledger touches lighting code, profiles
 or grades. No new gameplay systems.
 
+**Owner directive (Brett, Oct 27, 2026) — V7 gate + update sizing:**
+Brett wants **at least 5 more V6 updates from Update 4 onward**
+before upgrading to V7, and V7 is reserved for **big-time upgrades
+and changes** — it is proposed only on his explicit call, never
+assumed. Each update from Update 5 on ships with a **before/after
+progress scorecard** (scope delivered vs planned, files/lines
+changed, perf-metric deltas, gate results, what visibly changed
+in-game) so Brett can judge whether an update is big enough.
+Updates may **bundle multiple ledger rows** when Brett wants more
+per update. Update 5's focus specs come from Brett directly.
+
 ## Graphics track — the 20-update spine
 
 | # | Update | Scope | Status |
@@ -16,8 +27,8 @@ or grades. No new gameplay systems.
 | 1 | Vegetation + buildings realism — Compound & Forest | Tapered textured trunks, layered irregular canopies, per-instance variation; rooflines/trim/doors/window grids/parapets/panel seams, beveled edges, procedural facade textures. Instancing/merging pays for all of it. (Atlas) | **LANDED Oct 24** (commits be2cb74, 21d2e7e, f9b1185 + report 45e3809) — awaiting Brett playtest; ships in the next push |
 | 2 | Vegetation + buildings parity — Snow Station & Mars Uplink | Update 1's treatment carried to the remaining two maps (snow-loaded pines, station architecture; Mars habitat/industrial structures, rock forms). (Atlas) | **LANDED Oct 24** (commits 553e9ad, 0ed4e0d, c2ac69c, d96e74c, febfa93 + report) — awaiting Brett playtest; ships in the next push |
 | 3 | Terrain & ground realness — all maps | Smooth-shaded undulation, blended ground materials (asphalt/concrete/grass/dirt/snow/rock), edge wear, instanced scatter (rocks, tufts, debris). (Atlas) | **LANDED Oct 27** (commits 9c2c854, 5a577d2, 8821c8e, 584f46a, 281e459 + report) — awaiting Brett playtest; ships in the next push |
-| 4 | Soldiers & guns realism | Rounded, blended forms — capsule/sphere-blended limbs and kit, fabric-ish texture variation. Hit cores byte-identical (proof required); per-bot call budget held. (Atlas) | queued |
-| 5 | Materials & finish pass | Texture resolution/atlas uplift, anisotropy, per-instance color-variation audit across all maps; no large flat-color surface survives on any map. (Atlas + Odin) | queued |
+| 4 | Soldiers & guns realism | Rounded, blended forms — capsule/sphere-blended limbs and kit, fabric-ish texture variation. Hit cores byte-identical (proof required); per-bot call budget held. (Atlas) | **LANDED Oct 27 in bundled Update 5** (commit 63a137f) — tapered leg overlays, cylinder forearms, rounded face; gun detail pass. Hit cores proven byte-identical (biome/smoke pins green); per-bot calls held at 7. See v6-update-05-report.md |
+| 5 | Materials & finish pass | Texture resolution/atlas uplift, anisotropy, per-instance color-variation audit across all maps; no large flat-color surface survives on any map. (Atlas + Odin) | **LANDED Oct 27 in bundled Update 5** (commit 0b379f3) — floor grid removed at the source + flat deck/slab/pillar solids textured; the 4,240 m² strike is cleared on all live maps. Remnants (sun-disc, unwired layout ground) dispositioned in v6-update-05-report.md. Update 5 also bundled owner-spec items off-ledger: menu theme music, options menu, pre-match countdown, slide, 4 earnable camos |
 | 6 | Compound detail deepening II | Set dressing, props, signage, interior detail — sequenced by Brett's Update 1–5 playtest feedback. | planned slot |
 | 7 | Forest detail deepening II | Undergrowth density, species variety, fallen-tree and stream detail. | planned slot |
 | 8 | Snow detail deepening II | Snow sparkle, drift sculpting, ice and station wear. | planned slot |
