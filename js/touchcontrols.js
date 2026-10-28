@@ -178,6 +178,7 @@ export class TouchCore {
   pressStance() { this._noteFirstTouch(); if (this.hooks.stance) this.hooks.stance(); } // U6-10: CROUCH tap (a stance tap; double-tap = prone via the shared machine)
   pressWeapon(i) { this._noteFirstTouch(); if (this.hooks.weapon) this.hooks.weapon(i); }
   pressPause() { this._noteFirstTouch(); if (this.hooks.pause) this.hooks.pause(); }
+  pressOrient() { this._noteFirstTouch(); if (this.hooks.orient) this.hooks.orient(); } // U8-02: fullscreen + landscape-lock request (main owns the platform calls)
 }
 
 // ------------------------------------------------------------------
@@ -236,8 +237,10 @@ export class TouchControls {
       () => this.core.pressPause());
     this.stanceBtn = this._tapButton('tc-btn tc-stance', 'CROUCH',
       () => this.core.pressStance());
+    this.orientBtn = this._tapButton('tc-btn tc-orient', 'LANDSCAPE',
+      () => this.core.pressOrient());
     for (const b of [this.fireBtn, this.adsBtn, this.jumpBtn, this.reloadBtn,
-                     this.lethalBtn, this.tacticalBtn, this.streakBtn, this.pauseBtn, this.stanceBtn]) {
+                     this.lethalBtn, this.tacticalBtn, this.streakBtn, this.pauseBtn, this.stanceBtn, this.orientBtn]) {
       root.appendChild(b);
     }
 
