@@ -47,19 +47,23 @@ scene.traverse(o => {
   if (o.isDirectionalLight) {
     // V5 shadow richness (Board 005 §2.4): 4096 map (quality
     // tiers in quality.js), camera fit from the active profile
-    // (compound ±72 here; applyLightingProfile re-fits per map),
-    // far 300 for the 150-unit sun distance, normalBias for
-    // acne control at map scale.
+    // (applyLightingProfile re-fits per map), far 300 for the
+    // 150-unit sun distance, normalBias for acne control at
+    // map scale. U7-04: the boot fit matches the profiles' 86
+    // (playable bounds are ±80 since U6-12 — the old ±72 left
+    // the ring POIs outside the shadow camera), and normalBias
+    // 0.5 → 0.35: at the wider extent the old value
+    // over-offset, leaking light under walls and props.
     o.castShadow = true;
     o.shadow.mapSize.set(4096, 4096);
-    o.shadow.camera.left = -72;
-    o.shadow.camera.right = 72;
-    o.shadow.camera.top = 72;
-    o.shadow.camera.bottom = -72;
+    o.shadow.camera.left = -86;
+    o.shadow.camera.right = 86;
+    o.shadow.camera.top = 86;
+    o.shadow.camera.bottom = -86;
     o.shadow.camera.near = 1;
     o.shadow.camera.far = 300;
     o.shadow.bias = -0.0002;
-    o.shadow.normalBias = 0.5;
+    o.shadow.normalBias = 0.35;
     o.shadow.camera.updateProjectionMatrix();
   }
 });
@@ -115,6 +119,12 @@ const flashOverlayEl = $('flash-overlay');
 const scopeOverlayEl = $('scope-overlay'); // U6-01 optic picture
 const scopeMagEl = scopeOverlayEl ? scopeOverlayEl.querySelector('.scope-mag') : null;
 let scopeOverlayState = ''; // last applied overlay state (kind or '')
+// U7-01: one-time ADS discovery hint (see the sync in tick()).
+const adsHintEl = $('ads-hint');
+let adsHintState = '';
+let adsHintDone = false;
+try { adsHintDone = localStorage.getItem('ono-ads-hint') === '1'; } catch { /* private mode */ }
+const ADS_KIND_LABEL = { iron: 'IRON SIGHTS', reddot: 'RED DOT', holo: 'HOLOGRAPHIC', mid: 'MID SCOPE', sniper: 'SNIPER SCOPE' };
 const profileLineEl = $('profile-line');
 const classTabsEl = $('class-tabs');
 const classLevelNoteEl = $('class-level-note');
@@ -2006,21 +2016,44 @@ function tick() {
   input.stanceTap = pendingStanceTap;
   pendingStanceTap = false;
 
-  // U6-01: optic picture sync — shown only while truly aimed
-  // with a real optic fitted (iron sights keep the centred
-  // viewmodel + FOV zoom, no overlay). DOM writes happen on
-  // state changes only; the fade is CSS.
+  // USABLE SCOPES (U6-01; every-kind U7-01): sight picture sync.
+  // Shown while truly aimed for EVERY sight kind — iron
+  // included (U7 removed the old iron suppression: a bare gun
+  // now shows its iron sight picture, and the label names the
+  // sight + zoom so the player always knows what they're
+  // looking through). DOM writes happen on state changes only;
+  // the fade is CSS.
   if (scopeOverlayEl) {
     const want = (state === 'playing' || state === 'online' || state === 'countdown')
-      && player.aiming && player.adsKind !== 'iron' && player.adsZoom > 1.01
+      && player.aiming && player.adsZoom > 1.01
       ? player.adsKind : '';
     if (want !== scopeOverlayState) {
       scopeOverlayState = want;
       scopeOverlayEl.className = want ? `on kind-${want}` : '';
-      hud.classList.toggle('scoped-scope', want === 'scope');
-      if (want === 'scope' && scopeMagEl) {
-        scopeMagEl.textContent = `${player.adsZoom.toFixed(2).replace(/\.?0+$/, '')}×`;
+      hud.classList.toggle('scoped-scope', !!want);
+      if (want && scopeMagEl) {
+        const zoom = `${player.adsZoom.toFixed(2).replace(/\.?0+$/, '')}×`;
+        scopeMagEl.textContent = `${ADS_KIND_LABEL[want] || want.toUpperCase()} · ${zoom}`;
       }
+    }
+  }
+  // U7-01 ADS DISCOVERY: until the player's first-ever ADS, a
+  // hint chip under the crosshair teaches the one control the
+  // scope rework exists for. First aim retires it forever
+  // (localStorage); DOM writes on state changes only.
+  if (adsHintEl) {
+    let wantHint = '';
+    if (!adsHintDone) {
+      if (player.aiming) {
+        adsHintDone = true;
+        try { localStorage.setItem('ono-ads-hint', '1'); } catch { /* private mode */ }
+      } else if (state === 'playing' || state === 'online') {
+        wantHint = TOUCH_MODE ? 'touch' : 'keys';
+      }
+    }
+    if (wantHint !== adsHintState) {
+      adsHintState = wantHint;
+      adsHintEl.className = wantHint ? `on ${wantHint}` : '';
     }
   }
 
