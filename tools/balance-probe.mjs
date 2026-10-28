@@ -20,6 +20,7 @@
 // Exit 0 always (it is a measuring instrument, not a gate).
 import { createMatch, addSimPlayer, startWaveSim, stepMatch, losClear, EYE } from '../net/sim.js';
 import { WEAPON_ORDER, getWeapon } from '../js/weapons.js';
+import { effectiveWeapon, validateClass, attachmentFits, getAttachment } from '../js/loadouts.js';
 import { SPAWN_POINTS } from '../js/worlddata.js';
 
 const DT = 1 / 30;
@@ -260,6 +261,83 @@ for (const w of [1, 3, 5, 7]) {
   const ttds = runs.filter(r => r.downed).map(r => r.ttd);
   const fds = runs.map(r => r.firstDamage).filter(x => !Number.isNaN(x));
   console.log(`wave ${w}: downed ${ttds.length}/4 · median TTD=${ttds.length ? median(ttds).toFixed(1) + 's' : 'survived'} · median first-damage at ${fds.length ? median(fds).toFixed(1) + 's' : '—'}`);
+}
+
+console.log('\n=== D. FIRE-RATE FIDELITY (U6-04 — measured shots/sec vs the table) ===');
+{
+  // Drive the REAL sim: a player holding fire (autos) or pulsing
+  // the trigger at the maximum edge rate (semis: fire toggles
+  // every tick, an edge every 2 ticks = 15 edges/s, denser than
+  // every semi interval — so the weapon's own gate is the only
+  // limiter). Magazines are silently topped up so reloads never
+  // pollute cadence; p.shots is the sim's own counter.
+  function cadenceRun(weaponId, attachments, seconds = 60) {
+    const m = createMatch(777);
+    let cls = null;
+    if (attachments && attachments.length) {
+      cls = validateClass({ name: 'P', primary: weaponId, attachments, tactical: 'flash', lethal: 'frag' }).cls;
+    }
+    const p = addSimPlayer(m, 'cadprobe', 'CADPROBE', cls);
+    startWaveSim(m, []);
+    // Immortal by hit points, never by resurrection: a death +
+    // respawn legitimately zeroes the fire cooldown (fresh
+    // life, fresh gun) and would fake a too-fast shot pair.
+    p.hp = 1e9;
+    const wIdx = WEAPON_ORDER.indexOf(weaponId) + 1;
+    const w = getWeapon(weaponId);
+    const ticks = Math.floor(seconds / DT);
+    let lastShotAt = -1, minGap = Infinity, prevShots = 0;
+    for (let i = 0; i < ticks; i++) {
+      p.mags[weaponId] = 9999; p.reloading = 0;
+      p.input = makeInput(0, 0, w.auto ? true : (i % 2 === 0), wIdx);
+      stepMatch(m, DT, []);
+      if (p.shots > prevShots) {
+        if (lastShotAt >= 0) minGap = Math.min(minGap, (i - lastShotAt) * DT);
+        lastShotAt = i; prevShots = p.shots;
+      }
+    }
+    return { rate: p.shots / seconds, minGap };
+  }
+  // Verbatim replica of the solo client's cadence lines
+  // (js/main.js tick + shoot()) at a given refresh rate — the
+  // client is DOM-bound, so its loop is replicated exactly and
+  // the sim drive above is the ground truth for the shared math.
+  function clientReplica(interval, hz, seconds = 120) {
+    const dt = 1 / hz;
+    let fireCooldown = 0, shots = 0;
+    const frames = Math.floor(seconds * hz);
+    for (let i = 0; i < frames; i++) {
+      fireCooldown -= dt;
+      if (fireCooldown <= 0) { shots++; fireCooldown += interval; if (fireCooldown < -interval) fireCooldown = -interval; }
+    }
+    return shots / seconds;
+  }
+  const intervalAtts = ['longbarrel', 'shortbarrel'];
+  for (const wid of WEAPON_ORDER) {
+    const w = getWeapon(wid);
+    const rows = [['base', null]];
+    for (const aid of intervalAtts) {
+      const att = getAttachment(aid);
+      if (att && attachmentFits(att, wid)) rows.push([aid, [aid]]);
+    }
+    for (const [label, atts] of rows) {
+      const eff = effectiveWeapon(w, atts || []);
+      const spec = 1 / eff.interval;
+      const r = cadenceRun(wid, atts);
+      if (w.auto) {
+        const dev = ((r.rate - spec) / spec * 100).toFixed(2);
+        console.log(`${wid.padEnd(8)} ${label.padEnd(11)} table ${spec.toFixed(2)}/s · SIM ${r.rate.toFixed(2)}/s (${dev}%) · client 60Hz ${clientReplica(eff.interval, 60).toFixed(2)} · 120Hz ${clientReplica(eff.interval, 120).toFixed(2)} · 144Hz ${clientReplica(eff.interval, 144).toFixed(2)}`);
+      } else {
+        // Semi invariant (U6-04): the accumulator guarantees the
+        // LONG-RUN rate; an individual gap may run at most 2
+        // ticks early/late (edge grid + frame phase — a shot
+        // that leaves late banks its lateness as credit). The
+        // gate: rate within ±2% AND no gap below interval − 2·DT.
+        const gateOk = Math.abs(r.rate - spec) / spec <= 0.02 && r.minGap >= eff.interval - 2 * DT - 1e-9;
+        console.log(`${wid.padEnd(8)} ${label.padEnd(11)} table ${spec.toFixed(2)}/s · SEMI: rate ${r.rate.toFixed(2)}/s · min gap ${r.minGap.toFixed(3)}s (bound ${(eff.interval - 2 * DT).toFixed(3)}s) → ${gateOk ? 'HOLDS' : 'VIOLATED'}`);
+      }
+    }
+  }
 }
 
 console.log('\n=== C. WAVE PACING (AR hunter, 6 seeds, 300 s cap) ===');
