@@ -131,5 +131,20 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   eq(main.includes('orientationchange') && main.includes('function fitRenderer()'), true, 'T6 boot-bound fit path handles orientationchange');
 }
 
+// T7: build witness + self-update (U9) — the menu build stamp
+// (our cache witness on the player's own screen), the ono-build
+// meta the boot check compares against, the redundant iOS fit
+// triggers, and the touch layer's orientationchange re-feed.
+{
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const touch = readFileSync(new URL('../js/touchcontrols.js', import.meta.url), 'utf8');
+  eq(html.includes('id="build-stamp"') && html.includes('BUILD U9'), true, 'T7 menu build stamp present (cache witness)');
+  eq(html.includes('name="ono-build" content="9"'), true, 'T7 ono-build meta present');
+  eq(main.includes('__onoBuild'), true, 'T7 build number exposed for support reads');
+  eq(main.includes("matchMedia('(orientation: portrait)')") && main.includes("'pageshow'"), true, 'T7 redundant iOS fit triggers present');
+  eq(touch.includes("'orientationchange'"), true, 'T7 touch layer re-feeds viewport on orientationchange');
+}
+
 if (failures) { console.error(`\nmobile-check: ${failures} failure(s)`); process.exit(1); }
 console.log('\nmobile-check: all synthetic-touch scenarios pass');
