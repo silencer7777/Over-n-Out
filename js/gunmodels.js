@@ -111,8 +111,10 @@ function buildAR() {
   P(L, box(0.07, 0.11, 0.27), 'metal', 0, 0, 0.02);                              // receiver
   P(L, box(0.05, 0.03, 0.05), 'metal', 0, 0.045, 0.145);                         // charging handle housing
   P(L, box(0.055, 0.014, 0.035), 'metal', 0, 0.045, 0.175);                      // charging handle
-  P(L, box(0.062, 0.085, 0.30), 'polymer', 0, 0.005, -0.26);                    // handguard
-  P(L, cylZ(0.016, 0.24), 'steel', 0, 0.02, -0.52);                              // barrel
+  P(L, box(0.062, 0.085, 0.36), 'polymer', 0, 0.005, -0.28);                    // handguard (U6-02: lengthened — the AR's long railed fore-end is its silhouette)
+  for (const s of [-1, 1]) P(L, box(0.006, 0.030, 0.30), 'metal', s * 0.034, 0.005, -0.28); // handguard side rails (U6-02)
+  P(L, box(0.004, 0.035, 0.075), 'metal', 0.036, 0.012, 0.055);                  // ejection-port door (U6-02: right-side receiver detail)
+  P(L, cylY(0.011, 0.018), 'steel', 0.036, -0.005, 0.115, 0, 0, Math.PI / 2);    // forward assist (U6-02)
   P(L, cylZ(0.029, 0.075), 'steel', 0, 0.02, -0.665);                            // muzzle brake
   P(L, cylZ(0.031, 0.012), 'steel', 0, 0.02, -0.640);                            // muzzle brake ring
   P(L, box(0.02, 0.055, 0.03), 'metal', 0, 0.055, -0.44);                        // gas block / front sight post
@@ -125,6 +127,7 @@ function buildAR() {
   gripAndGuard(L, 0.125, 0.0);
   P(L, box(0.05, 0.095, 0.21), 'polymer', 0, 0.012, 0.25);                       // stock
   P(L, box(0.056, 0.115, 0.022), 'polymer', 0, 0.005, 0.365);                    // butt pad
+  P(L, box(0.054, 0.030, 0.13), 'polymer', 0, 0.068, 0.27, 0.10);                 // crane-stock cheek weld (U6-02: the AR's raised rear profile)
   receiverDetails(L, 0.035, -0.02, 0.125);
   return { parts: L, muzzle: new THREE.Vector3(0, 0.02, -0.71) };
 }
@@ -135,6 +138,9 @@ function buildSMG() {
   P(L, box(0.034, 0.018, 0.20), 'steel', 0, 0.062, -0.02);                       // top rail
   P(L, box(0.02, 0.045, 0.02), 'metal', 0, 0.085, 0.10);                         // rear sight
   P(L, box(0.02, 0.05, 0.02), 'metal', 0, 0.088, -0.155);                        // front sight post
+  P(L, cylZ(0.021, 0.007), 'metal', 0, 0.098, -0.155);                           // front ring sight (U6-02: the SMG's tall ringed post reads PDW, not rifle)
+  P(L, box(0.082, 0.055, 0.095), 'metal', 0, -0.062, 0.015);                     // magwell flare (U6-02: the funnel the straight mag feeds through)
+  P(L, box(0.036, 0.028, 0.05), 'polymer', 0, -0.068, -0.175);                   // hand stop (U6-02)
   P(L, cylZ(0.014, 0.12), 'steel', 0, 0.015, -0.175);                            // barrel
   P(L, cylZ(0.027, 0.17), 'steel', 0, 0.015, -0.295);                            // suppressor / muzzle
   P(L, cylY(0.012, 0.05), 'metal', 0.048, 0.0, -0.03, 0, 0, Math.PI / 2);        // charging handle (side)
@@ -153,13 +159,15 @@ function buildSMG() {
 function buildShotgun() {
   const L = [];
   P(L, box(0.072, 0.12, 0.25), 'metal', 0, 0, 0.06);                             // receiver
-  P(L, cylZ(0.021, 0.52), 'steel', 0, 0.028, -0.375);                            // barrel
+  P(L, cylZ(0.024, 0.52), 'steel', 0, 0.028, -0.375);                            // barrel (U6-02: heavier gauge — a 12-ga tube, not a rifle barrel)
   P(L, cylZ(0.017, 0.44), 'steel', 0, -0.032, -0.335);                           // magazine tube (under barrel)
+  P(L, cylZ(0.019, 0.035), 'steel', 0, -0.032, -0.568);                          // tube extension cap (U6-02)
   P(L, box(0.05, 0.006, 0.30), 'steel', 0, 0.052, -0.35);                        // heat shield (U5-06: perforated shield over the barrel)
   for (let i = 0; i < 4; i++) {
     P(L, box(0.012, 0.004, 0.022), 'metal', 0, 0.056, -0.45 + i * 0.065);        // heat shield perforations (U5-06)
   }
-  P(L, box(0.078, 0.072, 0.17), 'wood', 0, -0.032, -0.30);                       // pump grip
+  P(L, box(0.088, 0.072, 0.17), 'wood', 0, -0.032, -0.30);                       // pump grip (U6-02: wider — the pump is the shotgun's grip signature)
+  P(L, cylZ(0.016, 0.006), 'metal', 0, 0.078, 0.10);                             // ghost-ring rear sight (U6-02)
   P(L, box(0.082, 0.02, 0.03), 'wood', 0, -0.068, -0.36);                        // pump rib detail
   P(L, box(0.082, 0.02, 0.03), 'wood', 0, -0.068, -0.245);
   P(L, box(0.012, 0.025, 0.012), 'steel', 0, 0.062, -0.615);                     // bead sight
@@ -186,12 +194,12 @@ function buildDMR() {
   P(L, cylZ(0.021, 0.36), 'steel', 0, 0.02, -0.56);                              // heavy barrel
   P(L, cylZ(0.031, 0.085), 'steel', 0, 0.02, -0.775);                            // muzzle brake
   P(L, cylZ(0.033, 0.012), 'steel', 0, 0.02, -0.748);                            // muzzle brake ring
-  P(L, box(0.055, 0.075, 0.20), 'polymer', 0, 0.0, -0.33);                       // handguard
+  P(L, box(0.055, 0.075, 0.30), 'polymer', 0, 0.0, -0.36);                       // handguard (U6-02: long free-float tube — the DMR's reach is its silhouette)
   for (let i = 0; i < 3; i++) for (const s of [-1, 1]) {
-    P(L, box(0.004, 0.016, 0.030), 'metal', s * 0.0285, 0.0, -0.385 + i * 0.055); // handguard vent slots (U5-06)
+    P(L, box(0.004, 0.016, 0.030), 'metal', s * 0.0285, 0.0, -0.44 + i * 0.06);  // handguard vent slots (U5-06, re-spaced U6-02)
   }
-  P(L, cylZ(0.0235, 0.010), 'metal', 0, 0.02, -0.47);                            // barrel fluting ring (U5-06)
-  P(L, cylZ(0.0235, 0.010), 'metal', 0, 0.02, -0.415);                           // barrel fluting ring (U5-06)
+  P(L, cylZ(0.0235, 0.010), 'metal', 0, 0.02, -0.60);                            // barrel fluting ring (U5-06, moved clear of the longer handguard U6-02)
+  P(L, cylZ(0.0235, 0.010), 'metal', 0, 0.02, -0.655);                           // barrel fluting ring (U5-06)
   // Scope: tube + objective bell + eyepiece + mounts + glass.
   P(L, cylZ(0.024, 0.17), 'metal', 0, 0.125, -0.05);                             // scope tube
   P(L, cylZ(0.031, 0.035), 'metal', 0, 0.125, -0.135);                           // objective bell
@@ -219,7 +227,11 @@ function buildDMR() {
 
 function buildPistol() {
   const L = [];
-  P(L, box(0.046, 0.058, 0.205), 'steel', 0, 0.038, -0.015);                     // slide
+  P(L, box(0.046, 0.058, 0.225), 'steel', 0, 0.038, -0.005);                     // slide (U6-02: full-length duty slide)
+  P(L, box(0.040, 0.020, 0.035), 'polymer', 0, 0.058, 0.115);                     // beavertail (U6-02)
+  P(L, box(0.006, 0.006, 0.006), 'accent', -0.012, 0.082, 0.075);                 // rear tritium dot L (U6-02)
+  P(L, box(0.006, 0.006, 0.006), 'accent', 0.012, 0.082, 0.075);                  // rear tritium dot R (U6-02)
+  P(L, box(0.005, 0.005, 0.005), 'accent', 0, 0.082, -0.105);                     // front tritium dot (U6-02)
   P(L, box(0.050, 0.016, 0.05), 'steel', 0.0, 0.038, 0.062);                      // slide rear serration block (right)
   P(L, box(0.040, 0.052, 0.19), 'polymer', 0, -0.012, -0.005);                   // frame
   P(L, cylZ(0.011, 0.025), 'steel', 0, 0.032, -0.125);                           // barrel (muzzle)
