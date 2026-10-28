@@ -9,7 +9,8 @@ import { TRANSMISSIONS as WORLD_TRANSMISSIONS, SPAWN_POINTS } from './worlddata.
 import { FpsMeter } from './perfmeter.js';
 import { QualityScaler } from './quality.js';
 import { applyBiome, clearBiome } from './biomes.js';
-import { getMode, objectiveText } from './modes.js';
+import { getMode, objectiveText, TEAM } from './modes.js';
+import { STANCE } from './stance.js';
 import { SLOTS, attachmentsFor, getAttachment, effectiveWeapon, THROWABLES, getPerk } from './loadouts.js';
 import {
   loadProfile, saveProfile, migrateLegacySettings, levelForXp, levelProgress,
@@ -17,6 +18,8 @@ import {
 } from './progression.js';
 import { CAMO_IDS, getCamo } from './camo.js';
 import { OnlineSession } from './online.js';
+import { LobbyChat } from './chat.js';   // U6-14 menu chatroom
+import { VoiceChat } from './voice.js'; // U6-15 WebRTC voice
 import { TouchControls, isTouchDevice } from './touchcontrols.js';
 import { applyLightingProfile } from './lighting.js';
 // V5 systems (Board 005 §§9–13): shared data/math modules +
@@ -109,6 +112,9 @@ const modeGoalEl = $('mode-goal');
 const scoreLineEl = $('score-line');
 const gearHudEl = $('gear-hud');
 const flashOverlayEl = $('flash-overlay');
+const scopeOverlayEl = $('scope-overlay'); // U6-01 optic picture
+const scopeMagEl = scopeOverlayEl ? scopeOverlayEl.querySelector('.scope-mag') : null;
+let scopeOverlayState = ''; // last applied overlay state (kind or '')
 const profileLineEl = $('profile-line');
 const classTabsEl = $('class-tabs');
 const classLevelNoteEl = $('class-level-note');
@@ -186,6 +192,13 @@ const optQuality = $('opt-quality'), optSprintToggle = $('opt-sprint-toggle');
 const optMusic = $('opt-music'), optMusicVal = $('opt-music-val');
 const optSfx = $('opt-sfx'), optSfxVal = $('opt-sfx-val');
 const optFullscreen = $('opt-fullscreen'), menuOptionsBtn = $('menu-options-btn');
+const optCdColors = $('opt-cd-colors'); // U6-05 countdown colour swatches
+const optVoiceChannel = $('opt-voice-channel'), optVoiceMic = $('opt-voice-mic'); // U6-15
+const voicePeersEl = $('voice-peers'), chatMutedListEl = $('chat-muted-list');    // U6-14/15
+// Declared here (not with the comms block below) because
+// applySettings() runs at boot and reads them.
+let voice = null;                  // VoiceChat — the in-match voice mesh
+let lobbyChat = null;              // LobbyChat — the menu chatroom socket
 const camoPickersEl = $('camo-pickers');
 const QUALITY_BY_MODE = { high: 0, medium: 2, low: 3 };
 
@@ -208,6 +221,12 @@ function applySettings() {
   if (optSprintToggle) optSprintToggle.checked = !!s.sprintToggle;
   if (optMusic) { optMusic.value = s.musicVolume; if (optMusicVal) optMusicVal.textContent = `${Math.round(s.musicVolume * 100)}%`; }
   if (optSfx) { optSfx.value = s.sfxVolume; if (optSfxVal) optSfxVal.textContent = `${Math.round(s.sfxVolume * 100)}%`; }
+  // U6-05: mark the active countdown-colour swatch.
+  if (optCdColors) for (const b of optCdColors.querySelectorAll('.cd-swatch')) {
+    b.classList.toggle('sel', b.dataset.cd === s.countdownColor);
+  }
+  applyVoiceSettings(); // U6-15: sync the voice selects + live voice (no-op out of match)
+  renderChatMutedList(); // U6-14: keep the options mute list current
 }
 // (The first applySettings() call sits below the input object's
 // declaration — applySettings reads it, so it cannot run earlier.)
@@ -229,10 +248,23 @@ if (optQuality) optQuality.addEventListener('change', () => { profile.settings.q
 if (optSprintToggle) optSprintToggle.addEventListener('change', () => { profile.settings.sprintToggle = optSprintToggle.checked; persistProfile(); applySettings(); });
 if (optMusic) optMusic.addEventListener('input', () => { profile.settings.musicVolume = Number(optMusic.value); persistProfile(); applySettings(); });
 if (optSfx) optSfx.addEventListener('input', () => { profile.settings.sfxVolume = Number(optSfx.value); persistProfile(); applySettings(); });
+// U6-05: countdown colour — personal preference, persisted like
+// every other setting. Default ships green for everyone.
+if (optCdColors) optCdColors.addEventListener('click', (e) => {
+  const b = e.target.closest('.cd-swatch');
+  if (!b) return;
+  profile.settings.countdownColor = b.dataset.cd;
+  persistProfile();
+  applySettings();
+});
 if (optFullscreen) optFullscreen.addEventListener('click', () => {
   if (document.fullscreenElement) document.exitFullscreen();
   else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
 });
+// U6-15 voice options — persisted, applied live to a running
+// voice session by applyVoiceSettings().
+if (optVoiceChannel) optVoiceChannel.addEventListener('change', () => { profile.settings.voiceChannel = optVoiceChannel.value; persistProfile(); applyVoiceSettings(); });
+if (optVoiceMic) optVoiceMic.addEventListener('change', () => { profile.settings.voiceMic = optVoiceMic.value; persistProfile(); applyVoiceSettings(); });
 
 // Camo picker (U5-10): one button per design; prestige-locked
 // designs show the level they earn at and cannot be selected.
@@ -515,7 +547,8 @@ let spawnsThisWave = 0;
 const spawnCountsThisWave = {};
 let lastSpawnedId = null;
 
-const input = { forward: false, back: false, left: false, right: false, sprint: false, jump: false, aim: false, slide: false };
+const input = { forward: false, back: false, left: false, right: false, sprint: false, jump: false, aim: false, slide: false, stance: false, prone: false, stanceTap: false };
+let pendingStanceTap = false; // U6-10: touch CROUCH taps queue here, consumed by the tick
 applySettings(); // U5-08: first application of the saved options
 player.camoId = activeClass().camo; // U5-10: held gun + arms wear the class camo
 let firing = false;
@@ -583,9 +616,41 @@ function maybeDropPickup(pos) {
   pickups.push({ mesh, kind, life: 20, baseY: pos.y });
 }
 
+// U6-07: a bot-vs-bot kill in a team mode. Team score only —
+// the player's personal kill count and XP belong to their own
+// gun, so this path never touches them.
+function onTeamBotKill(victim) {
+  if (state !== 'playing') return;
+  if (victim.team === 'friendly') {
+    if (selectedMode === 'tdm') {
+      M.scoreThem++;
+      queueBotRespawn('friendly');
+      if (M.scoreThem >= getMode('tdm').targetKills) endMatch('lose');
+    } else if (selectedMode === 'domination') queueBotRespawn('friendly');
+  } else {
+    if (selectedMode === 'tdm') {
+      M.scoreYou++;
+      queueBotRespawn('hostile');
+      if (M.scoreYou >= getMode('tdm').targetKills) endMatch('win');
+    } else if (selectedMode === 'domination') queueBotRespawn('hostile');
+  }
+}
+
 // Single funnel for every bot death (gunfire, frag, or barrel):
 // score, streaks, XP, mode hooks and pickup drops hang off this.
 function onBotKilled(bot) {
+  // U6-07/U6-08: a FRIENDLY bot's death is the enemy's score —
+  // no player XP/streak/pickup, and the friendly roster refills.
+  if (bot.team === 'friendly') {
+    if (state === 'playing' && selectedMode === 'tdm') {
+      M.scoreThem++;
+      queueBotRespawn('friendly');
+      if (M.scoreThem >= getMode('tdm').targetKills) endMatch('lose');
+    } else if (state === 'playing' && selectedMode === 'domination') {
+      queueBotRespawn('friendly');
+    }
+    return;
+  }
   kills++;
   uiKills.textContent = kills;
   xpAdd('kill', 1);
@@ -667,6 +732,8 @@ function startWave() {
   for (const id of WEAPON_ORDER) spawnCountsThisWave[id] = 0;
   uiWave.textContent = wave;
   waveBanner.textContent = 'WAVE ' + wave;
+  waveBanner.style.color = ''; // U6-05: wave banners use the default colour
+  waveBanner.style.textShadow = '';
   waveBanner.style.opacity = 1;
   setTimeout(() => waveBanner.style.opacity = 0, 1600);
   sfx.wave();
@@ -740,23 +807,24 @@ function pickTier() {
   return 'standard';
 }
 
-function spawnBot(tierOverride) {
+function spawnBot(tierOverride, team = 'hostile') {
   const sp = world.spawnPoints[Math.floor(Math.random() * world.spawnPoints.length)];
   const tier = tierOverride || pickTier();
   const ambient = (selectedMode === 'waves' || selectedMode === 'assault')
     ? Math.min(1 + wave * 0.06, 1.7) : 1.0;
   const difficulty = Math.max(0.5, Math.min(2.0, ambient * (TIERS[tier]?.d || 1)));
   const weaponId = pickBotWeapon(wave);
-  const bot = new Bot(scene, world, sp.clone(), difficulty, weaponId);
+  const bot = new Bot(scene, world, sp.clone(), difficulty, weaponId, team);
   bot._tier = tier;
   bots.push(bot);
   return bot;
 }
 
-// Continuous-roster respawn queue (TDM / Domination).
+// Continuous-roster respawn queue (TDM / Domination). U6-08:
+// entries carry their team so BOTH rosters refill forever.
 const botRespawnQueue = [];
-function queueBotRespawn() {
-  botRespawnQueue.push(getMode(selectedMode).respawnDelay || 2.5);
+function queueBotRespawn(team = 'hostile') {
+  botRespawnQueue.push({ t: getMode(selectedMode).respawnDelay || 2.5, team });
 }
 
 // ---------------- combat ----------------
@@ -805,17 +873,23 @@ function shoot() {
   if (reloading > 0) return;
   if (mags[currentId] <= 0) { sfx.empty(); reload(); return; }
   mags[currentId]--; shots++;
-  fireCooldown = weapon.interval;
+  // U6-04 CADENCE: carry the remainder — resetting to the full
+  // interval discarded the frame overshoot and quantized the
+  // rate to whole frames (AR measured 8.57/s vs the table's
+  // 8.70 at 60 Hz; attachments vanished entirely at 30 Hz).
+  // Accumulating makes the long-run rate exactly the table's.
+  fireCooldown += weapon.interval;
+  if (fireCooldown < -weapon.interval) fireCooldown = -weapon.interval;
   bloom = Math.min(1, bloom + 0.16 * weapon.bloomRate);
   player.kick(weapon.recoil); sfx.shot(weapon.sound);
   ammoNum.textContent = mags[currentId];
 
   const moveSpread = (player.aiming ? 0 : (Math.hypot(player.vel.x, player.vel.z) > 6 ? 0.004 : 0));
   const aimMult = player.aiming ? weapon.spreadAds : 1;
-  const spread = (weapon.spread + bloom * 0.028 + moveSpread) * aimMult;
+  const spread = (weapon.spread + bloom * 0.028 + moveSpread) * aimMult * (player.spreadMult || 1); // U6-10: stance steadiness
 
   const targets = [];
-  for (const b of bots) { if (!b.dead) targets.push(...b.hitMeshes); }
+  for (const b of bots) { if (!b.dead && b.team !== 'friendly') targets.push(...b.hitMeshes); } // U6-07: no friendly fire (mirrors the sim)
   for (const s of world.shootables) targets.push(s);
   for (const d of devices) { if (!d.dead && d.mesh) targets.push(d.mesh); }   // V5: placed equipment is destructible by gunfire (HP in equipment-data)
 
@@ -1165,6 +1239,10 @@ function startRun() {
   state = 'countdown';
   countdownT = COUNTDOWN_SECONDS;
   countdownShown = -1;
+  // U6-05: the countdown (and GO!) wear the player's chosen
+  // colour; other banners clear it (see startWave).
+  waveBanner.style.color = profile.settings.countdownColor;
+  waveBanner.style.textShadow = `0 0 18px ${profile.settings.countdownColor}`;
   sfx.duckMenuMusic(true);
   menu.classList.add('hidden');
   hud.classList.remove('hidden');
@@ -1185,9 +1263,15 @@ function beginMatchSpawns() {
   } else {
     uiWave.textContent = '—';
     // TDM fields a Veteran captain (Havoc pack §2).
-    for (let i = 0; i < getMode(selectedMode).botRoster; i++) {
+    const roster = getMode(selectedMode).botRoster;
+    for (let i = 0; i < roster; i++) {
       spawnBot(i === 0 && selectedMode === 'tdm' ? 'veteran' : undefined);
     }
+    // U6-07/U6-08: team modes are TEAM modes — the player fields
+    // with a friendly squad (roster − 1 bots + the player = a
+    // full side, mirroring the sim's 4v4). Before U6 the solo
+    // player fought the whole enemy roster alone.
+    for (let i = 0; i < roster - 1; i++) spawnBot(undefined, 'friendly');
   }
 }
 
@@ -1218,9 +1302,12 @@ document.addEventListener('pointerlockchange', () => {
     sfx.startMenuMusic(); // U5-01: pause is a menu — theme on
     sfx.duckMenuMusic(false);
   }
-  else if (!locked && state === 'online') {
+  else if (!locked && state === 'online' && !chatOpen) {
     leaveOnline('Left the session.');
   }
+  // U6-14: when !locked && online && chatOpen, the lock was
+  // released deliberately to type in the mini chat — the
+  // session stays up; closing chat re-locks.
 });
 document.addEventListener('mousemove', e => {
   // U5-09: look-around is live during the countdown too.
@@ -1270,12 +1357,22 @@ const KEYMAP = { KeyW: 'forward', KeyS: 'back', KeyA: 'left', KeyD: 'right', Shi
 // Online input edges (consumed by the 30 Hz sample builder).
 let edgeReload = false, edgeThrowL = false, edgeThrowT = false;
 addEventListener('keydown', e => {
+  // U6-14: the mini chat owns the keyboard while it's open
+  // (its own listener handles Enter/Escape and stops the rest).
+  if (chatOpen) return;
+  // U6-14: ENTER opens the in-game chat during an online match.
+  if (e.code === 'Enter' && state === 'online') { openChatInput(); return; }
+  // U6-15: push-to-talk (voice options; open-mic ignores this).
+  if (e.code === 'KeyV') voice?.setTalking(true);
   // U5-08: sprint hold vs tap-to-toggle is an options setting.
   if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && profile.settings.sprintToggle) {
     if (!e.repeat) input.sprint = !input.sprint;
   } else if (KEYMAP[e.code] !== undefined) { input[KEYMAP[e.code]] = true; if (e.code === 'Space') e.preventDefault(); }
   // SLIDE (U5-07b): C or Ctrl — the player edge-triggers it.
-  if (e.code === 'KeyC' || e.code === 'ControlLeft') input.slide = true;
+  // U6-10: the SAME keys are the stance keys (held state) — the
+  // player/stance machine reconciles tap/hold/slide (js/stance.js).
+  if (e.code === 'KeyC' || e.code === 'ControlLeft') { input.slide = true; input.stance = true; }
+  if (e.code === 'KeyZ') input.prone = true; // U6-10: dedicated prone key
   if (e.code === 'KeyR' && state === 'playing') reload();
   if (e.code === 'KeyR' && state === 'online') edgeReload = true;
   if (e.code === 'KeyF' && state === 'playing' && inspectT <= 0) inspectT = INSPECT_LEN;
@@ -1290,10 +1387,12 @@ addEventListener('keydown', e => {
   }
 });
 addEventListener('keyup', e => {
+  if (e.code === 'KeyV') voice?.setTalking(false); // U6-15 PTT release
   if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && profile.settings.sprintToggle) {
     // toggle mode: releasing Shift changes nothing
   } else if (KEYMAP[e.code] !== undefined) input[KEYMAP[e.code]] = false;
-  if (e.code === 'KeyC' || e.code === 'ControlLeft') input.slide = false;
+  if (e.code === 'KeyC' || e.code === 'ControlLeft') { input.slide = false; input.stance = false; }
+  if (e.code === 'KeyZ') input.prone = false;
 });
 
 // ---------------- V6 mobile (Directive V6-2) ----------------
@@ -1348,6 +1447,7 @@ if (TOUCH_MODE) {
         else if (state === 'online') edgeThrowT = true;
       },
       streak: () => { if (state === 'playing') callStreak(); },
+      stance: () => { pendingStanceTap = true; }, // U6-10
       weapon: i => {
         if ((state === 'playing' || state === 'online') && i >= 0 && i < WEAPON_ORDER.length) switchWeapon(WEAPON_ORDER[i]);
       },
@@ -1363,7 +1463,278 @@ let joiningOnline = false;
 
 function setOnlineStatus(t) { if (onlineStatusEl) onlineStatusEl.textContent = t; }
 
+// ---------------- U6-14 / U6-15 COMMS ----------------------
+// Text chat (menu lobby + in-game mini chat) and WebRTC voice.
+// Rendering law: every chat line is built with textContent /
+// createTextNode — message text NEVER becomes markup.
+const chatBoxEl = $('chat-box'), chatLogEl = $('chat-log'), chatInputRowEl = $('chat-input-row');
+const chatInputEl = $('chat-input'), chatChanBtn = $('chat-chan'), chatHintEl = $('chat-hint');
+const chatMenuLogEl = $('chat-menu-log'), chatMenuInputEl = $('chat-menu-input'), chatMenuSendBtn = $('chat-menu-send');
+const chatConnectBtn = $('chat-connect-btn'), chatMenuStatusEl = $('chat-menu-status');
+let chatOpen = false;              // in-game chat input is up (game keys are suspended)
+let chatChannel = 'team';          // in-game channel toggle: 'team' | 'all'
+// (voice / lobbyChat are declared with the options refs above.)
+const peerNames = new Map();       // playerId -> callsign, learned from chat stamps
+let voiceRosterAcc = 0;
+
+function chatMuted(name) { return profile.settings.chatMuted.includes(name); }
+
+function appendChatLine(logEl, line, opts = {}) {
+  if (!logEl || !line) return;
+  const el = document.createElement('div');
+  el.className = 'chat-line' + (line.self ? ' self' : '') + (line.channel === 'team' ? ' team' : '');
+  if (line.channel) {
+    const tag = document.createElement('span');
+    tag.className = 'chat-chan-tag';
+    tag.textContent = String(line.channel).toUpperCase();
+    el.appendChild(tag);
+  }
+  const nm = document.createElement('span');
+  nm.className = 'chat-name';
+  nm.textContent = line.name;
+  el.appendChild(nm);
+  el.appendChild(document.createTextNode(': ' + line.text));
+  if (opts.muteBtn && !line.self) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chat-mute-btn';
+    b.textContent = '✕ mute';
+    b.addEventListener('click', () => toggleChatMute(line.name));
+    el.appendChild(b);
+  }
+  logEl.appendChild(el);
+  const cap = logEl === chatMenuLogEl ? 60 : 7;
+  while (logEl.children.length > cap) logEl.removeChild(logEl.firstChild);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function toggleChatMute(name) {
+  const list = profile.settings.chatMuted;
+  const i = list.indexOf(name);
+  if (i >= 0) list.splice(i, 1); else list.push(name);
+  persistProfile();
+  renderChatMutedList();
+}
+
+function renderChatMutedList() {
+  if (!chatMutedListEl) return;
+  const names = profile.settings.chatMuted;
+  chatMutedListEl.innerHTML = '';
+  if (!names.length) {
+    const s = document.createElement('span');
+    s.className = 'opt-note';
+    s.textContent = 'nobody muted — use the ✕ on a lobby chat line';
+    chatMutedListEl.appendChild(s);
+    return;
+  }
+  for (const name of names) {
+    const wrap = document.createElement('span');
+    wrap.className = 'cm-name';
+    wrap.appendChild(document.createTextNode(name));
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'vp-mute';
+    b.textContent = 'UNMUTE';
+    b.addEventListener('click', () => toggleChatMute(name));
+    wrap.appendChild(b);
+    chatMutedListEl.appendChild(wrap);
+  }
+}
+
+function renderVoicePeers() {
+  if (!voicePeersEl) return;
+  voicePeersEl.innerHTML = '';
+  const states = voice ? voice.peerStates() : [];
+  if (!states.length) {
+    const s = document.createElement('span');
+    s.className = 'opt-note';
+    s.textContent = 'per-player mute/volume appears here during an online match';
+    voicePeersEl.appendChild(s);
+    return;
+  }
+  for (const p of states) {
+    const prefs = profile.settings.voicePeers[p.name] || { muted: false, volume: 1 };
+    const row = document.createElement('span');
+    row.className = 'vp-row';
+    row.appendChild(document.createTextNode(p.name));
+    const st = document.createElement('span');
+    st.className = 'vp-state' + (p.state === 'unavailable' ? ' unavailable' : '');
+    st.textContent = p.state === 'unavailable' ? 'VOICE UNAVAILABLE' : p.state.toUpperCase();
+    row.appendChild(st);
+    const mute = document.createElement('button');
+    mute.type = 'button';
+    mute.className = 'vp-mute' + (prefs.muted ? ' muted' : '');
+    mute.textContent = prefs.muted ? 'UNMUTE' : 'MUTE';
+    mute.addEventListener('click', () => {
+      const cur = profile.settings.voicePeers[p.name] || { muted: false, volume: 1 };
+      cur.muted = !cur.muted;
+      profile.settings.voicePeers[p.name] = cur;
+      persistProfile();
+      voice?.refreshPrefs();
+      renderVoicePeers();
+    });
+    row.appendChild(mute);
+    const vol = document.createElement('input');
+    vol.type = 'range'; vol.min = '0'; vol.max = '1'; vol.step = '0.05'; vol.value = prefs.volume;
+    vol.addEventListener('input', () => {
+      const cur = profile.settings.voicePeers[p.name] || { muted: false, volume: 1 };
+      cur.volume = Number(vol.value);
+      profile.settings.voicePeers[p.name] = cur;
+      persistProfile();
+      voice?.refreshPrefs();
+    });
+    row.appendChild(vol);
+    voicePeersEl.appendChild(row);
+  }
+}
+
+// Applies the persisted voice settings to the selects and, in
+// a match, to the live VoiceChat. Safe to call any time.
+function applyVoiceSettings() {
+  if (optVoiceChannel) optVoiceChannel.value = profile.settings.voiceChannel;
+  if (optVoiceMic) optVoiceMic.value = profile.settings.voiceMic;
+  if (voice) {
+    voice.setAudience(profile.settings.voiceChannel, profile.settings.voiceMic);
+    renderVoicePeers();
+  }
+}
+
+function startComms() {
+  if (chatBoxEl) chatBoxEl.classList.remove('hidden');
+  voice = new VoiceChat({
+    sendSignal: (to, kind, data) => session?.sendSignal(to, kind, data),
+    onPeerState: (id, st, name) => {
+      renderVoicePeers();
+      if (st === 'unavailable' && name) {
+        appendChatLine(chatLogEl, { name: 'VOICE', text: `voice unavailable for ${name} — this connection can't carry it (NAT)`, channel: null });
+      }
+      if (st === 'mic-unavailable') {
+        appendChatLine(chatLogEl, { name: 'VOICE', text: 'microphone unavailable — voice is receive-only', channel: null });
+      }
+    },
+    getPrefs: (name) => profile.settings.voicePeers[name] || {},
+  });
+  const meEntry = (session?.latest?.players || []).find(p => p.id === session?.playerId);
+  voice.setIdentity(session?.playerId, meEntry?.team || 'you');
+  applyVoiceSettings();
+}
+
+function stopComms() {
+  if (voice) { voice.close(); voice = null; }
+  closeChatInput(false);
+  if (chatBoxEl) chatBoxEl.classList.add('hidden');
+  if (chatLogEl) chatLogEl.innerHTML = '';
+  renderVoicePeers();
+}
+
+// Roster sync: snapshot humans (minus me) -> the voice mesh.
+function syncVoiceRoster() {
+  if (!voice || !session?.latest) return;
+  const players = session.latest.players || [];
+  const me = players.find(p => p.id === session.playerId);
+  const entries = players
+    .filter(p => p.id !== session.playerId)
+    .map(p => ({ id: p.id, team: p.team, name: peerNames.get(p.id) || ('PLAYER ' + String(p.id).slice(0, 4)) }));
+  voice.setRoster(entries, me?.team || 'you');
+}
+
+// ---- in-game mini chat open/close ----
+function openChatInput() {
+  if (state !== 'online' || chatOpen) return;
+  chatOpen = true;
+  firing = false;
+  for (const k of Object.keys(input)) input[k] = false;
+  if (chatInputRowEl) chatInputRowEl.classList.remove('hidden');
+  if (chatHintEl) chatHintEl.classList.add('hidden');
+  // Typing needs the input focused, which needs pointer-lock
+  // released; the lock handler spares the session while
+  // chatOpen (see pointerlockchange).
+  document.exitPointerLock();
+  setTimeout(() => { try { chatInputEl?.focus(); } catch {} }, 30);
+}
+
+function closeChatInput(relock = true) {
+  if (!chatOpen) return;
+  chatOpen = false;
+  if (chatInputRowEl) chatInputRowEl.classList.add('hidden');
+  if (chatHintEl) chatHintEl.classList.remove('hidden');
+  try { chatInputEl?.blur(); } catch {}
+  if (relock && state === 'online') {
+    try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch {}
+  }
+}
+
+if (chatChanBtn) chatChanBtn.addEventListener('click', () => {
+  chatChannel = chatChannel === 'team' ? 'all' : 'team';
+  chatChanBtn.textContent = chatChannel.toUpperCase();
+  chatChanBtn.classList.toggle('all', chatChannel === 'all');
+  try { chatInputEl?.focus(); } catch {}
+});
+if (chatInputEl) chatInputEl.addEventListener('keydown', (e) => {
+  if (e.code === 'Enter') {
+    const text = chatInputEl.value.trim();
+    if (text) session?.sendChat(chatChannel, text);
+    chatInputEl.value = '';
+    closeChatInput();
+  } else if (e.code === 'Escape') {
+    chatInputEl.value = '';
+    closeChatInput();
+  }
+  e.stopPropagation();
+});
+
+// ---- menu lobby chatroom ----
+function setChatMenuEnabled(on) {
+  if (chatMenuInputEl) chatMenuInputEl.disabled = !on;
+  if (chatMenuSendBtn) chatMenuSendBtn.disabled = !on;
+}
+function sendMenuChat() {
+  const text = (chatMenuInputEl?.value || '').trim();
+  if (text && lobbyChat?.send(text)) chatMenuInputEl.value = '';
+}
+if (chatMenuSendBtn) chatMenuSendBtn.addEventListener('click', sendMenuChat);
+if (chatMenuInputEl) chatMenuInputEl.addEventListener('keydown', (e) => { if (e.code === 'Enter') sendMenuChat(); });
+if (chatConnectBtn) chatConnectBtn.addEventListener('click', async () => {
+  if (lobbyChat?.connected) {
+    lobbyChat.close();
+    lobbyChat = null;
+    setChatMenuEnabled(false);
+    chatConnectBtn.textContent = '💬  CONNECT CHAT';
+    if (chatMenuStatusEl) chatMenuStatusEl.textContent = 'Chat disconnected.';
+    return;
+  }
+  const name = (onlineNameEl?.value || '').trim() || 'BRETT';
+  lobbyChat = new LobbyChat({
+    onLine: (line) => { if (!chatMuted(line.name)) appendChatLine(chatMenuLogEl, line, { muteBtn: true }); },
+    onStatus: (t) => { if (chatMenuStatusEl) chatMenuStatusEl.textContent = t; },
+  });
+  try {
+    await lobbyChat.connect(OnlineSession.normalizeUrl(onlineUrlEl?.value), name);
+    setChatMenuEnabled(true);
+    chatConnectBtn.textContent = '💬  DISCONNECT';
+    if (chatMenuStatusEl) chatMenuStatusEl.textContent = `In the lobby as ${name}. Say hi.`;
+  } catch (e) {
+    lobbyChat = null;
+    setChatMenuEnabled(false);
+    if (chatMenuStatusEl) chatMenuStatusEl.textContent = 'Chat could not connect — is a server up at that address?';
+  }
+});
+
 function buildOnlineSample(seq) {
+  // U6-14: while the chat input is open the player is typing,
+  // not fighting — samples go out neutral.
+  if (chatOpen) {
+    edgeReload = false; edgeThrowL = false; edgeThrowT = false;
+    return {
+      t: 'input', seq,
+      keys: { forward: false, back: false, left: false, right: false, sprint: false, jump: false },
+      yaw: player.yaw, pitch: player.pitch,
+      fire: false, reload: false,
+      weapon: WEAPON_ORDER.indexOf(currentId) + 1,
+      aim: false, throwLethal: false, throwTactical: false,
+      stance: false, prone: false,
+    };
+  }
   const sample = {
     t: 'input', seq,
     keys: { forward: input.forward, back: input.back, left: input.left, right: input.right, sprint: input.sprint, jump: input.jump },
@@ -1371,6 +1742,7 @@ function buildOnlineSample(seq) {
     fire: firing, reload: edgeReload,
     weapon: WEAPON_ORDER.indexOf(currentId) + 1,
     aim: input.aim, throwLethal: edgeThrowL, throwTactical: edgeThrowT,
+    stance: !!input.stance, prone: !!input.prone, // U6-10 (held states; the sim derives taps/holds)
   };
   edgeReload = false; edgeThrowL = false; edgeThrowT = false;
   return sample;
@@ -1437,6 +1809,17 @@ async function joinOnline() {
     },
     onModeEnd: ev => endOnlineMatch(ev),
     onDisconnect: () => leaveOnline('Connection lost — back to the solo menu.'),
+    // U6-14: in-game chat lines (server-stamped identity).
+    onChat: msg => {
+      if (msg.from) peerNames.set(msg.from, msg.name);
+      if (chatMuted(msg.name)) return;
+      appendChatLine(chatLogEl, {
+        name: msg.name, text: msg.text,
+        self: msg.from === session?.playerId, channel: msg.channel,
+      });
+    },
+    // U6-15: voice signaling relay -> the mesh.
+    onSignal: msg => { voice?.handleSignal(msg.from, msg.kind, msg.data); },
   });
   joiningOnline = true;
   setOnlineStatus('Connecting…');
@@ -1457,6 +1840,7 @@ async function joinOnline() {
     hud.classList.remove('hidden');
     if (resultsEl) resultsEl.classList.add('hidden');
     setOnlineStatus(`Connected — room ${welcome.room} · mode ${getMode(session.mode).name}. ESC leaves.`);
+    startComms(); // U6-14/15: mini chat up; voice per settings
   } catch (err) {
     setOnlineStatus('Could not connect: ' + err.message + ' — check the server address, or deploy solo below.');
     session.close();
@@ -1467,6 +1851,7 @@ async function joinOnline() {
 }
 
 function leaveOnline(msg) {
+  stopComms(); // U6-14/15: tear the voice mesh + chat box down with the session
   if (session) { session.close(); session = null; }
   if (state === 'online') state = 'menu';
   menu.classList.remove('hidden');
@@ -1487,7 +1872,7 @@ function endOnlineMatch(ev) {
   if (resultsEl && resultsBodyEl) {
     resultsBodyEl.textContent = '';
     const lines = [];
-    if (ev.scoreYou !== undefined) lines.push(`RESULT: ${String(result || '').toUpperCase()} · SCORE ${ev.scoreYou ?? 0} — ${ev.scoreThem ?? 0}`);
+    if (ev.scoreYou !== undefined) lines.push(`RESULT: ${String(result || '').toUpperCase()} · ${TEAM.you.name} ${ev.scoreYou ?? 0} — ${TEAM.kestrel.name} ${ev.scoreThem ?? 0}`);
     else if (result) lines.push(`RESULT: ${String(result).toUpperCase()}`);
     if (ev.wave !== undefined) lines.push(`WAVE ${ev.wave} · KILLS ${ev.kills ?? 0}`);
     if (typeof myXp === 'number') {
@@ -1523,23 +1908,26 @@ function tickModes(dt) {
     });
   }
   if (selectedMode === 'tdm' && scoreLineEl) {
-    scoreLineEl.textContent = `YOU ${M.scoreYou} · KESTREL ${M.scoreThem} · FIRST TO ${mode.targetKills}`;
+    scoreLineEl.innerHTML = `<span style="color:${TEAM.you.color}">${TEAM.you.name} ${M.scoreYou}</span> · <span style="color:${TEAM.kestrel.color}">${TEAM.kestrel.name} ${M.scoreThem}</span> · FIRST TO ${mode.targetKills}`;
   }
   if (selectedMode === 'domination' && scoreLineEl) {
-    scoreLineEl.textContent = `YOU ${M.scoreYou} · KESTREL ${M.scoreThem} · FIRST TO ${mode.targetScore}`;
+    scoreLineEl.innerHTML = `<span style="color:${TEAM.you.color}">${TEAM.you.name} ${M.scoreYou}</span> · <span style="color:${TEAM.kestrel.color}">${TEAM.kestrel.name} ${M.scoreThem}</span> · FIRST TO ${mode.targetScore}`;
   }
 
   // Bot respawn queue (TDM / Domination rosters).
   for (let i = botRespawnQueue.length - 1; i >= 0; i--) {
-    botRespawnQueue[i] -= dt;
-    if (botRespawnQueue[i] <= 0) { botRespawnQueue.splice(i, 1); spawnBot(); }
+    botRespawnQueue[i].t -= dt;
+    if (botRespawnQueue[i].t <= 0) { const q = botRespawnQueue.splice(i, 1)[0]; spawnBot(undefined, q.team); }
   }
 
   if (selectedMode === 'domination') {
     const cap = mode.captureSeconds;
     for (const zone of M.zones) {
-      const youIn = M.respawnT <= 0 && inZone(player.position, zone);
-      const themIn = bots.some(b => !b.dead && inZone(b.root.position, zone));
+      // U6-07: zone presence is team-aware — friendlies hold
+      // ground for MERIDIAN, hostiles for KESTREL.
+      const youIn = (M.respawnT <= 0 && inZone(player.position, zone))
+        || bots.some(b => !b.dead && b.team === 'friendly' && inZone(b.root.position, zone));
+      const themIn = bots.some(b => !b.dead && b.team !== 'friendly' && inZone(b.root.position, zone));
       let side = null;
       if (youIn && !themIn) side = 'you';
       else if (themIn && !youIn) side = 'kestrel';
@@ -1613,9 +2001,34 @@ function tick() {
     flashOverlayEl.style.opacity = '0';
   }
 
+  // U6-10: hand queued touch stance taps to the player for
+  // exactly one frame.
+  input.stanceTap = pendingStanceTap;
+  pendingStanceTap = false;
+
+  // U6-01: optic picture sync — shown only while truly aimed
+  // with a real optic fitted (iron sights keep the centred
+  // viewmodel + FOV zoom, no overlay). DOM writes happen on
+  // state changes only; the fade is CSS.
+  if (scopeOverlayEl) {
+    const want = (state === 'playing' || state === 'online' || state === 'countdown')
+      && player.aiming && player.adsKind !== 'iron' && player.adsZoom > 1.01
+      ? player.adsKind : '';
+    if (want !== scopeOverlayState) {
+      scopeOverlayState = want;
+      scopeOverlayEl.className = want ? `on kind-${want}` : '';
+      hud.classList.toggle('scoped-scope', want === 'scope');
+      if (want === 'scope' && scopeMagEl) {
+        scopeMagEl.textContent = `${player.adsZoom.toFixed(2).replace(/\.?0+$/, '')}×`;
+      }
+    }
+  }
+
   if (state === 'online' && session) {
     player.update(dt, input);
     session.pumpInput(dt, buildOnlineSample);
+    voiceRosterAcc += dt; // U6-15: keep the voice mesh rostered (~2 Hz is plenty)
+    if (voiceRosterAcc > 0.5) { voiceRosterAcc = 0; syncVoiceRoster(); }
     const me = session.update(dt);
     if (me && me.pos) {
       const dx = me.pos[0] - player.position.x;
@@ -1641,7 +2054,7 @@ function tick() {
       if (snap.match && objectiveEl) {
         objectiveEl.textContent = objectiveText(snap.match.mode || selectedMode, snap.match);
         if (scoreLineEl && (snap.match.mode === 'tdm' || snap.match.mode === 'domination')) {
-          scoreLineEl.textContent = `YOU ${snap.match.scoreYou ?? 0} · KESTREL ${snap.match.scoreThem ?? 0}`;
+          scoreLineEl.innerHTML = `<span style="color:${TEAM.you.color}">${TEAM.you.name} ${snap.match.scoreYou ?? 0}</span> · <span style="color:${TEAM.kestrel.color}">${TEAM.kestrel.name} ${snap.match.scoreThem ?? 0}</span>`;
         }
         if (uiWave.textContent !== String(snap.match.wave)) uiWave.textContent = snap.match.wave;
       }
@@ -1732,7 +2145,43 @@ function tick() {
         if (!b.dead) alive++;
         return true;
       }
-      const keep = b.update(dt, player.position, (d) => damagePlayer(d, b.root.position), sfx);
+      // U6-07/U6-08: team-aware targeting. Friendlies hunt the
+      // nearest hostile; hostiles re-pick the nearest opponent
+      // (the player or a friendly) about once a second. In wave
+      // modes there are no friendlies and every hostile hunts
+      // the player, exactly as before.
+      let targetPos = player.position;
+      let onShootFn = (d) => damagePlayer(d, b.root.position);
+      if (b.team === 'friendly') {
+        let best = null, bestD = Infinity;
+        for (const h of bots) {
+          if (h === b || h.dead || h.team === 'friendly') continue;
+          const dd = h.root.position.distanceToSquared(b.root.position);
+          if (dd < bestD) { bestD = dd; best = h; }
+        }
+        if (best) {
+          targetPos = best.root.position;
+          onShootFn = (d) => { if (!best.dead && best.damage(d, false)) onTeamBotKill(best); };
+        }
+      } else if (bots.some(x => x.team === 'friendly' && !x.dead)) {
+        b._aggroT = (b._aggroT || 0) - dt;
+        if (b._aggroT <= 0 || !b._aggroTarget || (b._aggroTarget !== 'player' && b._aggroTarget.dead)) {
+          let best = 'player', bestD = player.position.distanceToSquared(b.root.position);
+          for (const fr of bots) {
+            if (fr.dead || fr.team !== 'friendly') continue;
+            const dd = fr.root.position.distanceToSquared(b.root.position);
+            if (dd < bestD) { bestD = dd; best = fr; }
+          }
+          b._aggroTarget = best;
+          b._aggroT = 1;
+        }
+        if (b._aggroTarget !== 'player') {
+          const t = b._aggroTarget;
+          targetPos = t.root.position;
+          onShootFn = (d) => { if (!t.dead && t.damage(d, false)) onTeamBotKill(t); };
+        }
+      }
+      const keep = b.update(dt, targetPos, onShootFn, sfx);
       if (!b.dead) alive++;
       return keep;
     });
@@ -1903,6 +2352,7 @@ function applyPerks() {
   player.walkMult = lw ? perkField('walkMult') : 1;
   player.stalkerAdd = hasPerk('stalker') ? perkField('adsMoveAdd') : 0;
   Bot.playerPerceptionMult = hasPerk('coldblooded') ? perkField('perceptionMult') : 1;
+  Bot.playerStanceMult = STANCE[player.stance].hit; // U6-10
 }
 
 function updateStreakHud() {
@@ -2198,7 +2648,8 @@ function updateV5Systems(dt) {
         if (dev.aimT >= SENTRY_SPEC.aimTimeNeeded) {
           dev.fireT -= dt;
           if (dev.fireT <= 0) {
-            dev.fireT = getWeapon('ar').interval;
+            dev.fireT += getWeapon('ar').interval; // U6-04 CADENCE: carry remainder (see shoot())
+            if (dev.fireT < -getWeapon('ar').interval) dev.fireT = -getWeapon('ar').interval;
             const dmg = getWeapon('ar').damage * (bestD > 25 ? 0.6 : 1);
             if (best.damage(dmg, false)) onBotKilled(best);
           }
