@@ -768,6 +768,19 @@ try {
     if (!gs.includes("host = '127.0.0.1'") || !gs.includes("process.env.HOST || '127.0.0.1'")) fail('M11 game-server default bind is not localhost'); else ok('M11 game-server defaults to localhost bind (U10 hardening)');
   }
 
+  // H1 (U11): horizon dressing — four named vertex-coloured ridge
+  // rings + the merged peak range in world.js, and the pre-U11
+  // sub-corner ring radii (r100/r124, placed for the ±50 arena)
+  // gone, so the scenery can never again intersect the ±80
+  // playable square (corner ~113.1).
+  {
+    const w = readFileSync(new URL('../js/world.js', import.meta.url), 'utf8');
+    const names = ['horizon-foothill', 'horizon-near', 'horizon-mid', 'horizon-far', 'horizon-peaks'];
+    if (!names.every(n => w.includes(n))) fail('H1 horizon mesh names missing from world.js'); else ok('H1 horizon layers present (foothill/near/mid/far rings + peaks)');
+    if (w.includes('ridgeRing(124') || w.includes('ridgeRing(100')) fail('H1 pre-U11 sub-corner ridge radii still present'); else ok('H1 pre-U11 sub-corner ridge radii absent');
+    if (!w.includes('vertexColors: true')) fail('H1 horizon vertex colours missing'); else ok('H1 horizon vertex-colour shading present');
+  }
+
   // m2: served HTML defaults match WEAPONS[0]
   if (Array.isArray(WEAPONS) && WEAPONS.length) {
     const wnMatch = home.match(/id="weapon-name"[^>]*>([^<]*)</);
