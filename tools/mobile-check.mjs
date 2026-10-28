@@ -4,6 +4,7 @@
 // game consumes. No DOM, no browser: this proves the input state
 // machine, not the phone. Final proof is the owner's iPhone.
 import { TouchCore, isTouchDevice, STICK_RADIUS, TOUCH_LOOK_SCALE } from '../js/touchcontrols.js';
+import { readFileSync } from 'node:fs';
 
 let failures = 0;
 const fail = m => { failures++; console.error('✗ ' + m); };
@@ -12,7 +13,7 @@ const eq = (a, b, m) => { if (a === b) ok(m); else fail(`${m} — got ${JSON.str
 
 function rig() {
   const input = { forward: false, back: false, left: false, right: false, sprint: false, jump: false, aim: false };
-  const calls = { look: [], setFire: [], setAim: [], reload: 0, lethal: 0, tactical: 0, streak: 0, weapon: [], pause: 0, firstTouch: 0 };
+  const calls = { look: [], setFire: [], setAim: [], reload: 0, lethal: 0, tactical: 0, streak: 0, weapon: [], pause: 0, firstTouch: 0, orient: 0 };
   const core = new TouchCore({
     look: (dx, dy) => calls.look.push([dx, dy]),
     setFire: d => calls.setFire.push(d),
@@ -24,6 +25,7 @@ function rig() {
     weapon: i => calls.weapon.push(i),
     pause: () => calls.pause++,
     firstTouch: () => calls.firstTouch++,
+    orient: () => calls.orient++,
   });
   core.bindInput(input);
   core.setViewport(800);
@@ -109,6 +111,24 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   eq(input.aim, false, 'T5 inactive clears ADS');
   eq(calls.setFire[calls.setFire.length - 1], false, 'T5 inactive releases fire');
   eq(calls.setAim[calls.setAim.length - 1], false, 'T5 inactive reports ADS off');
+}
+
+// T6: landscape surface (U8) — the orient hook, plus the static
+// wiring that makes rotation AUTOMATIC from boot: prompt markup,
+// menu button, CSS orientation gates, boot-bound fit path.
+{
+  const { calls, core } = rig();
+  core.pressOrient();
+  eq(calls.orient, 1, 'T6 orient press fires the hook exactly once');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  eq(html.includes('id="rotate-prompt"'), true, 'T6 rotate prompt markup present');
+  eq(html.includes('id="landscape-btn"'), true, 'T6 menu landscape button present');
+  eq(css.includes('@media (orientation: portrait)') && css.includes('body.touch-mode #rotate-prompt'), true, 'T6 prompt is gated to touch + portrait');
+  eq(css.includes('@media (orientation: landscape) and (max-height: 520px)'), true, 'T6 landscape-phone layout query present');
+  eq(main.includes("lock('landscape')"), true, 'T6 orientation lock attempt wired in main');
+  eq(main.includes('orientationchange') && main.includes('function fitRenderer()'), true, 'T6 boot-bound fit path handles orientationchange');
 }
 
 if (failures) { console.error(`\nmobile-check: ${failures} failure(s)`); process.exit(1); }
