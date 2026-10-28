@@ -65,6 +65,43 @@ export const CAMO_VARIANTS = {
       polymer: 0x1a1c20, metal: 0x1e2126, steel: 0x33373d, wood: 0x2e2620,
     },
   },
+  // V6 Update 5 (U5-10): four earnable designs, prestige track.
+  mirage: {
+    name: 'Mirage Digital',
+    uniform: { camo: 0xb8ab90, camoLight: 0xd3c8ae, camoDark: 0x8d8271 },
+    sleeve: { main: 0xb8ab90, dark: 0x8d8271 },
+    weapon: {
+      polymerPattern: [0xb8ab90, 0x8d8271, 0x6e675c],
+      polymer: 0x9a917e, metal: 0x3a3a38, steel: 0x585650, wood: 0x8a6844,
+    },
+  },
+  tiger: {
+    name: 'Tiger Stripe',
+    uniform: { camo: 0x51603c, camoLight: 0x6b7a4a, camoDark: 0x2e3623 },
+    sleeve: { main: 0x51603c, dark: 0x35402a },
+    weapon: {
+      polymerPattern: [0x51603c, 0x2e3623, 0x77683f],
+      polymer: 0x39432c, metal: 0x2b2f34, steel: 0x464c53, wood: 0x6e4a2f,
+    },
+  },
+  crimson: {
+    name: 'Crimson',
+    uniform: { camo: 0x6e2430, camoLight: 0x8c3242, camoDark: 0x45151f },
+    sleeve: { main: 0x6e2430, dark: 0x45151f },
+    weapon: {
+      polymerPattern: [0x6e2430, 0x2a2d33, 0x45151f],
+      polymer: 0x23252a, metal: 0x1e2126, steel: 0x3d434b, wood: 0x4a2e20,
+    },
+  },
+  gold: {
+    name: 'Meridian Gold',
+    uniform: { camo: 0x8a7433, camoLight: 0xb08d3e, camoDark: 0x5e4c22 },
+    sleeve: { main: 0x8a7433, dark: 0x5e4c22 },
+    weapon: {
+      polymerPattern: [0xd4af37, 0xb08d3e, 0x8a7433],
+      polymer: 0xc9a227, metal: 0x8a7433, steel: 0xd4af37, wood: 0x6e4a2f,
+    },
+  },
 };
 
 export const CAMO_IDS = Object.keys(CAMO_VARIANTS);
