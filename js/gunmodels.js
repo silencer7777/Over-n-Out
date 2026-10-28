@@ -292,6 +292,16 @@ function attachmentParts(weaponId, attachmentIds, forBot) {
     P(L, cylZ(0.027, 0.030), 'metal', A.optic[0], A.optic[1] + 0.012, A.optic[2] - 0.075);  // objective bell
     P(L, cylZ(0.022, 0.006), 'glass', A.optic[0], A.optic[1] + 0.012, A.optic[2] - 0.092);  // objective lens
   }
+  if (has('sniper') && A.optic) {
+    // U7-01: the fitted high-power glass — visibly longer and
+    // heavier than the mid tube above (bigger objective bell,
+    // sunshade lip, elevation turret), same anchor, merged.
+    P(L, cylZ(0.021, 0.24), 'metal', A.optic[0], A.optic[1] + 0.012, A.optic[2]);           // sniper tube
+    P(L, cylZ(0.032, 0.045), 'metal', A.optic[0], A.optic[1] + 0.012, A.optic[2] - 0.115);  // objective bell
+    P(L, cylZ(0.035, 0.018), 'metal', A.optic[0], A.optic[1] + 0.012, A.optic[2] - 0.148);  // sunshade lip
+    P(L, cylZ(0.028, 0.006), 'glass', A.optic[0], A.optic[1] + 0.012, A.optic[2] - 0.140);  // objective lens
+    P(L, cylY(0.015, 0.028), 'metal', A.optic[0], A.optic[1] + 0.040, A.optic[2] + 0.01);   // elevation turret
+  }
   if (has('laser') && A.under) {
     P(L, cylZ(0.011, 0.055), 'metal', A.under[0], A.under[1] - 0.018, A.under[2] - 0.06);  // laser unit
     P(L, cylZ(0.005, 0.006), 'accent', A.under[0], A.under[1] - 0.018, A.under[2] - 0.09); // laser emitter (tinted)
