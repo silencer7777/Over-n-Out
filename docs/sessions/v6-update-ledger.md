@@ -184,6 +184,55 @@ only when they cost the graphics mission nothing:
   `docs/sessions/v6-update-06-report.md`. **Not pushed —
   awaiting Brett's playtest + tap.**
 
+## Owner directives (Brett, Oct 28, 2026) — release law, lighting lock lifted, focus queue
+
+**Release law — CHANGED (Oct 28, ~04:01, supersedes the tap
+era in the header above):** for the REST OF V6, build sessions
+**build AND push live automatically, right away, no permission
+needed per push.** Auto-push only when all gates are green
+(smoke, biome-check, reachability, reachability-maps,
+mobile-check); a red-gated build never pushes. **V7 is NOT
+included** — going into V7 still waits for Brett's explicit
+word ("going into 7 I'll let you know"). The V7 gate stands:
+≥5 more V6 updates from Update 4 onward AND the charter's
+20-update floor. Once the V6 count hits 20, sessions stop and
+the phase change awaits Brett.
+
+**Lighting lock — LIFTED (Oct 28):** "Adjust lighting and
+shadows accordingly and properly." Lighting/shadow work is
+permitted again for the V6 remainder, adjusted properly;
+Odin's perf budgets still bind (sustained calls ≤165/map,
+tris ≤300k, mobile shadow ≤200). Update 7's first pass found
+the shadow camera (±72/±68) smaller than the ±80 playable
+bounds — profiles now fit ±86.
+
+**Cross-device law (Oct 28):** every update must actually be
+applied live, and the game must stay playable on PC, laptop,
+tablet and mobile phone. `mobile-check` green + touch controls
+(incl. ADS) verified is a push requirement.
+
+**Remaining-V6 focus queue (Brett, Oct 28, priority order) —
+automated sessions inherit this:**
+1. **Scope rework** — true ADS with distinct scope kinds
+   usable on every gun + plain instructions. → **Update 7**
+   (five kinds: iron / red dot / holo / mid 3× / sniper 5×;
+   every gun has a baseline sight; in-game hint).
+2. **Bushes enhancement** — trees are approved; bushes were
+   the ask. → **Update 7** (third grounding mass, both bush
+   systems). More dressing passes may follow.
+3. **Characters more realistic** — next character pass after
+   U6's humanization (hit cores stay byte-identical, per-bot
+   budget held).
+4. **Movement feel** — walking locomotion AND look-around /
+   mouse-look. → **Update 7 first slice** (adaptive look
+   smoothing + locomotion soft-start; Havoc's numbers held).
+5. **Scenery realism + background** — scenery realism plus
+   background mountains / landscaping OUTSIDE the playable
+   bounds, for depth.
+6. **Meta systems** (spread across updates): emblems +
+   special badges; daily rewards; tier packages; special
+   offers — **in-game currency only, NO real-money purchases.**
+
 ## Directive V6-3 wave (Oct 25) — Atlas (worlds)
 
 - **Stage 1 ENTERABLE INTERIORS LANDED** (commits 0a9068d,
