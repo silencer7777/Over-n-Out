@@ -208,6 +208,8 @@ function buildBotLegs(pal = BOT_PALETTES.hostile) {
     _part(L, _sph(0.105, 8, 6), pal.gear, s * 0.145, 0.52, -0.13, 0, 0, 0, 0.82, 0.95, 0.45);   // knee pad (V6-3: domed; front reach matched to the old pad)
     _part(L, _box(0.19, 0.30, 0.05), pal.gear, s * 0.145, 0.30, -0.135);           // shin guard (V4 kit)
     _part(L, _box(0.22, 0.10, 0.25), pal.camo, s * 0.145, 0.90, 0);                 // thigh pocket block (V5: trimmed)
+    _part(L, _cylT(0.128, 0.104, 0.44, 9), pal.camo, s * 0.145, 0.66, 0);           // thigh (U5-05: tapered overlay — the leg reads as a limb, not a crate; the hit-core box inside is untouched)
+    _part(L, _cylT(0.100, 0.080, 0.34, 9), pal.camoDark, s * 0.145, 0.27, 0);       // shin (U5-05: tapered overlay, slim to the boot)
   }
   _part(L, _box(0.10, 0.22, 0.09), pal.dark, 0.265, 0.86, -0.02);                 // thigh holster, right (V4 kit)
   return new THREE.Mesh(mergeColoredParts(L), BOT_BODY_MAT);
@@ -217,6 +219,7 @@ function buildBotTorso(pal = BOT_PALETTES.hostile) {
   const L = [];
   _part(L, _box(0.66, 0.72, 0.38), pal.camo, 0, 1.11, 0);                           // torso core (hitbox — V3 box, camo cloth) — HIT CORE, byte-identical
   _part(L, _box(0.52, 0.22, 0.32), pal.camoDark, 0, 0.84, 0);                       // pelvis / belt line (V5: hips narrower than shoulders — human ratio)
+  _part(L, _sph(0.20, 9, 6), pal.camoDark, 0, 0.86, 0, 0, 0, 0, 1.5, 0.55, 0.92);   // hip mass (U5-05: the pelvis rounds into the thighs — no shelf edge)
   _part(L, _box(0.12, 0.07, 0.03), pal.steel, 0, 0.86, -0.185);                     // belt buckle (V4 kit)
   _part(L, _box(0.58, 0.54, 0.10), pal.accentDark, 0, 1.17, -0.225);                // plate vest front — FACTION colour (readability carrier)
   _part(L, _box(0.09, 0.44, 0.30), pal.accentDark, -0.315, 1.17, 0, 0, 0.28);       // vest wrap panel L (V5: the vest wraps a torso, not a fridge door)
@@ -239,8 +242,8 @@ function buildBotTorso(pal = BOT_PALETTES.hostile) {
   _part(L, _cylT(0.078, 0.066, 0.42, 9), pal.dark, -0.455, 1.13, 0, 0, 0, 0.06);    // left upper arm (V6-3: tapered limb, thick at the shoulder, slim at the elbow)
   _part(L, _box(0.155, 0.09, 0.175), pal.accent, -0.455, 1.27, 0);                  // faction armband, left arm (V4)
   _part(L, _cylT(0.078, 0.066, 0.40, 9), pal.dark, 0.44, 1.15, -0.09, 0.5);         // right upper arm (forward) (V6-3: tapered limb)
-  _part(L, _box(0.115, 0.115, 0.40), pal.dark, 0.35, 1.17, -0.30);                  // right forearm (to gun) (V5: tapered)
-  _part(L, _box(0.115, 0.115, 0.36), pal.dark, -0.33, 1.10, -0.24, 0.25);           // left forearm (support hand)
+  _part(L, _cylT(0.064, 0.052, 0.40, 9), pal.dark, 0.35, 1.17, -0.30, Math.PI / 2);  // right forearm (to gun) (U5-05: tapered cylinder, matching the V6-3 upper arms — was a box)
+  _part(L, _cylT(0.062, 0.050, 0.36, 9), pal.dark, -0.33, 1.10, -0.24, Math.PI / 2 - 0.25); // left forearm (support hand) (U5-05: tapered cylinder — was a box)
   _part(L, _sph(0.06, 7, 5), pal.dark, 0.36, 1.16, -0.52, 0, 0, 0, 0.95, 0.85, 1.3);  // right glove (V6-3: a rounded fist, not a die)
   _part(L, _sph(0.06, 7, 5), pal.dark, -0.37, 1.08, -0.44, 0, 0, 0, 0.95, 0.85, 1.3); // left glove (V6-3: rounded fist)
   _part(L, _sph(0.085, 7, 5), pal.gear, 0.44, 1.30, -0.16, 0, 0, 0, 0.95, 0.55, 1.05); // right elbow pad (V6-3: domed)
@@ -254,6 +257,7 @@ function buildBotTorso(pal = BOT_PALETTES.hostile) {
 function buildBotHead(pal = BOT_PALETTES.hostile) {
   const L = [];
   _part(L, _box(0.34, 0.36, 0.34), pal.skin, 0, 1.66, 0);                           // head core (hitbox — V3 box) — HIT CORE, byte-identical
+  _part(L, _sph(0.168, 10, 8), pal.skin, 0, 1.65, -0.012, 0, 0, 0, 1.0, 1.06, 0.96); // face (U5-05: rounded skull mass over the core — a head, not a block; visor at z -0.185 stays proud)
   _part(L, _cylY(0.225, 0.20, 12), pal.gear, 0, 1.80, 0);                           // helmet dome (V5: round — a helmet is not a crate)
   _part(L, _box(0.46, 0.04, 0.46), pal.gear, 0, 1.71, 0);                           // helmet brim
   _part(L, _cylY(0.232, 0.05, 12), pal.camoDark, 0, 1.75, 0);                      // helmet camo band (V4 kit, follows the dome)
