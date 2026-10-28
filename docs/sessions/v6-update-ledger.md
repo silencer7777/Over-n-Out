@@ -273,6 +273,37 @@ only when they cost the graphics mission nothing:
   Report: `docs/sessions/v6-update-09-report.md`. **The
   count is now 9.** Queue head: Brett's minimap + Domination
   guidance spec, then scenery/mountains, meta systems.
+- **Update 10 LANDED + PUSHED LIVE** (Oct 28, commits
+  `aa1e12c` spec + `544c057` code + this landing): Brett's
+  04:29 minimap spec, queue head since U8. **Minimap:**
+  north-up 2D-canvas HUD map (all devices; touch placement
+  below the left-edge buttons, shrinks in landscape), player
+  = white facing arrow, bots = cyan/red team dots, Domination
+  zones A/B/C as lettered circles coloured by owner
+  (MERIDIAN cyan / KESTREL red / neutral grey) at true radius,
+  Assault relay marked; dots clamped to ±80 (anti-glitch).
+  **Guidance pill:** relative-bearing arrow + CAPTURE /
+  DEFEND / CHANNEL + target name + distance in metres, solo
+  from `M.zones`, online from snapshot owners merged onto
+  mode-table coordinates. Math is pure in `js/minimap.js`,
+  pinned by mobile-check T8 (15 checks). **Hardening slice
+  (Watch 05:07 findings):** game-server default bind
+  0.0.0.0 → **127.0.0.1** (factory + direct-run; `HOST=` is
+  the explicit opt-in; boot log states posture), net/README
+  runbook (localhost bind, WSS via tunnel only, firewall:
+  deny inbound 8081 non-loopback), CSP meta on index.html
+  (self-only, object-src none; `'unsafe-inline'` kept and
+  documented — importmap + inline styles). Build witness
+  9 → 10 (mobile-check T7 **named re-pin**, witness-only;
+  ws-soak needed no re-pin — it already bound localhost).
+  Smoke M11 pins the new ids/CSP/bind. Perf **Δ0 everywhere**
+  (calls 131/144/143/145, forest 264,884 tris, shadow
+  199/200) — the map is 2D canvas, no THREE cost. All five
+  gates green on tree + snapshot; live byte-verified.
+  Report: `docs/sessions/v6-update-10-report.md`. **The
+  count is now 10.** Still open: Stage 2 signed sessions
+  (hardening not certified complete); Brett's U9 re-test
+  verdicts. Queue head: scenery/mountains, then meta.
 
 ## Owner directives (Brett, Oct 28, 2026) — release law, lighting lock lifted, focus queue
 
