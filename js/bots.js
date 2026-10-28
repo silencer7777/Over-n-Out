@@ -212,6 +212,10 @@ function buildBotLegs(pal = BOT_PALETTES.hostile) {
     _part(L, _cylT(0.100, 0.080, 0.34, 9), pal.camoDark, s * 0.145, 0.27, 0);       // shin (U5-05: tapered overlay, slim to the boot)
   }
   _part(L, _box(0.10, 0.22, 0.09), pal.dark, 0.265, 0.86, -0.02);                 // thigh holster, right (V4 kit)
+  _part(L, _box(0.17, 0.20, 0.06), pal.gear, -0.145, 0.80, -0.145);                // drop-leg pouch, left (U6-06v: kit asymmetry — soldiers are not mirrored)
+  for (const s of [-1, 1]) {
+    _part(L, _cylT(0.082, 0.068, 0.16, 8), pal.camoDark, s * 0.145, 0.17, 0);      // ankle taper (U6-06v: the shin narrows into the boot — no peg legs)
+  }
   return new THREE.Mesh(mergeColoredParts(L), BOT_BODY_MAT);
 }
 
@@ -227,6 +231,9 @@ function buildBotTorso(pal = BOT_PALETTES.hostile) {
   _part(L, _box(0.58, 0.54, 0.07), pal.gear, 0, 1.17, 0.215);                       // vest back panel
   for (const px of [-0.17, 0, 0.17]) {
     _part(L, _box(0.13, 0.19, 0.055), pal.gearLight, px, 1.04, -0.285);             // magazine pouches
+  }
+  for (const ry of [1.24, 1.31, 1.38]) {
+    _part(L, _box(0.50, 0.018, 0.012), pal.dark, 0, ry, -0.278);                    // MOLLE webbing rows (U6-06v: the vest reads as woven kit, not a slab)
   }
   _part(L, _box(0.11, 0.16, 0.05), pal.gearLight, 0.245, 1.31, -0.27);              // chest radio (V4 kit — antenna already on the pack)
   for (const sx of [-0.16, 0.16]) {
@@ -258,6 +265,9 @@ function buildBotHead(pal = BOT_PALETTES.hostile) {
   const L = [];
   _part(L, _box(0.34, 0.36, 0.34), pal.skin, 0, 1.66, 0);                           // head core (hitbox — V3 box) — HIT CORE, byte-identical
   _part(L, _sph(0.168, 10, 8), pal.skin, 0, 1.65, -0.012, 0, 0, 0, 1.0, 1.06, 0.96); // face (U5-05: rounded skull mass over the core — a head, not a block; visor at z -0.185 stays proud)
+  _part(L, _box(0.045, 0.075, 0.032), pal.skin, 0, 1.628, -0.180);                  // nose (U6-06v: the face gains a profile — reads as a person in silhouette at range)
+  for (const s of [-1, 1]) _part(L, _sph(0.046, 6, 5), pal.skin, s * 0.172, 1.66, 0.005, 0, 0, 0, 0.55, 1.0, 0.8); // ears (U6-06v)
+  _part(L, _sph(0.13, 8, 6), pal.skin, 0, 1.545, -0.055, 0, 0, 0, 1.05, 0.5, 0.85);  // jaw / chin mass (U6-06v: the lower face rounds into the jaw guard)
   _part(L, _cylY(0.225, 0.20, 12), pal.gear, 0, 1.80, 0);                           // helmet dome (V5: round — a helmet is not a crate)
   _part(L, _box(0.46, 0.04, 0.46), pal.gear, 0, 1.71, 0);                           // helmet brim
   _part(L, _cylY(0.232, 0.05, 12), pal.camoDark, 0, 1.75, 0);                      // helmet camo band (V4 kit, follows the dome)
@@ -298,6 +308,7 @@ export class Bot {
   // (the Cold-Blooded perk). The sim installs its own equivalents.
   static smokeFilter = null;
   static playerPerceptionMult = 1;
+  static playerStanceMult = 1; // U6-10: host-set stance hit multiplier vs the player
   // team (V4, Atlas): 'hostile' (default — every existing caller)
   // or 'friendly' (slate camo, green rig/visor) for co-op /
   // friendly-fire modes. Visual only: AI, hit volumes and the
@@ -318,7 +329,11 @@ export class Bot {
     this.speed = 3.1 + Math.random() * 0.7;
     this.strafeDir = Math.random() < 0.5 ? -1 : 1;
     this.strafeT = 1 + Math.random() * 2;
-    this.burstCooldown = 1.2 + Math.random() * 1.4;
+    // U6-06: burst-pause temperament — each bot waits its own
+    // amount between bursts (0.85–1.25×), so a squad doesn't
+    // breathe in metronome unison.
+    this.temperament = 0.85 + Math.random() * 0.4;
+    this.burstCooldown = (1.2 + Math.random() * 1.4) * this.temperament;
     // DMR spawn cooldown floor: at least 1.2s before its first burst.
     if (this.weaponId === 'dmr') this.burstCooldown = Math.max(this.burstCooldown, 1.2);
     this.burstLeft = 0;
@@ -327,7 +342,12 @@ export class Bot {
     // --- Batch 1 realism state ---
     // Aim-up: time that must be spent with continuous LOS before firing.
     const aimMult = AIM_MULTS[this.weaponId] === undefined ? 1.0 : AIM_MULTS[this.weaponId];
-    this.aimTimeNeeded = Math.max(0.25, 0.55 / difficulty) * aimMult;
+    // U6-06: per-bot aim-time jitter ±25% (symmetric — the squad
+    // average reaction is unchanged; individuals stop being
+    // metronomes). Mirrored in net/sim.js.
+    this.aimTimeNeeded = Math.max(0.25, 0.55 / difficulty) * aimMult * (0.75 + Math.random() * 0.5);
+    this.scanPhase = Math.random() * Math.PI * 2; // U6-06v: visor scan sway phase
+    this.scanT = 0;
     this.visibleTime = 0;      // continuous-visibility clock (pauses on brief occlusion)
     this.losLostTime = 0;      // how long LOS has been continuously lost
     this.flinchT = 0;          // >0 while flinching after surviving damage
@@ -374,11 +394,21 @@ export class Bot {
     const visor = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.09, 0.02),
       new THREE.MeshStandardMaterial({ color: pal.visor, emissive: pal.visorEmissive }));
     visor.position.set(0, 1.70, -0.185);
+    this.visorMesh = visor; // U6-06v: scan sway animates this
     const gun = buildBotGun(this.weaponId, [], camoId || 'woodland');
     gun.castShadow = true;
     const gunY = this.weaponId === 'pistol' ? 1.18 : 1.22;
     gun.position.set(0.3, gunY, -0.10);
-    root.add(legs, torso, head, visor, gun);
+    // U6-07: team marker — a slowly turning diamond over the
+    // head in the team colour (MERIDIAN cyan / KESTREL red,
+    // js/modes.js TEAM). Friend-or-foe reads at any range, in
+    // any light. +1 draw call per bot, a named cost.
+    this.teamMarker = new THREE.Mesh(
+      new THREE.OctahedronGeometry(0.085),
+      new THREE.MeshBasicMaterial({ color: team === 'friendly' ? 0x35c4ff : 0xff5340 })
+    );
+    this.teamMarker.position.y = 2.30;
+    root.add(legs, torso, head, visor, gun, this.teamMarker);
     root.traverse(o => { o.userData.botRef = this; });
     this.hitMeshes = [legs, torso, head];
     this.root = root;
@@ -392,7 +422,7 @@ export class Bot {
     // V6-3: stride-bob registry — every visual child rides the bob
     // together (offsets from these base heights; root position is
     // the sim truth and never bobs).
-    this._bobKids = [legs, torso, head, visor, gun, bg, this.hpFg];
+    this._bobKids = [legs, torso, head, visor, gun, bg, this.hpFg, this.teamMarker];
     this._bobBase = this._bobKids.map(o => o.position.y);
 
     root.position.copy(spawnPos);
@@ -511,7 +541,7 @@ export class Bot {
     // (per-weapon table replaces the Session 1 constants)
     const moveCfg = MOVEMENT[this.weaponId] || MOVEMENT.ar;
     this.strafeT -= dt;
-    if (this.strafeT <= 0) { this.strafeT = 1 + Math.random() * 2; this.strafeDir *= -1; }
+    if (this.strafeT <= 0) { this.strafeT = 0.7 + Math.random() * 0.9; this.strafeDir *= -1; } // U6-06: reversal every 0.7–1.6 s (was a metronome 1–3 s); the V6-3 strafeBlend ease already smooths the turn itself
     // V6-3: a strafe flip eases through zero (blend chases the
     // sign) instead of reversing the velocity vector in one frame.
     this.strafeBlend += (this.strafeDir - this.strafeBlend) * Math.min(1, dt * 5);
@@ -576,6 +606,15 @@ export class Bot {
     for (let i = 0; i < this._bobKids.length; i++) this._bobKids[i].position.y = this._bobBase[i] + this.bobY;
     this.root.rotation.z = this.rollZ;
     this.root.rotation.x = this.leanX;
+    if (this.teamMarker) this.teamMarker.rotation.y += dt * 2.2; // U6-07
+    // U6-06v: visor scan sway — a slow ±1 cm lateral drift while
+    // the bot has no target lock; a scanning soldier, not a
+    // statue. Stops while aimed (the visor settles on target).
+    if (this.visorMesh) {
+      this.scanT += dt;
+      const scanAmp = this.burstLeft > 0 || this.visibleTime > 0.1 ? 0 : 0.010;
+      this.visorMesh.position.x = Math.sin(this.scanT * 0.9 + this.scanPhase) * scanAmp;
+    }
 
     // --- visibility / aim-up. LOS is staggered: the raycast runs at most
     // every 3rd frame per bot, offset by a per-bot phase; between checks
@@ -667,7 +706,8 @@ export class Bot {
     if (this.burstLeft > 0) {
       this.shotTimer -= dt;
       if (this.shotTimer <= 0) {
-        this.shotTimer = this.weapon.bot.shotInterval;
+        this.shotTimer += this.weapon.bot.shotInterval; // U6-04 CADENCE: carry remainder (matches the table at any refresh rate)
+        if (this.shotTimer < -this.weapon.bot.shotInterval) this.shotTimer = -this.weapon.bot.shotInterval;
         this.burstLeft--;
         sfx.enemyShot(dist, this.weapon.sound);
         if (hasLOS) {
@@ -683,6 +723,7 @@ export class Bot {
             * hitScalarFor(this.weaponId, dist)
             * this.difficulty * burstMult * moveFactor;
           chance = Math.min(chance, 0.55);
+          chance *= (Bot.playerStanceMult || 1); // U6-10: Havoc's stance hit rule (crouch 0.90×, prone 0.75×)
           if (Math.random() < chance) {
             const raw = this.weapon.bot.damageMin
               + Math.random() * (this.weapon.bot.damageMax - this.weapon.bot.damageMin);
@@ -701,7 +742,7 @@ export class Bot {
         this.burstLeft = this.weapon.bot.burst;
         this.burstShotIndex = 0;
         this.shotTimer = 0;
-        this.burstCooldown = rollBurstCooldown(this.weaponId);
+        this.burstCooldown = rollBurstCooldown(this.weaponId) * this.temperament; // U6-06
       }
     }
     return true;
