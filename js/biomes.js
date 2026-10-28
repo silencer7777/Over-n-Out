@@ -456,7 +456,7 @@ function buildForest(ctx) {
   // --- Bushes: same bands, may nestle near a trunk (underbrush)
   // but never on top of another bush.
   const bushSpots = scatterInBands(rng, FOREST_BUSH_COUNT, 0.4, trees, 2.0, () => 1.8);
-  const bushes = bushSpots.map((p) => ({ x: p.x, z: p.z, size: 0.8 + rng() * 0.65 }));
+  const bushes = bushSpots.map((p) => ({ x: p.x, z: p.z, size: 1.15 + rng() * 0.8 })); // U6-11: bushes grow (0.8–1.45 -> 1.15–1.95 m) — every bush now clears the 1.1 m blocking rule
 
   // V6 SUPPLEMENT (Board 006 §2.1: rendered Forest >= 110
   // trees): the shipped scatter above is BYTE-IDENTICAL — seed,
@@ -665,6 +665,51 @@ function buildForest(ctx) {
     addedColliders.push(mastCollider); ctx.colliders.push(mastCollider);
     group.userData.mastPoi = { x: -16, z: 56 };
     group.userData.mastMeshCount = mastParts.length;
+  }
+
+  // --- U6-16 MAP IDENTITY: THE LANES (forest) ---------------
+  // Brett: "make the maps very unique — so you actually FEEL
+  // like you are playing different maps." The forest's identity
+  // is two thicket walls — dense lines of oversized bushes
+  // (1.9 m, all blocking) that carve the open compound floor
+  // into three lanes with gated crossings. No other map has
+  // them; forest fights become lane fights: hold a gate, flank
+  // through the mast clearing, or push the long outside lane.
+  // Gates: wall A (x -20) opens at z -8..-1 and 16..22; wall B
+  // (x 24) opens at z -18..-11 and 6..12.
+  {
+    const thicket = [];
+    for (let z = -36; z <= 28; z += 3.4) {
+      if ((z > -8 && z < -1) || (z > 16 && z < 22)) continue;
+      thicket.push({ x: -20, z });
+    }
+    for (let z = -28; z <= 36; z += 3.4) {
+      if ((z > -18 && z < -11) || (z > 6 && z < 12)) continue;
+      thicket.push({ x: 24, z });
+    }
+    const tIM = new THREE.InstancedMesh(displacedSphere(1, 9.3, 0.34, 10, 8), foliageMat, thicket.length * 2);
+    tIM.castShadow = true; tIM.receiveShadow = true; tIM.frustumCulled = false;
+    const tRng = makeRng(FOREST_SEED + 4242);
+    thicket.forEach((b, i) => {
+      const size = 1.9;
+      dummy.rotation.set(0, tRng() * Math.PI * 2, 0);
+      dummy.position.set(b.x, size * 0.34, b.z);
+      dummy.scale.set(size, size * 0.72, size * (0.85 + tRng() * 0.3));
+      dummy.updateMatrix(); tIM.setMatrixAt(i * 2, dummy.matrix);
+      tIM.setColorAt(i * 2, deepGreen.clone().lerp(tipGreen, tRng() * 0.4));
+      const os = size * 0.55;
+      dummy.position.set(b.x + (tRng() - 0.5) * 1.2, os * 0.36, b.z + (tRng() - 0.5) * 1.2);
+      dummy.scale.set(os, os * 0.7, os * 0.9);
+      dummy.updateMatrix(); tIM.setMatrixAt(i * 2 + 1, dummy.matrix);
+      tIM.setColorAt(i * 2 + 1, deepGreen.clone().lerp(tipGreen, 0.2 + tRng() * 0.4));
+      const collider = new THREE.Box3(
+        new THREE.Vector3(b.x - size * 0.75, 0, b.z - size * 0.75),
+        new THREE.Vector3(b.x + size * 0.75, size * 0.72, b.z + size * 0.75));
+      addedColliders.push(collider); ctx.colliders.push(collider);
+    });
+    if (tIM.instanceColor) tIM.instanceColor.needsUpdate = true;
+    group.add(tIM);
+    group.userData.thicketCount = thicket.length;
   }
 
   // --- Forest floor (V6 Update 4, Atlas — terrain) -----------
@@ -888,6 +933,45 @@ function buildSnow(ctx) {
     addedColliders.push(domeCollider); ctx.colliders.push(domeCollider);
     group.userData.domePoi = { x: 52, z: -52 };
     group.userData.domeMeshCount = domeParts.length;
+  }
+
+  // --- U6-16 MAP IDENTITY: THE CHANNELS (snow) --------------
+  // Four wind-packed drift ridges (1.1 m, blocking — biome
+  // colliders are never walkable) cut the snowfield into
+  // channels: long sightlines run BETWEEN the ridges, and
+  // crossing one means cresting into the open at a gap. With
+  // the buried dome (NE) and the ice discs (SE) the snow map's
+  // rhythm — channel, crest, channel — plays nothing like the
+  // compound's yard or the forest's lanes.
+  {
+    const RIDGES = [
+      { x: -20, z: 26, w: 26, d: 2.4 },
+      { x: 26, z: -2, w: 2.4, d: 26 },
+      { x: -30, z: -28, w: 22, d: 2.4 },
+      { x: 8, z: 34, w: 26, d: 2.4 },
+    ];
+    const ridgeMat = new THREE.MeshStandardMaterial({ color: 0xdfe9f4, roughness: 1 });
+    // Drift MOUNDS, not boxes: an elliptical cylinder (unit
+    // cylinder scaled per ridge) — rounded like wind-packed
+    // snow, and inside the three-stub's geometry vocabulary
+    // (biomes.js uses no BoxGeometry; the stub is law). The
+    // collider stays the box footprint, same as every drift.
+    const ridgeIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.5, 0.58, 1, 14), ridgeMat, RIDGES.length);
+    const dummy = new THREE.Object3D();
+    RIDGES.forEach((r, i) => {
+      dummy.position.set(r.x, 0.55, r.z);
+      dummy.scale.set(r.w, 1.1, r.d);
+      dummy.rotation.set(0, 0, 0);
+      dummy.updateMatrix();
+      ridgeIM.setMatrixAt(i, dummy.matrix);
+      const collider = new THREE.Box3(
+        new THREE.Vector3(r.x - r.w / 2, 0, r.z - r.d / 2),
+        new THREE.Vector3(r.x + r.w / 2, 1.1, r.z + r.d / 2));
+      addedColliders.push(collider); ctx.colliders.push(collider);
+    });
+    ridgeIM.castShadow = true; ridgeIM.receiveShadow = true; ridgeIM.frustumCulled = false;
+    group.add(ridgeIM);
+    group.userData.ridgeCount = RIDGES.length;
   }
 
   // --- Ice field (SE) — five frozen discs, glossy against the
@@ -1209,6 +1293,50 @@ function buildMars(ctx) {
     addedColliders.push(mastCollider); ctx.colliders.push(mastCollider);
     group.userData.spirePoi = { x: 50, z: -52 };
     group.userData.spireMeshCount = spireParts.length;
+  }
+
+  // --- U6-16 MAP IDENTITY: THE CANYON (mars) ----------------
+  // Two rock corridor walls with gated crossings, plus a
+  // crater ring in the SE: Mars stops being an open field with
+  // mesas and becomes a canyon fight — corridor pushes, gate
+  // ambushes, and a crater bowl that owns the south-east. The
+  // uplink spire (NE) stays the vertical landmark.
+  {
+    const canyonMat = new THREE.MeshStandardMaterial({ color: 0x9a5630, roughness: 1, map: regRockTex });
+    const rocks = [];
+    for (let z = -20; z <= 16; z += 4.5) { if (z !== -2) rocks.push({ x: -18, z }); }        // wall A, gate at z -2
+    for (let x = 3; x <= 34; x += 4) { if (x !== 19) rocks.push({ x, z: 20 }); }             // wall B, gate at x 19 (starts east of the central lane)
+    for (let k = 0; k < 10; k++) {                                                            // crater ring (52, 32) r 7
+      const a = (k / 10) * Math.PI * 2;
+      rocks.push({ x: 52 + Math.cos(a) * 7, z: 32 + Math.sin(a) * 7, r: 1.6 });
+    }
+    const rockIM = new THREE.InstancedMesh(displacedSphere(1, 51.7, 0.16, 12, 9), canyonMat, rocks.length);
+    const dummy = new THREE.Object3D();
+    const cRng = makeRng(MARS_SEED + 616);
+    rocks.forEach((r, i) => {
+      const rad = r.r || 2.3;
+      dummy.position.set(r.x, rad * 0.28, r.z);
+      dummy.scale.set(rad, rad * 0.85, rad * 0.92);
+      dummy.rotation.set(0, cRng() * Math.PI * 2, 0);
+      dummy.updateMatrix();
+      rockIM.setMatrixAt(i, dummy.matrix);
+      rockIM.setColorAt(i, new THREE.Color(0xffffff).offsetHSL(0, (cRng() - 0.5) * 0.03, (cRng() - 0.5) * 0.07));
+      const collider = new THREE.Box3(
+        new THREE.Vector3(r.x - rad * 0.82, 0, r.z - rad * 0.82),
+        new THREE.Vector3(r.x + rad * 0.82, rad * 0.72, r.z + rad * 0.82));
+      addedColliders.push(collider); ctx.colliders.push(collider);
+    });
+    if (rockIM.instanceColor) rockIM.instanceColor.needsUpdate = true;
+    rockIM.castShadow = true; rockIM.receiveShadow = true; rockIM.frustumCulled = false;
+    group.add(rockIM);
+    // Crater floor: a dark regolith disc inside the ring.
+    const craterFloor = new THREE.Mesh(
+      new THREE.CylinderGeometry(6.6, 6.6, 0.06, 24),
+      new THREE.MeshStandardMaterial({ color: 0x6e3a20, roughness: 1 }));
+    craterFloor.position.set(52, 0.05, 32);
+    craterFloor.receiveShadow = true;
+    group.add(craterFloor);
+    group.userData.canyonRockCount = rocks.length;
   }
 
   // --- Pebble field (V6 Update 4, Atlas — terrain) -----------
