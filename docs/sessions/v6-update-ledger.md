@@ -158,6 +158,31 @@ only when they cost the graphics mission nothing:
   window programs are one merged mesh each. Report:
   `docs/sessions/v6-update-02-report.md`. Not pushed — ships in
   the next push on Brett's tap.
+- **Update 6 LANDED** (Oct 28, commits `17a2da0`…`66fb95a` on
+  Update 5): Brett's 16-item bundled spec under his
+  extensive-build directive. Headline (his priority): usable
+  scopes (real ADS optic views, magnification = adsZoom stat),
+  gun identity round 2, character realism (merged humanization,
+  hit cores byte-identical). Correctness: U6-04 fire-rate root
+  cause = discarded cooldown remainder quantizing shots to
+  tick boundaries (AR 7.50/s vs 8.70 table at 30 Hz) — fixed at
+  all six firing loops, probe §D proves ≤0.16% everywhere;
+  U6-03 music buzz = triangle-wave partial beating, fixed in
+  the tone bus, composition unchanged. World: bounds 62→80,
+  four ring POIs, Ops 12×10, HQ 22.5×9 + service alley (wider
+  draft caught interpenetrating Ops by the probes — corrected
+  in design), map identities (yard/lanes/channels/canyon).
+  Systems: stances (shared machine, 14/14), teams (MERIDIAN/
+  KESTREL), solo backfill gap found + fixed, ASSAULT win rate
+  measured unmoved (0/6 → 0/6). Comms: text chat (lobby +
+  in-game) and WebRTC voice via a ruled protocol EXTENSION
+  (MSG 8→10, version stays 1; N1 re-pinned + named; chat-check
+  11/11). Menu redesigned (CSS only, all functions intact).
+  Perf: compound 151 / forest 161 / snow 160 / mars 162 calls
+  (bar 165), shadow est 199/200 — the binding constraint now.
+  All four gates green. Report:
+  `docs/sessions/v6-update-06-report.md`. **Not pushed —
+  awaiting Brett's playtest + tap.**
 
 ## Directive V6-3 wave (Oct 25) — Atlas (worlds)
 
