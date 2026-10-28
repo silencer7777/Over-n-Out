@@ -21,6 +21,7 @@ import { OnlineSession } from './online.js';
 import { LobbyChat } from './chat.js';   // U6-14 menu chatroom
 import { VoiceChat } from './voice.js'; // U6-15 WebRTC voice
 import { TouchControls, isTouchDevice } from './touchcontrols.js';
+import { worldToMap, radiusToMap, zoneColor, guidanceFor } from './minimap.js'; // U10-01/02
 import { applyLightingProfile } from './lighting.js';
 // V5 systems (Board 005 §§9–13): shared data/math modules +
 // Atlas's world actors. Solo wires them here; online runs the
@@ -164,7 +165,7 @@ function goLandscape() {
 // hardening law) forbids it, and the lint outranks the
 // convenience. The stamp + versioned asset URLs are the
 // shipped witness; see the U9 report.
-const BUILD_NO = 9;
+const BUILD_NO = 10;
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -196,6 +197,13 @@ let adsHintState = '';
 let adsHintDone = false;
 try { adsHintDone = localStorage.getItem('ono-ads-hint') === '1'; } catch { /* private mode */ }
 const ADS_KIND_LABEL = { iron: 'IRON SIGHTS', reddot: 'RED DOT', holo: 'HOLOGRAPHIC', mid: 'MID SCOPE', sniper: 'SNIPER SCOPE' };
+// U10-01/02: minimap canvas + objective guidance pill.
+const minimapEl = $('minimap');
+const minimapCtx = minimapEl ? minimapEl.getContext('2d') : null;
+const ogEl = $('objective-guide'), ogArrowEl = $('og-arrow'), ogTextEl = $('og-text');
+let minimapT = 0;               // redraw throttle (~8 Hz is plenty for dots)
+let guideObjectives = [];       // last objective set (zones / relay), shared by map + pill
+let guideMode = 'waves';
 const profileLineEl = $('profile-line');
 const classTabsEl = $('class-tabs');
 const classLevelNoteEl = $('class-level-note');
@@ -502,6 +510,8 @@ function resetModeRuntime() {
   const mode = getMode(selectedMode);
   M.timeLeft = mode.timeLimit || 0;
   M.zones = (mode.zones || []).map(z => ({ ...z, owner: null, prog: 0, side: null }));
+  guideObjectives = selectedMode === 'assault' ? [{ ...mode.point, id: '' }] : M.zones; // U10: fresh objectives, never last match's
+  guideMode = selectedMode;
   if (scoreLineEl) scoreLineEl.textContent = '';
 }
 
@@ -1977,6 +1987,83 @@ function endOnlineMatch(ev) {
 
 if (onlineBtn) onlineBtn.addEventListener('click', joinOnline);
 
+// ---------------- U10 minimap + guidance ----------------
+// Painting is 2D canvas only (zero THREE calls). The math lives
+// in js/minimap.js; here we gather live state: solo bots + the
+// mode runtime, or the online snapshot's zone owners merged
+// onto the mode table's coordinates.
+function updateObjectiveGuide(modeId, objectives) {
+  guideMode = modeId;
+  guideObjectives = objectives || [];
+  if (!ogEl) return;
+  const g = (state === 'playing' || state === 'online')
+    ? guidanceFor(modeId, player.position.x, player.position.z, player.yaw, guideObjectives)
+    : null;
+  if (!g) { ogEl.classList.add('hidden'); return; }
+  ogEl.classList.remove('hidden');
+  if (ogArrowEl) ogArrowEl.style.transform = `rotate(${g.relRad}rad)`;
+  if (ogTextEl) {
+    const t = g.target;
+    ogTextEl.textContent = `${g.verb} ${t.id ? t.id + ' · ' : ''}${t.name || ''} · ${g.dist}M`;
+  }
+}
+
+function drawMinimap(dt) {
+  if (!minimapCtx || !minimapEl) return;
+  minimapT -= dt;
+  if (minimapT > 0) return;
+  minimapT = 0.12;
+  const S = minimapEl.width, ctx = minimapCtx;
+  ctx.clearRect(0, 0, S, S);
+  ctx.fillStyle = 'rgba(10,18,12,0.92)';
+  ctx.fillRect(0, 0, S, S);
+  ctx.strokeStyle = 'rgba(182,255,176,0.14)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    const p = (S / 4) * i;
+    ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, S); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(S, p); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(223,245,223,0.75)';
+  ctx.font = `700 ${Math.round(S * 0.075)}px system-ui, sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('N', S / 2, S * 0.055);
+  // Objectives first (under the dots): lettered, owner-coloured.
+  for (const z of guideObjectives) {
+    const { px, py } = worldToMap(z.x, z.z, S);
+    const r = Math.max(7, radiusToMap(z.radius || 6, S));
+    ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2);
+    ctx.fillStyle = zoneColor(z.owner) + '55';
+    ctx.fill();
+    ctx.strokeStyle = zoneColor(z.owner);
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = `800 ${Math.round(S * 0.085)}px system-ui, sans-serif`;
+    ctx.fillText(z.id || '◆', px, py);
+    ctx.font = `700 ${Math.round(S * 0.075)}px system-ui, sans-serif`;
+  }
+  // Living bots: friendly cyan, hostile red.
+  for (const b of bots) {
+    if (b.dead || !b.root) continue;
+    const { px, py } = worldToMap(b.root.position.x, b.root.position.z, S);
+    ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2);
+    ctx.fillStyle = b.team === 'friendly' ? TEAM.you.color : TEAM.kestrel.color;
+    ctx.fill();
+  }
+  // The player: a white arrow pointing the way they face.
+  const me = worldToMap(player.position.x, player.position.z, S);
+  ctx.save();
+  ctx.translate(me.px, me.py);
+  ctx.rotate(-player.yaw); // yaw 0 faces north (map up); canvas rotation is clockwise-positive
+  ctx.beginPath();
+  ctx.moveTo(0, -6); ctx.lineTo(4.4, 5); ctx.lineTo(0, 2.6); ctx.lineTo(-4.4, 5);
+  ctx.closePath();
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.restore();
+}
+
 // ---------------- mode logic (solo) ----------------
 function inZone(pos, zone, yTol = 3.2) {
   const dx = pos.x - zone.x, dz = pos.z - zone.z;
@@ -1991,6 +2078,11 @@ function tickModes(dt) {
       zones: M.zones, channel: M.channel, timeLeft: M.timeLeft,
     });
   }
+  // U10-02: guidance pill + minimap objectives (solo state).
+  updateObjectiveGuide(selectedMode,
+    selectedMode === 'domination' ? M.zones
+    : selectedMode === 'assault' ? [{ ...mode.point, id: '' }]
+    : []);
   if (selectedMode === 'tdm' && scoreLineEl) {
     scoreLineEl.innerHTML = `<span style="color:${TEAM.you.color}">${TEAM.you.name} ${M.scoreYou}</span> · <span style="color:${TEAM.kestrel.color}">${TEAM.kestrel.name} ${M.scoreThem}</span> · FIRST TO ${mode.targetKills}`;
   }
@@ -2164,6 +2256,15 @@ function tick() {
           scoreLineEl.innerHTML = `<span style="color:${TEAM.you.color}">${TEAM.you.name} ${snap.match.scoreYou ?? 0}</span> · <span style="color:${TEAM.kestrel.color}">${TEAM.kestrel.name} ${snap.match.scoreThem ?? 0}</span>`;
         }
         if (uiWave.textContent !== String(snap.match.wave)) uiWave.textContent = snap.match.wave;
+        // U10-02 online: snapshot carries zone OWNERS only —
+        // merge them onto the mode table's coordinates by id.
+        const snapMode = snap.match.mode || selectedMode;
+        const sm = getMode(snapMode);
+        updateObjectiveGuide(snapMode,
+          snapMode === 'domination'
+            ? (sm.zones || []).map(z => ({ ...z, owner: (snap.match.zones || []).find(sz => sz.id === z.id)?.owner ?? null }))
+            : snapMode === 'assault' ? [{ ...sm.point, id: '' }]
+            : []);
       }
     }
     for (const t of tracers) {
@@ -2412,6 +2513,7 @@ function tick() {
     }
   }
 
+  if (state === 'playing' || state === 'online' || state === 'countdown') drawMinimap(dt);
   quality.update(dt);
   renderer.render(scene, camera);
   perfMeter.update(dt);
