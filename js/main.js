@@ -17,7 +17,7 @@ import {
   unlockedClassSlots, isAttachmentUnlocked, isPerkUnlocked, isCamoUnlocked, unlocksBetween, awardXp, XP_VALUES, UNLOCKS, PRESTIGE,
 } from './progression.js';
 import { CAMO_IDS, getCamo } from './camo.js';
-import { EMBLEMS, getEmblem, isEmblemUnlocked, getBadge, claimDailyReward, recordMatch } from './meta.js'; // U13 meta phase 1
+import { EMBLEMS, SHOP_EMBLEMS, getEmblem, isEmblemUnlocked, BADGES, getBadge, claimDailyReward, recordMatch, TIER_PACKAGES, SPECIAL_OFFERS, getShopItem, purchaseItem, priceFor, featuredOfferId } from './meta.js'; // U13 meta phase 1 + U14 phase 2 (shop)
 import { OnlineSession } from './online.js';
 import { LobbyChat } from './chat.js';   // U6-14 menu chatroom
 import { VoiceChat } from './voice.js'; // U6-15 WebRTC voice
@@ -166,7 +166,7 @@ function goLandscape() {
 // hardening law) forbids it, and the lint outranks the
 // convenience. The stamp + versioned asset URLs are the
 // shipped witness; see the U9 report.
-const BUILD_NO = 13;
+const BUILD_NO = 14;
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -292,6 +292,7 @@ let lobbyChat = null;              // LobbyChat — the menu chatroom socket
 const camoPickersEl = $('camo-pickers');
 const metaLineEl = $('meta-line'), emblemPickersEl = $('emblem-pickers'), badgeLineEl = $('badge-line');
 const dailyBtn = $('daily-btn'), dailyLineEl = $('daily-line');
+const shopLineEl = $('shop-line'), packagePickersEl = $('package-pickers'), offerLineEl = $('offer-line'), offerPickersEl = $('offer-pickers'); // U14 shop
 const QUALITY_BY_MODE = { high: 0, medium: 2, low: 3 };
 
 function applySettings() {
@@ -397,11 +398,27 @@ function localDateStr() {
   const p = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+// U14 shop purchase: buys through js/meta.js purchaseItem with
+// the player's LOCAL date (so the featured discount matches the
+// panel), persists like emblem selection, re-renders, and
+// reports the outcome on the shop line. Owned items render
+// disabled, so an 'owned' refusal cannot be triggered here.
+function buyShopItem(itemId) {
+  const r = purchaseItem(profile.meta, itemId, localDateStr());
+  if (r.purchased) persistProfile();
+  renderMetaPanel();
+  if (shopLineEl) {
+    const item = getShopItem(itemId);
+    if (r.purchased) shopLineEl.textContent = `${item.name} acquired — emblem unlocked`;
+    else if (r.reason === 'funds') shopLineEl.textContent = 'Not enough MC';
+  }
+}
 function renderMetaPanel() {
   const meta = profile.meta;
+  const owned = Array.isArray(meta.owned) ? meta.owned : [];
   if (metaLineEl) {
     const e = getEmblem(meta.emblem);
-    metaLineEl.textContent = `${e.glyph} ${e.name} · ${meta.credits} MC · ${meta.badges.length} / 8 BADGES`;
+    metaLineEl.textContent = `${e.glyph} ${e.name} · ${meta.credits} MC · ${meta.badges.length} / ${BADGES.length} BADGES`;
   }
   if (emblemPickersEl) {
     emblemPickersEl.textContent = '';
@@ -418,6 +435,59 @@ function renderMetaPanel() {
         renderMetaPanel();
       });
       emblemPickersEl.appendChild(btn);
+    }
+    // U14: shop emblems follow the level emblems — owned ones
+    // select like unlocked emblems; unowned ones are locked and
+    // labelled with the granting item's name (never a level).
+    for (const e of SHOP_EMBLEMS) {
+      const ownedShop = owned.includes(e.itemId);
+      const item = getShopItem(e.itemId);
+      const btn = document.createElement('button');
+      btn.className = 'wpn' + (e.id === meta.emblem ? ' selected' : '') + (ownedShop ? '' : ' locked');
+      btn.textContent = ownedShop ? `${e.glyph} ${e.name}` : `🔒 ${e.glyph} ${e.name} — ${item ? item.name : e.itemId}`;
+      btn.disabled = !ownedShop;
+      btn.addEventListener('click', () => {
+        profile.meta.emblem = e.id;
+        persistProfile();
+        renderMetaPanel();
+      });
+      emblemPickersEl.appendChild(btn);
+    }
+  }
+  // U14 SUPPLY: owned count, tier packages, and special offers
+  // (today's featured offer at the discounted priceFor price).
+  if (shopLineEl) {
+    shopLineEl.textContent = `SUPPLY — ${owned.length} / ${TIER_PACKAGES.length + SPECIAL_OFFERS.length} ITEMS OWNED · ${meta.credits} MC`;
+  }
+  if (packagePickersEl) {
+    packagePickersEl.textContent = '';
+    for (const item of TIER_PACKAGES) {
+      const isOwned = owned.includes(item.id);
+      const btn = document.createElement('button');
+      btn.className = 'wpn' + (isOwned ? ' selected' : '');
+      btn.textContent = isOwned ? `${item.name} — OWNED` : `${item.name} — ${item.price} MC`;
+      btn.disabled = isOwned;
+      btn.addEventListener('click', () => buyShopItem(item.id));
+      packagePickersEl.appendChild(btn);
+    }
+  }
+  if (offerLineEl || offerPickersEl) {
+    const today = localDateStr();
+    const featuredId = featuredOfferId(today);
+    const featured = featuredId ? getShopItem(featuredId) : null;
+    if (offerLineEl) offerLineEl.textContent = featured ? `★ TODAY'S FEATURED OFFER: ${featured.name} — 30% OFF` : '';
+    if (offerPickersEl) {
+      offerPickersEl.textContent = '';
+      for (const item of SPECIAL_OFFERS) {
+        const isOwned = owned.includes(item.id);
+        const isFeatured = item.id === featuredId;
+        const btn = document.createElement('button');
+        btn.className = 'wpn' + (isOwned ? ' selected' : '');
+        btn.textContent = isOwned ? `${item.name} — OWNED` : `${item.name} — ${priceFor(item.id, today)} MC` + (isFeatured ? ' ★ FEATURED — 30% OFF' : '');
+        btn.disabled = isOwned;
+        btn.addEventListener('click', () => buyShopItem(item.id));
+        offerPickersEl.appendChild(btn);
+      }
     }
   }
   if (badgeLineEl) {
