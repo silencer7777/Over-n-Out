@@ -139,8 +139,8 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   const touch = readFileSync(new URL('../js/touchcontrols.js', import.meta.url), 'utf8');
-  eq(html.includes('id="build-stamp"') && html.includes('BUILD U11'), true, 'T7 menu build stamp present (cache witness)'); // U11 named re-pin: witness 10 -> 11
-  eq(html.includes('name="ono-build" content="11"'), true, 'T7 ono-build meta present'); // U11 named re-pin
+  eq(html.includes('id="build-stamp"') && html.includes('BUILD U12'), true, 'T7 menu build stamp present (cache witness)'); // U12 named re-pin: witness 11 -> 12
+  eq(html.includes('name="ono-build" content="12"'), true, 'T7 ono-build meta present'); // U12 named re-pin
   eq(main.includes('__onoBuild'), true, 'T7 build number exposed for support reads');
   eq(main.includes("matchMedia('(orientation: portrait)')") && main.includes("'pageshow'"), true, 'T7 redundant iOS fit triggers present');
   eq(touch.includes("'orientationchange'"), true, 'T7 touch layer re-feeds viewport on orientationchange');
@@ -175,6 +175,28 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   eq(html.includes('id="minimap"') && html.includes('id="objective-guide"'), true, 'T8 minimap + guidance markup present');
   eq(main.includes('function drawMinimap') && main.includes('function updateObjectiveGuide'), true, 'T8 minimap/guidance wired in main');
   eq(css.includes('#minimap') && css.includes('body.touch-mode #minimap'), true, 'T8 minimap has a touch placement (all devices)');
+}
+
+// T9: U12 — minimap reveal rule (Brett: enemies show only when
+// they fire), menu grid removal, lightning streak wiring.
+{
+  const mm = await import('../js/minimap.js');
+  eq(mm.ENEMY_REVEAL_SECONDS, 2.5, 'T9 enemy reveal window is 2.5 s');
+  eq(mm.enemyDotVisible('friendly', Infinity), true, 'T9 friendly dots always show');
+  eq(mm.enemyDotVisible('hostile', Infinity), false, 'T9 hostile who never fired is hidden');
+  eq(mm.enemyDotVisible('hostile', 0), true, 'T9 hostile who just fired shows');
+  eq(mm.enemyDotVisible('hostile', 2.5), true, 'T9 hostile at the window edge shows');
+  eq(mm.enemyDotVisible('hostile', 2.6), false, 'T9 hostile past the window hides again');
+  const bots = readFileSync(new URL('../js/bots.js', import.meta.url), 'utf8');
+  eq(bots.includes('this.shotAge = 0;'), true, 'T9 bots stamp shotAge on firing');
+  const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  eq(main.includes('enemyDotVisible('), true, 'T9 minimap draw consults the reveal rule');
+  eq(main.includes("id === 'lightning'"), true, 'T9 lightning launch branch wired in main');
+  const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  eq(css.includes('repeating-linear-gradient(0deg, rgba(182, 255, 176, .028)'), false, 'T9 menu grid gradient removed (Brett order)');
+  const streaks = await import('../js/streaks.js');
+  const lg = streaks.getStreak('lightning');
+  eq(lg && lg.cost === 1100 && lg.warn === 1.0 && lg.radius === 5 && lg.damage === 150, true, 'T9 lightning def: 1100 / warn 1.0 / r5 / dmg 150');
 }
 
 if (failures) { console.error(`\nmobile-check: ${failures} failure(s)`); process.exit(1); }
