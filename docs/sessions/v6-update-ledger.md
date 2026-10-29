@@ -370,6 +370,35 @@ only when they cost the graphics mission nothing:
   not certified complete). Queue head: attack dogs (AI),
   meta systems (emblems + badges), movement follow-ups.
 
+- **Update 13 LANDED + PUSHED LIVE** (Oct 29, commits
+  `f4e25d5` spec + `73d7231` code + this landing): queue head
+  — **meta systems phase 1** (Laurel). **New pure module
+  `js/meta.js`:** 8 emblems earned by level (★ MERIDIAN STAR
+  L1 → ◆ VOID DIAMOND L25), 8 special badges from lifetime
+  stats + level (FIRST BLOOD 1 kill … HIGH COMMAND L20),
+  7-day daily-reward cycle paying **Meridian Credits**
+  (50/75/100/125/150/200/300 MC — in-game currency only, no
+  real-money ever). **Profile meta block** (credits / emblem /
+  badges / daily / stats) sanitized + clamped on load/save;
+  pre-U13 profiles migrate losslessly (smoke PG9). **SERVICE
+  RECORD menu panel:** emblem picker (locked show level),
+  badge line, CLAIM DAILY REWARD button (disables after
+  claiming, names streak day); solo endMatch records stats
+  and reports `BADGE EARNED:` lines (online server-settled,
+  not double-counted). **Economy hardening:** same-day
+  re-claim refused (pure on stored last-claim date), wallet
+  capped 1,000,000 + spend refuses overdraw, badge evaluation
+  idempotent. Build witness 13 (mobile-check T7 **named
+  re-pin**; new T10 ×27, smoke PG9). Perf **Δ0 everywhere**
+  (calls 134/147/146/148, forest 281,526 tris, shadow
+  199/200) — data + DOM only. All five gates green on tree +
+  snapshot; live byte-verified (6 key files exact).
+  Report: `docs/sessions/v6-update-13-report.md`. **The
+  count is now 13.** Still open: Stage 2 signed sessions
+  (hardening not certified complete). Queue head: meta
+  phase 2 (tier packages + special offers spending MC),
+  attack dogs (AI), movement follow-ups.
+
 ## Owner directives (Brett, Oct 28, 2026) — release law, lighting lock lifted, focus queue
 
 **Release law — CHANGED (Oct 28, ~04:01, supersedes the tap
