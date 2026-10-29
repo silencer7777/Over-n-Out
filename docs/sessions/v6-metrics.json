@@ -1,6 +1,6 @@
 {
   "tool": "v6-metrics",
-  "generatedAt": "2026-10-28T20:58:20.694Z",
+  "generatedAt": "2026-10-29T03:04:07.129Z",
   "sections": {
     "gates": {
       "smoke": {
@@ -25,8 +25,8 @@
       },
       "soak": {
         "passed": true,
-        "losUsPerRay": 5.78,
-        "simMsPerTick": 0.054
+        "losUsPerRay": 7.93,
+        "simMsPerTick": 0.048
       },
       "perMapReachability": {
         "maps": {
@@ -449,14 +449,14 @@
           },
           "sustained": {
             "calls": 134,
-            "tris": 74250
+            "tris": 90532
           },
           "inclTransients": {
             "calls": 135,
-            "tris": 74250
+            "tris": 90532
           },
           "shadowPassEstimate": 189,
-          "shadowTrisEstimate": 60264,
+          "shadowTrisEstimate": 75078,
           "equipmentReserveCalls": 32,
           "streakReserveCalls": 17,
           "remoteFigureCalls": 21,
@@ -939,14 +939,14 @@
           },
           "sustained": {
             "calls": 147,
-            "tris": 265244
+            "tris": 281526
           },
           "inclTransients": {
             "calls": 148,
-            "tris": 265244
+            "tris": 281526
           },
           "shadowPassEstimate": 210,
-          "shadowTrisEstimate": 232754,
+          "shadowTrisEstimate": 247568,
           "equipmentReserveCalls": 32,
           "streakReserveCalls": 17,
           "remoteFigureCalls": 21,
@@ -1398,14 +1398,14 @@
           },
           "sustained": {
             "calls": 107,
-            "tris": 192522
+            "tris": 208804
           },
           "inclTransients": {
             "calls": 108,
-            "tris": 192522
+            "tris": 208804
           },
           "shadowPassEstimate": 148,
-          "shadowTrisEstimate": 184942,
+          "shadowTrisEstimate": 199756,
           "equipmentReserveCalls": 32,
           "streakReserveCalls": 17,
           "remoteFigureCalls": 21,
@@ -2037,14 +2037,14 @@
           },
           "sustained": {
             "calls": 146,
-            "tris": 111718
+            "tris": 128000
           },
           "inclTransients": {
             "calls": 147,
-            "tris": 111718
+            "tris": 128000
           },
           "shadowPassEstimate": 211,
-          "shadowTrisEstimate": 97180,
+          "shadowTrisEstimate": 111994,
           "equipmentReserveCalls": 32,
           "streakReserveCalls": 17,
           "remoteFigureCalls": 21,
@@ -2434,14 +2434,14 @@
           },
           "sustained": {
             "calls": 108,
-            "tris": 54756
+            "tris": 71038
           },
           "inclTransients": {
             "calls": 109,
-            "tris": 54756
+            "tris": 71038
           },
           "shadowPassEstimate": 152,
-          "shadowTrisEstimate": 47636,
+          "shadowTrisEstimate": 62450,
           "equipmentReserveCalls": 32,
           "streakReserveCalls": 17,
           "remoteFigureCalls": 21,
@@ -3012,14 +3012,14 @@
           },
           "sustained": {
             "calls": 148,
-            "tris": 96240
+            "tris": 112522
           },
           "inclTransients": {
             "calls": 149,
-            "tris": 96240
+            "tris": 112522
           },
           "shadowPassEstimate": 213,
-          "shadowTrisEstimate": 72786,
+          "shadowTrisEstimate": 87600,
           "equipmentReserveCalls": 32,
           "streakReserveCalls": 17,
           "remoteFigureCalls": 21,
@@ -3347,14 +3347,14 @@
           },
           "sustained": {
             "calls": 101,
-            "tris": 54570
+            "tris": 70852
           },
           "inclTransients": {
             "calls": 102,
-            "tris": 54570
+            "tris": 70852
           },
           "shadowPassEstimate": 138,
-          "shadowTrisEstimate": 47764,
+          "shadowTrisEstimate": 62578,
           "equipmentReserveCalls": 32,
           "streakReserveCalls": 17,
           "remoteFigureCalls": 21,
@@ -3448,26 +3448,26 @@
     "sharedCosts": {
       "botCalls": 8,
       "botCasters": 4,
-      "botTris": 4362,
-      "botVerts": 13070,
+      "botTris": 6008,
+      "botVerts": 18008,
       "botFlatShare": 0,
-      "worstBotTris": 4598,
-      "worstViewmodelTris": 1000,
+      "worstBotTris": 6376,
+      "worstViewmodelTris": 1280,
       "botByWeapon": {
         "ar": {
           "calls": 8,
-          "tris": 4362,
-          "verts": 13070,
+          "tris": 6008,
+          "verts": 18008,
           "shadowCasters": 4,
-          "casterTris": 4338,
+          "casterTris": 5984,
           "instancedMeshes": 0,
           "instances": 0,
           "instancedTris": 0,
           "instancedShare": 0,
           "flatTris": 0,
           "flatShare": 0,
-          "texturedTris": 3574,
-          "texturedShare": 0.819,
+          "texturedTris": 5072,
+          "texturedShare": 0.844,
           "largestUntexturedMesh": {
             "tris": 2,
             "area": 1,
@@ -3482,18 +3482,18 @@
         },
         "smg": {
           "calls": 8,
-          "tris": 4114,
-          "verts": 12326,
+          "tris": 5732,
+          "verts": 17180,
           "shadowCasters": 4,
-          "casterTris": 4090,
+          "casterTris": 5708,
           "instancedMeshes": 0,
           "instances": 0,
           "instancedTris": 0,
           "instancedShare": 0,
           "flatTris": 0,
           "flatShare": 0,
-          "texturedTris": 3574,
-          "texturedShare": 0.869,
+          "texturedTris": 5072,
+          "texturedShare": 0.885,
           "largestUntexturedMesh": {
             "tris": 2,
             "area": 1,
@@ -3508,18 +3508,18 @@
         },
         "shotgun": {
           "calls": 8,
-          "tris": 4186,
-          "verts": 12542,
+          "tris": 5836,
+          "verts": 17492,
           "shadowCasters": 4,
-          "casterTris": 4162,
+          "casterTris": 5812,
           "instancedMeshes": 0,
           "instances": 0,
           "instancedTris": 0,
           "instancedShare": 0,
           "flatTris": 0,
           "flatShare": 0,
-          "texturedTris": 3574,
-          "texturedShare": 0.854,
+          "texturedTris": 5072,
+          "texturedShare": 0.869,
           "largestUntexturedMesh": {
             "tris": 2,
             "area": 1,
@@ -3534,18 +3534,18 @@
         },
         "dmr": {
           "calls": 8,
-          "tris": 4598,
-          "verts": 13778,
+          "tris": 6376,
+          "verts": 19112,
           "shadowCasters": 4,
-          "casterTris": 4574,
+          "casterTris": 6352,
           "instancedMeshes": 0,
           "instances": 0,
           "instancedTris": 0,
           "instancedShare": 0,
           "flatTris": 0,
           "flatShare": 0,
-          "texturedTris": 3574,
-          "texturedShare": 0.777,
+          "texturedTris": 5072,
+          "texturedShare": 0.795,
           "largestUntexturedMesh": {
             "tris": 2,
             "area": 1,
@@ -3560,18 +3560,18 @@
         },
         "pistol": {
           "calls": 8,
-          "tris": 3958,
-          "verts": 11858,
+          "tris": 5512,
+          "verts": 16520,
           "shadowCasters": 4,
-          "casterTris": 3934,
+          "casterTris": 5488,
           "instancedMeshes": 0,
           "instances": 0,
           "instancedTris": 0,
           "instancedShare": 0,
           "flatTris": 0,
           "flatShare": 0,
-          "texturedTris": 3574,
-          "texturedShare": 0.903,
+          "texturedTris": 5072,
+          "texturedShare": 0.92,
           "largestUntexturedMesh": {
             "tris": 2,
             "area": 1,
@@ -3588,8 +3588,8 @@
       "viewmodelByWeapon": {
         "ar": {
           "calls": 5,
-          "tris": 764,
-          "verts": 2292,
+          "tris": 912,
+          "verts": 2736,
           "shadowCasters": 0,
           "casterTris": 0,
           "instancedMeshes": 0,
@@ -3601,21 +3601,21 @@
           "texturedTris": 0,
           "texturedShare": 0,
           "largestUntexturedMesh": {
-            "tris": 328,
-            "area": 0.3,
+            "tris": 368,
+            "area": 0.4,
             "geo": "BufferGeometry"
           },
           "strikeCandidateMesh": {
-            "tris": 328,
-            "area": 0.3,
+            "tris": 368,
+            "area": 0.4,
             "geo": "BufferGeometry"
           },
           "renderables": 5
         },
         "smg": {
           "calls": 3,
-          "tris": 516,
-          "verts": 1548,
+          "tris": 636,
+          "verts": 1908,
           "shadowCasters": 0,
           "casterTris": 0,
           "instancedMeshes": 0,
@@ -3627,12 +3627,12 @@
           "texturedTris": 0,
           "texturedShare": 0,
           "largestUntexturedMesh": {
-            "tris": 296,
+            "tris": 368,
             "area": 0.3,
             "geo": "BufferGeometry"
           },
           "strikeCandidateMesh": {
-            "tris": 296,
+            "tris": 368,
             "area": 0.3,
             "geo": "BufferGeometry"
           },
@@ -3640,8 +3640,8 @@
         },
         "shotgun": {
           "calls": 4,
-          "tris": 588,
-          "verts": 1764,
+          "tris": 740,
+          "verts": 2220,
           "shadowCasters": 0,
           "casterTris": 0,
           "instancedMeshes": 0,
@@ -3653,12 +3653,12 @@
           "texturedTris": 0,
           "texturedShare": 0,
           "largestUntexturedMesh": {
-            "tris": 360,
+            "tris": 196,
             "area": 0.2,
             "geo": "BufferGeometry"
           },
           "strikeCandidateMesh": {
-            "tris": 360,
+            "tris": 196,
             "area": 0.2,
             "geo": "BufferGeometry"
           },
@@ -3666,8 +3666,8 @@
         },
         "dmr": {
           "calls": 5,
-          "tris": 1000,
-          "verts": 3000,
+          "tris": 1280,
+          "verts": 3840,
           "shadowCasters": 0,
           "casterTris": 0,
           "instancedMeshes": 0,
@@ -3679,12 +3679,12 @@
           "texturedTris": 0,
           "texturedShare": 0,
           "largestUntexturedMesh": {
-            "tris": 552,
+            "tris": 704,
             "area": 0.3,
             "geo": "BufferGeometry"
           },
           "strikeCandidateMesh": {
-            "tris": 552,
+            "tris": 704,
             "area": 0.3,
             "geo": "BufferGeometry"
           },
@@ -3692,8 +3692,8 @@
         },
         "pistol": {
           "calls": 4,
-          "tris": 360,
-          "verts": 1080,
+          "tris": 416,
+          "verts": 1248,
           "shadowCasters": 0,
           "casterTris": 0,
           "instancedMeshes": 0,
@@ -3705,12 +3705,12 @@
           "texturedTris": 0,
           "texturedShare": 0,
           "largestUntexturedMesh": {
-            "tris": 120,
+            "tris": 152,
             "area": 0.1,
             "geo": "BufferGeometry"
           },
           "strikeCandidateMesh": {
-            "tris": 120,
+            "tris": 152,
             "area": 0.1,
             "geo": "BufferGeometry"
           },
@@ -3721,18 +3721,18 @@
     "soldiers": {
       "perBot": {
         "calls": 8,
-        "tris": 4362,
-        "verts": 13070,
+        "tris": 6008,
+        "verts": 18008,
         "casters": 4,
-        "casterTris": 4338,
+        "casterTris": 5984,
         "flatShare": 0
       },
       "gunTris": {
-        "ar": 764,
-        "smg": 516,
-        "shotgun": 588,
-        "dmr": 1000,
-        "pistol": 360
+        "ar": 912,
+        "smg": 636,
+        "shotgun": 740,
+        "dmr": 1280,
+        "pistol": 416
       },
       "gunCalls": {
         "ar": 1,
@@ -3745,18 +3745,18 @@
         "perTeam": {
           "hostile": {
             "calls": 8,
-            "tris": 4362,
-            "verts": 13070,
+            "tris": 6008,
+            "verts": 18008,
             "shadowCasters": 4,
-            "casterTris": 4338,
+            "casterTris": 5984,
             "instancedMeshes": 0,
             "instances": 0,
             "instancedTris": 0,
             "instancedShare": 0,
             "flatTris": 0,
             "flatShare": 0,
-            "texturedTris": 3574,
-            "texturedShare": 0.819,
+            "texturedTris": 5072,
+            "texturedShare": 0.844,
             "largestUntexturedMesh": {
               "tris": 2,
               "area": 1,
@@ -3771,18 +3771,18 @@
           },
           "friendly": {
             "calls": 8,
-            "tris": 4362,
-            "verts": 13070,
+            "tris": 6008,
+            "verts": 18008,
             "shadowCasters": 4,
-            "casterTris": 4338,
+            "casterTris": 5984,
             "instancedMeshes": 0,
             "instances": 0,
             "instancedTris": 0,
             "instancedShare": 0,
             "flatTris": 0,
             "flatShare": 0,
-            "texturedTris": 3574,
-            "texturedShare": 0.819,
+            "texturedTris": 5072,
+            "texturedShare": 0.844,
             "largestUntexturedMesh": {
               "tris": 2,
               "area": 1,
@@ -3808,114 +3808,114 @@
             "team": "hostile",
             "camo": "woodland",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "hostile",
             "camo": "arctic",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "hostile",
             "camo": "desert",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "hostile",
             "camo": "urban",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "hostile",
             "camo": "night",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "hostile",
             "camo": "mirage",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "hostile",
             "camo": "tiger",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "hostile",
             "camo": "crimson",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "hostile",
             "camo": "gold",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "friendly",
             "camo": "woodland",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "friendly",
             "camo": "arctic",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "friendly",
             "camo": "desert",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "friendly",
             "camo": "urban",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "friendly",
             "camo": "night",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "friendly",
             "camo": "mirage",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "friendly",
             "camo": "tiger",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "friendly",
             "camo": "crimson",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           },
           {
             "team": "friendly",
             "camo": "gold",
             "calls": 8,
-            "tris": 4362
+            "tris": 6008
           }
         ],
         "pass": true,
         "baseCalls": 8,
-        "baseTris": 4362
+        "baseTris": 6008
       }
     },
     "equipment": {
@@ -4035,7 +4035,7 @@
           "matchBooted": true,
           "snapshotsReceived": 1428
         },
-        "msPerTickAvg": 0.104,
+        "msPerTickAvg": 0.141,
         "windowMsPerTick": null,
         "maxWave": 1,
         "maxAliveBots": 4,
@@ -4052,7 +4052,7 @@
           "matchBooted": true,
           "snapshotsReceived": 5092
         },
-        "msPerTickAvg": 0.121,
+        "msPerTickAvg": 0.145,
         "windowMsPerTick": null,
         "maxWave": 3,
         "maxAliveBots": 7,
@@ -4090,8 +4090,8 @@
     },
     "capabilities": {
       "packageVersion": "0.6.0-dev",
-      "losProfileUsPerRay": 5.78,
-      "loadoutCombinations": 49863600,
+      "losProfileUsPerRay": 7.93,
+      "loadoutCombinations": 99727200,
       "camoCount": 9,
       "mapRegistry": {
         "compound": {
@@ -4131,9 +4131,9 @@
     "FLAT SURFACE STRIKE (LAYOUT snow (pre-wiring projection)): largest in-scope untextured static mesh ≈ 33924.8 m² (BoxGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 12 tris of flat colour",
     "FLAT SURFACE STRIKE (LAYOUT mars (pre-wiring projection)): largest in-scope untextured static mesh ≈ 33924.8 m² (BoxGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 12 tris of flat colour",
     "SOLDIER BAR (§2.4): bot costs 8 calls > 7 — Update 4 must hold ≤7 calls per bot while smoothing the kit read",
-    "tree is DIRTY at measurement time — numbers describe the working tree, not HEAD (a051032)"
+    "tree is DIRTY at measurement time — numbers describe the working tree, not HEAD (fda1286)"
   ],
-  "head": "a051032",
+  "head": "fda1286",
   "treeClean": false,
   "bars": {
     "drawCallsPerMap": 165,
