@@ -430,3 +430,186 @@ lighting-lock statement is superseded by Brett's Oct 28 lock
 lift (U7 lighting changes landed), and Lesson 7's Forest
 snapshot numbers are stale post-U10 — both due for correction
 under the playbook's own prune rules.
+
+---
+
+## Thu Oct 29, 2026 — EFFICIENCY
+
+**Staff:** Training Lead (ran the session), REVIEWER (recent
+record, read-only), COACH (drill design + independent grading
+pass on the actual tree — re-ran smoke, re-planted the negative
+test, phase-timed the suite, and re-measured the gate itself).
+
+**Pre-checks:** Tree clean on `main` at `43113b8` (BUILD U13)
+before the session — full session allowed. Guardian 15:10 UTC
+Watch rotation: all-pass, SMOKE PASSED, live integrity
+byte-identical to HEAD (U13), Stage 2 signed session
+verification still open (known, not new).
+
+**Target (from Sunday's focus list):** measure smoke/guardian
+trend and per-map calls/tris; optimise only the port-8199 wait
+path or the VM4 "paid for" check if the data shows it saves
+repeat runs. Coach's design widened the target on evidence:
+the wait is real but small; the serial syntax fan-out in
+`tools/smoke.mjs` §1 is the largest single phase. VM4 was ruled
+out in-session (its rule was already reframed in the Update-13
+close-out; no VM4 code exists to optimise).
+
+**Reviewer findings (tree-verified by Lead where load-bearing):**
+- Nothing is red and nothing regressed: guardian at 82+ runs,
+  recent all exit 0; U11/U12/U13 landed clean since Wednesday.
+  The "355 checks" headline is a ✓-glyph line count; the suite's
+  own distinct-check counter is 297 — figures must name their
+  instrument.
+- Under-tested / unmeasured, carried forward: VM2 reporter still
+  pools assault and ignores `channelMax` (Wednesday §9, slated
+  Fri Oct 30); ASSAULT U1–U3 unblocks open with Havoc; Stage 2
+  signed sessions open; no per-phase timing existed for smoke
+  before today.
+- Per-map costs (two instruments, do not mix): v6-metrics STATIC
+  audit — compound 51 calls / 31,268 tris, forest 64 / 222,262,
+  snow 63 / 68,736, mars 65 / 53,258; sustained totals per the
+  U13 report — 134 / 147 / 146 / 148 calls vs the 165 veto.
+  Forest remains the perf risk: 193,712 shadow-caster tris
+  (87% of its static tris; Lesson 7's warning stands, updated
+  numbers). No game-code optimisation was attempted today —
+  tooling only, per the drill.
+- Carried to Sunday CONSOLIDATE (Reviewer, confirmed): Lesson 1
+  (lighting lock lifted Oct 28 — restate or retire) and
+  Lesson 7 (Forest snapshot stale post-U10/U11).
+
+**Drill run (both changes in `tools/smoke.mjs` only):**
+1. **Syntax phase, bounded-parallel:** the serial loop (81 files
+   × copy to `.check.mjs` + `execFileSync node --check`, ~85–90 ms
+   of process startup per spawn) now runs 4 bounded async workers
+   (`execFile`); results are buffered and printed in original
+   walk order. No file's check, message, or verdict changed.
+2. **Boot wait, poll instead of sleep:** `wait(900)` replaced by
+   a 50 ms poll of `GET /` until ok, 5 s deadline, breaking if
+   the server process exits; if it never readies, the route loop
+   fails and reports exactly as before. Port stays 8199; no
+   check lines added or removed. Recorded as dead-time removal
+   + robustness (the 900 ms false-fail cliff is gone), per
+   Coach's instruction not to dress it as a standalone speed win.
+
+**Measurements (the honest version — load drifted all session):**
+- Server-ready time, three instruments: Lead 10 trials on
+  dedicated ports, median 96 ms (min 93, max 293 first-spawn);
+  Reviewer 30 trials on port 8199, median 165 ms; Coach grading
+  pass 40 trials, median 49 ms. Reported as a range (49–165 ms
+  medians); every instrument agrees the fixed 900 ms wait burned
+  ~750 ms/run.
+- Baselines moved with load: Lead session-start median-of-3
+  7.89 s (quiet); Lead pre-drill median-of-5 13.47 s (loaded);
+  Coach loaded medians 9.2–11.3 s. A single before/after would
+  have measured the machine, not the change (Lesson 24).
+- **Decisive test — interleaved A/B** (alternating runs, same
+  path): mod 10.96 / base 12.43 / mod 10.53 / base 12.73 /
+  mod 11.51 / base 14.54 → **base median-of-3 12.73 s, modified
+  median-of-3 10.96 s, −1.77 s** (13.9% of the load-inflated
+  median; paired deltas 1.47 / 2.20 / 3.03 s, modified faster
+  3/3; the absolute saving exceeds Coach's 1.2 s gate
+  calibration on the quiet baseline).
+- Coach's independent re-measurement (median-of-4s, quieter
+  machine): modified 8.63 s vs baseline 9.22 s (−0.59 s, −6.4%),
+  and phase timing putting the syntax phase at 3.32 s of a
+  9.87 s serial run (~34%). The improvement is real in every
+  reading and smaller when the box is quiet — both facts are
+  recorded; the saving scales with load because process-startup
+  contention is what the parallel workers relieve.
+- Attribution (Lead estimate, NOT independently verified —
+  Coach's counter-measurement bounds the boot poll at ≤0.85 s):
+  boot poll ≈0.75 s of the A/B delta; syntax parallel ≈1.0 s
+  (scratch bench: serial 7.50 s vs parallel-4 median 6.50 s
+  over 82 files under load; bench deleted, not in the change).
+
+**Equivalence evidence:**
+- Full stdout diff, baseline vs modified run: **byte-identical**,
+  including syntax line order and all check counts.
+- Negative test (run by Lead AND independently by Coach):
+  planted `scratch/__training_broken.mjs` → exit 1,
+  `SMOKE FAILED (1)`, exactly that file flagged with its parse
+  error (path:line preserved), all other files passed; file
+  removed after. Coach re-planted a different broken file with
+  the same result (sole failure, attribution intact).
+- Zero leftover `*.check.mjs` after passing and failing runs;
+  `git status` shows only `tools/smoke.mjs` modified. No game
+  code, no dependencies, no port change, perf budgets untouched.
+
+**Corrections made in-session:** the change's first header
+comment claimed the syntax loop was "~85% of total smoke
+runtime" (an early estimate); Coach's phase timing says ~34%
+on a quiet box. The comment was corrected before commit, and
+the 85% figure is NOT carried into the lessons (Lesson 25 says
+"largest single phase").
+
+**Close-out verification (Lead, personally run):**
+`node tools/smoke.mjs` → **SMOKE PASSED, exit 0** on the
+end-state tree (81 syntax checks, no temp litter), after the
+comment correction.
+
+**Grade:** **PASS** (Coach grading pass — all six criteria
+verified independently: output byte-identical, other sections
+and port unchanged, concurrency bounded at 4 with drained
+promises, negative test reproduced by Coach's own hand, no
+litter after 5+ runs incl. one induced failure, tree scope
+exactly one tooling file. The landing gate ruled satisfied on
+its conjunctive reading: every component demonstrated, and the
+paired A/B + absolute saving over the 1.2 s calibration carry
+it. Two minor deductions, neither blocking: (1) the gate
+arithmetic is load-sensitive — Coach's own medians show
+−6.4%, so the −1.77 s headline must always travel with its
+method, as recorded here; (2) the ~85% premise fraction was
+wrong and stands corrected to ~34%.)
+
+**Commits:** one local commit, `training: efficiency — parallel
+syntax checks + poll-based server wait in smoke`. Not pushed.
+
+**New lessons:** 24 (interleave the A/B when load drifts),
+25 (parallelise a subprocess fan-out, but buffer the verdicts),
+26 (a fixed sleep before a probe is dead time plus a false-fail
+cliff). Next session: Fri Oct 30 — TEST CRAFT, VM2 reporter
+adoption per the assault diagnostic §9 (per-map assault
+reporting + `channelMax`), the spec already written Wednesday.
+
+**Re-grade correction (second, independent Coach grading pass,
+filed after the commit above — the PASS above was the first
+grading pass): NEEDS WORK, one blocking defect.** Solo
+behaviour re-verified byte-equivalent and the speed win
+reproduced (Coach's own A/B: −1.48 s, 3/3 paired), and the gate
+ruled satisfied on its calibration clause — but under
+CONCURRENCY the change amplified a pre-existing collision:
+both smoke versions name temps deterministically
+(`<file>.check.mjs`) and unlink in `finally`, so overlapping
+instances delete each other's temps. Baseline cost 1 false
+failure in Coach's isolation test; the 4-worker version cost
+12 and 44 (lockstep temp churn), and the walk snapshot could
+pick a sibling's temps up as extra syntax lines. It fired for
+real the same hour: **the 16:07 UTC guardian run exited 1,
+`SMOKE FAILED (4)` — the first SMOKE FAILED in 83 guardian
+entries** — all four "Cannot find module …check.mjs", during
+this session's overlapping verification runs. Guardian re-ran
+clean solo at 16:10 UTC, made no Medic edit (one-pen: training's
+surface), and wrote the same prescription Coach did.
+
+**Follow-up fix (second `training:` commit, same session):**
+- Temp names unique per process: `<file>.<pid>.check.mjs`.
+- The syntax walk now filters out `*.check.mjs`, so a temp
+  artifact is never treated as a source file.
+- Server section: if our server child died (a sibling owns
+  port 8199), wait for the port to free (60 s cap) and respawn
+  our own before printing any check line, instead of riding
+  the sibling's server into its end-of-run kill (`ECONNRESET`
+  cost 1 false failure per pair in the first fix attempt).
+  Solo path unchanged apart from a 150 ms ownership settle.
+- Re-verification: solo PASSED with stdout still byte-identical
+  to the pre-drill baseline; negative test still exactly 1
+  correctly-attributed failure; **concurrent pairs ×3: both
+  instances PASSED in all 3 pairs, 81 syntax checks each, zero
+  temp litter.** The re-grade's required trio is met; the
+  session's final grade is PASS **as corrected** — the defect,
+  the guardian red it caused, and the fix are the record, not
+  a footnote.
+
+**New lesson:** 27 (shared temp names + shared ports make
+concurrent runs false-fail — and parallelism amplifies both).
