@@ -15,7 +15,7 @@
 // by migrateLegacySettings() — nothing Brett saved is wiped.
 
 import { MAX_CLASSES, defaultClass, validateClass } from './loadouts.js';
-import { CREDITS_CAP, DEFAULT_EMBLEM, isEmblemId, isBadgeId, isDateStr } from './meta.js';
+import { CREDITS_CAP, DEFAULT_EMBLEM, isEmblemId, isBadgeId, isDateStr, isShopItemId, getShopEmblem } from './meta.js';
 
 export const PROFILE_KEY = 'ono-profile-v1';
 // U6-05: the countdown colour palette. Green is the shipped
@@ -172,6 +172,7 @@ export function createMeta() {
   return {
     credits: 0,
     emblem: DEFAULT_EMBLEM,
+    owned: [],
     badges: [],
     daily: { lastClaim: null, streakDay: 0 },
     stats: { matches: 0, wins: 0, kills: 0 },
@@ -228,7 +229,16 @@ export function sanitizeProfile(raw) {
   if (raw.meta && typeof raw.meta === 'object') {
     const m = raw.meta;
     if (Number.isFinite(m.credits)) p.meta.credits = Math.max(0, Math.min(CREDITS_CAP, Math.floor(m.credits)));
-    if (isEmblemId(m.emblem)) p.meta.emblem = m.emblem;
+    // U14 owned list is parsed BEFORE emblem validation: a shop
+    // emblem may only be worn when its granting item is owned.
+    if (Array.isArray(m.owned)) {
+      p.meta.owned = [...new Set(m.owned.filter(id => isShopItemId(id)))].slice(0, 6);
+    }
+    if (isEmblemId(m.emblem)) {
+      p.meta.emblem = m.emblem;
+      const shop = getShopEmblem(m.emblem);
+      if (shop && !p.meta.owned.includes(shop.itemId)) p.meta.emblem = DEFAULT_EMBLEM;
+    }
     if (Array.isArray(m.badges)) {
       p.meta.badges = [...new Set(m.badges.filter(id => isBadgeId(id)))].slice(0, 32);
     }
