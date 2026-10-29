@@ -1,4 +1,5 @@
-// meta.js — META SYSTEMS PHASE 1 (V6 Update 13, Laurel + Ledger).
+// meta.js — META SYSTEMS (V6 Update 13 phase 1, Laurel + Ledger;
+// Update 14 phase 2 adds the shop: tier packages + special offers).
 //
 // Emblems, special badges, daily rewards, and the in-game
 // currency (Meridian Credits) they run on. Pure data + pure
@@ -35,11 +36,34 @@ export const EMBLEMS = [
 ];
 export const EMBLEM_IDS = EMBLEMS.map(e => e.id);
 
+// Shop emblems (U14 meta phase 2) — granted by tier packages and
+// special offers below, never by level. getEmblem resolves level
+// emblems first, then shop emblems, then the default, so any
+// known emblem id renders; wearing one is gated by ownership in
+// js/progression.js sanitize (a hand-edited profile cannot wear
+// an unearned shop emblem).
+export const SHOP_EMBLEMS = [
+  { id: 'field-chevron', name: 'FIELD CHEVRON', glyph: '❯❯', itemId: 'field-pack' },
+  { id: 'ranger-star', name: 'RANGER STAR', glyph: '✦', itemId: 'ranger-pack' },
+  { id: 'command-banner', name: 'COMMAND BANNER', glyph: '⚑', itemId: 'command-pack' },
+  { id: 'medic-cross', name: 'MEDIC CROSS', glyph: '✚', itemId: 'medic-kit' },
+  { id: 'ace', name: 'ACE', glyph: '♠', itemId: 'ace-kit' },
+  { id: 'flare-star', name: 'FLARE STAR', glyph: '✧', itemId: 'flare-kit' },
+];
+export const SHOP_EMBLEM_IDS = SHOP_EMBLEMS.map(e => e.id);
+
+export function getShopEmblem(id) {
+  return SHOP_EMBLEMS.find(e => e.id === id) || null;
+}
+export function isShopEmblemId(id) {
+  return SHOP_EMBLEMS.some(e => e.id === id);
+}
+
 export function getEmblem(id) {
-  return EMBLEMS.find(e => e.id === id) || EMBLEMS[0];
+  return EMBLEMS.find(e => e.id === id) || SHOP_EMBLEMS.find(e => e.id === id) || EMBLEMS[0];
 }
 export function isEmblemId(id) {
-  return EMBLEMS.some(e => e.id === id);
+  return EMBLEMS.some(e => e.id === id) || SHOP_EMBLEMS.some(e => e.id === id);
 }
 export function isEmblemUnlocked(level, id) {
   const e = EMBLEMS.find(x => x.id === id);
@@ -61,6 +85,10 @@ export const BADGES = [
   { id: 'marksman', name: 'MARKSMAN', test: (m, lvl) => m.stats.kills >= 500 },
   { id: 'completionist', name: 'COMPLETIONIST', test: (m, lvl) => m.stats.matches >= 50 },
   { id: 'high-command', name: 'HIGH COMMAND', test: (m, lvl) => lvl >= 20 },
+  // U14 shop badges — tests guard meta.owned for fixtures and
+  // pre-U14 metas that have no owned list yet.
+  { id: 'outfitter', name: 'OUTFITTER', test: (m, lvl) => Array.isArray(m.owned) && m.owned.length >= 1 },
+  { id: 'quartermaster', name: 'QUARTERMASTER', test: (m, lvl) => Array.isArray(m.owned) && ['field-pack', 'ranger-pack', 'command-pack'].every(id => m.owned.includes(id)) },
 ];
 export const BADGE_IDS = BADGES.map(b => b.id);
 
@@ -141,6 +169,73 @@ export function claimDailyReward(meta, dateStr) {
   daily.streakDay = streakDay;
   addCredits(meta, amount);
   return { claimed: true, amount, streakDay };
+}
+
+// ----------------------------------------------------------------
+// Shop (U14 meta phase 2) — tier packages + special offers.
+// Everything MC buys is cosmetic and self-contained: a shop
+// emblem for the Service Record. No XP, no power, no gameplay
+// effect. In-game currency ONLY (Brett's law).
+//
+// Economy integrity (Lockdown): items are one-time — the owned
+// check precedes any charge, so a duplicate buy can never be
+// charged twice; the featured discount is a pure function of
+// the injected date string (no client state to tamper with);
+// the guarded spendCredits can never overdraw.
+// ----------------------------------------------------------------
+export const TIER_PACKAGES = [
+  { id: 'field-pack', name: 'FIELD PACK', price: 150, emblem: 'field-chevron' },
+  { id: 'ranger-pack', name: 'RANGER PACK', price: 450, emblem: 'ranger-star' },
+  { id: 'command-pack', name: 'COMMAND PACK', price: 900, emblem: 'command-banner' },
+];
+export const SPECIAL_OFFERS = [
+  { id: 'medic-kit', name: 'MEDIC KIT', price: 250, emblem: 'medic-cross' },
+  { id: 'ace-kit', name: 'ACE KIT', price: 350, emblem: 'ace' },
+  { id: 'flare-kit', name: 'FLARE KIT', price: 550, emblem: 'flare-star' },
+];
+export const SHOP_ITEM_IDS = [...TIER_PACKAGES, ...SPECIAL_OFFERS].map(i => i.id);
+
+export function getShopItem(id) {
+  return TIER_PACKAGES.find(i => i.id === id) || SPECIAL_OFFERS.find(i => i.id === id) || null;
+}
+export function isShopItemId(id) {
+  return TIER_PACKAGES.some(i => i.id === id) || SPECIAL_OFFERS.some(i => i.id === id);
+}
+
+// Exactly one special offer is featured per day, chosen purely
+// from the date string; packages are never featured/discounted.
+export function featuredOfferId(dateStr) {
+  if (!isDateStr(dateStr)) return null;
+  const idx = ((dayNumber(dateStr) % SPECIAL_OFFERS.length) + SPECIAL_OFFERS.length) % SPECIAL_OFFERS.length;
+  return SPECIAL_OFFERS[idx].id;
+}
+
+// The price of an item on a date: the featured offer sells at
+// 30% off (floor(price × 0.7)); everything else is base price.
+// Unknown items have no price (null).
+export function priceFor(itemId, dateStr) {
+  const item = getShopItem(itemId);
+  if (!item) return null;
+  if (SPECIAL_OFFERS.some(i => i.id === itemId) && featuredOfferId(dateStr) === itemId) {
+    return Math.floor(item.price * 0.7);
+  }
+  return item.price;
+}
+
+// Buy a one-time shop item. Refusals charge nothing and report
+// why: 'unknown' (no such item), 'owned' (already owned —
+// anti-duplication), 'funds' (guarded wallet refused). On
+// success the item id is appended to meta.owned.
+export function purchaseItem(meta, itemId, dateStr) {
+  const item = getShopItem(itemId);
+  if (!item) return { purchased: false, price: 0, reason: 'unknown' };
+  if (!meta || typeof meta !== 'object') return { purchased: false, price: 0, reason: 'funds' };
+  if (!Array.isArray(meta.owned)) meta.owned = [];
+  if (meta.owned.includes(itemId)) return { purchased: false, price: 0, reason: 'owned' };
+  const price = priceFor(itemId, dateStr);
+  if (!spendCredits(meta, price)) return { purchased: false, price: 0, reason: 'funds' };
+  meta.owned.push(itemId);
+  return { purchased: true, price, reason: 'ok' };
 }
 
 // Record one settled SOLO match into the lifetime stats and
