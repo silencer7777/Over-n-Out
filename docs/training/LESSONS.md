@@ -89,6 +89,13 @@ with a source commit/report. No lesson without evidence.
     the channeling. A win rate without attribution is a claim
     about the wrong agent. (Training, Oct 28, 2026; trace
     player-vs-bot ring seconds)
+24. **When machine load drifts, interleave the A/B.** Session load
+    moved smoke medians from 7.89 s to 13.47 s within an hour, so
+    an hour-apart before/after would have measured the load, not
+    the change; alternating baseline/modified runs at the same
+    path (paired deltas 1.47 / 2.20 / 3.03 s, modified faster 3/3)
+    stayed honest. Applies to any timing claim on a shared box.
+    (Training, Oct 29, 2026)
 
 ## D. Build discipline
 
@@ -148,6 +155,33 @@ with a source commit/report. No lesson without evidence.
     1e-4 slack. Bounds proofs should use the same interval the
     code claims, with zero tolerance at the seam. (Coach grading
     deduction, Training, Oct 27, 2026)
+25. **Parallelise a subprocess fan-out, but buffer the verdicts.**
+    81 serial `node --check` spawns (~85–90 ms startup each) were
+    smoke's largest single phase; 4 bounded workers with results
+    printed in original walk order cut it with stdout
+    byte-identical to the serial run. A tooling speedup that
+    changes one verdict line is a behaviour change, not an
+    optimisation. (Training, Oct 29, 2026; Coach phase timing +
+    negative test)
+26. **A fixed sleep before a probe is dead time plus a false-fail
+    cliff.** Smoke waited 900 ms for a server whose ready median
+    measured 49–165 ms across three instruments (report a range,
+    not a point); a 50 ms poll with a 5 s deadline removes
+    ~750 ms/run and lets a slow boot pass honestly instead of
+    failing at the sleep boundary. Applies to any harness that
+    sleeps instead of probing. (Training, Oct 29, 2026)
+27. **Shared temp names + shared ports make concurrent runs
+    false-fail — and parallelism amplifies both.** Deterministic
+    `<file>.check.mjs` temps collided across overlapping smokes
+    (serial baseline: 1 false failure; 4-worker version: 12–44,
+    and the 16:07 UTC guardian run went red with 4). Fixes that
+    held 3/3 concurrent pairs green: per-process temp names
+    (`<file>.<pid>.check.mjs`), never walk a temp artifact as a
+    source, and if your server child died to EADDRINUSE, wait
+    for the port to free and boot your own instead of riding a
+    sibling's server into its kill. Any harness optimisation
+    must be re-proven under concurrency, not just solo.
+    (Training, Oct 29, 2026; Coach re-grade + guardian 16:07 UTC)
 
 ## Retired / do not carry forward (corrected Oct 25, 2026, Reviewer audit)
 
