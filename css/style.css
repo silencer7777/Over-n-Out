@@ -66,6 +66,13 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0b0f14; font-
 #hitmarker.head { color:#ffe98a; font-size:19px; text-shadow:0 0 9px #ffca2a; }
 #dmg-dir { position:absolute; left:50%; top:50%; width:128px; height:128px; transform:translate(-50%,-50%); border-radius:50%; border:4px solid transparent; border-top-color:rgba(255,60,40,.95); opacity:0; pointer-events:none; }
 #profile-line { margin-top:14px; font-size:12px; letter-spacing:3px; color:#ffd34d; }
+/* U13 meta panel — service record (emblems / badges / daily) */
+#meta-panel { margin-top:12px; max-width:560px; }
+#meta-line { font-size:12px; letter-spacing:2px; color:#ffd34d; margin-bottom:8px; }
+#emblem-pickers .wpn.locked { opacity: 0.45; }
+#badge-line { margin-top:8px; font-size:11px; letter-spacing:1px; line-height:1.6; color:#9fd8a8; }
+#daily-btn[disabled] { opacity: 0.55; cursor:default; }
+#daily-line { font-size:11px; letter-spacing:1px; color:#b9cdbd; }
 #mode-pick { margin-top:12px; display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; font-size:11px; letter-spacing:3px; color:#9fd8a8; }
 #mode-select { pointer-events:auto; cursor:pointer; background:rgba(255,255,255,.06); border:1px solid rgba(182,255,176,.35); color:#d9e8db; padding:7px 10px; font-size:12px; letter-spacing:1px; border-radius:4px; max-width:92vw; }
 #mode-select option { background:#0b0f14; color:#d9e8db; }
