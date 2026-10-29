@@ -332,6 +332,44 @@ only when they cost the graphics mission nothing:
   not certified complete); Brett's U9 re-test verdicts.
   Queue head: meta systems (emblems + badges first).
 
+- **Update 12 LANDED + PUSHED LIVE** (Oct 28, commits
+  `fda1286` spec + `c85498f` code + this landing): Brett's
+  post-U11 playtest directives (~14:15) — they outranked the
+  ledger queue (meta). **Minimap rule change (his #1):**
+  enemy dots no longer always show — a hostile dot appears
+  only when that enemy fires, for a 2.5 s reveal (pure rule
+  in js/minimap.js, bot `shotAge` clock, drawMinimap gate;
+  friendlies unchanged; also an information-leak fix).
+  **Scorestreaks phase 1 (his #2):** LIGHTNING STRIKE added
+  whole — 1100 pts, warn 1.0 s, radius 5, damage 150 —
+  loadout-selectable (combination count now true C(6,3)),
+  solo-executable, and server-authoritative online
+  (protocol enum + sim strike path generalised per-def).
+  UAV/care package already shipped V5; **attack dogs phased
+  to a later V6 update** (new AI actor class — Brett's own
+  "dogs later" phasing). **Characters pass 3 (his #3):**
+  segment uplifts across legs/arms/torso/head + bicep, boot-
+  collar and waist-sash overlays inside existing envelopes;
+  hit cores byte-identical (D9 ✓), calls held 8/bot, cost
+  +1,646 tris/bot (4,362 → 6,008) disclosed. **Guns (his
+  #4):** 16-seg barrels, chamfered receivers + pistol slide,
+  tapered AR/DMR muzzle brakes (straight tubes removed), AR
+  angled foregrip; merged, +0 calls, muzzle vectors
+  unchanged. **Menu (his #5):** the #menu::after grid
+  gradients removed (aurora + sweep stay), CSS-only. ADS
+  untouched per his reconfirmation. Build witness 12
+  (mobile-check T7 **named re-pin**; smoke ST1 named pin
+  update for the ladder; new mobile-check T9 ×11). Perf:
+  sustained calls Δ0 (134/147/146/148, bar 165), static tris
+  Δ0, forest sustained 281,526/300k (headroom 18,474 — the
+  bot spend, disclosed), shadow casters Δ0. All five gates
+  green on tree + snapshot (+ ws-soak, soak); live
+  byte-verified (8 key files exact). Report:
+  `docs/sessions/v6-update-12-report.md`. **The count is
+  now 12.** Still open: Stage 2 signed sessions (hardening
+  not certified complete). Queue head: attack dogs (AI),
+  meta systems (emblems + badges), movement follow-ups.
+
 ## Owner directives (Brett, Oct 28, 2026) — release law, lighting lock lifted, focus queue
 
 **Release law — CHANGED (Oct 28, ~04:01, supersedes the tap
