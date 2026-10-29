@@ -657,6 +657,16 @@ try {
   const all = P.unlocksBetween(16, 30);
   if (all.some(u => u.kind === 'prestige') && all.some(u => u.id === 'suppressor')) ok('PG8 unlocksBetween merges power + prestige in level order');
   else fail('PG8 unlocksBetween merge broken');
+  // PG9 (U13): the meta block — defaults, sanitize/repair, and
+  // lossless migration of a pre-U13 profile (no meta key).
+  const mp = P.createProfile();
+  const msan = P.sanitizeProfile({ xp: 100, meta: { credits: 99999999, emblem: 'nope', badges: ['first-blood', 'first-blood', 'bogus'], daily: { lastClaim: '29/10/2026', streakDay: 99 }, stats: { matches: 3.7, wins: -2, kills: 12 } } });
+  if (mp.meta && mp.meta.credits === 0 && mp.meta.emblem === 'meridian-star' && Array.isArray(mp.meta.badges)
+    && msan.meta.credits === 1000000 && msan.meta.emblem === 'meridian-star' && msan.meta.badges.join(',') === 'first-blood'
+    && msan.meta.daily.lastClaim === null && msan.meta.daily.streakDay === 7
+    && msan.meta.stats.matches === 3 && msan.meta.stats.wins === 0 && msan.meta.stats.kills === 12
+    && san.meta && san.meta.credits === 0 && san.xp === 5000) ok('PG9 meta block: defaults + sanitize/clamp + pre-U13 migration lossless');
+  else fail(`PG9 meta → ${JSON.stringify(msan.meta)} / migrated ${JSON.stringify(san.meta)}`);
 } catch (e) { fail('PG progression checks: ' + e.message); }
 
 try {
@@ -759,7 +769,7 @@ try {
 
   // M11 (U10): minimap + guidance ids, CSP meta, and the
   // localhost-default bind for the online server entrypoint.
-  for (const idAttr of ['id="minimap"', 'id="objective-guide"', 'id="og-arrow"', 'id="og-text"']) {
+  for (const idAttr of ['id="minimap"', 'id="objective-guide"', 'id="og-arrow"', 'id="og-text"', 'id="meta-panel"', 'id="meta-line"', 'id="emblem-pickers"', 'id="badge-line"', 'id="daily-btn"', 'id="daily-line"']) {
     if (!home.includes(idAttr)) fail(`M11 served HTML missing ${idAttr}`); else ok(`M11 served HTML contains ${idAttr}`);
   }
   if (!home.includes('Content-Security-Policy') || !home.includes("object-src 'none'")) fail('M11 CSP meta missing or weakened'); else ok('M11 CSP meta present (object-src none)');
