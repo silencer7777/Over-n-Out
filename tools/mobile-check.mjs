@@ -139,8 +139,8 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   const touch = readFileSync(new URL('../js/touchcontrols.js', import.meta.url), 'utf8');
-  eq(html.includes('id="build-stamp"') && html.includes('BUILD U13'), true, 'T7 menu build stamp present (cache witness)'); // U13 named re-pin: witness 12 -> 13
-  eq(html.includes('name="ono-build" content="13"'), true, 'T7 ono-build meta present'); // U13 named re-pin
+  eq(html.includes('id="build-stamp"') && html.includes('BUILD U14'), true, 'T7 menu build stamp present (cache witness)'); // U14 named re-pin: witness 13 -> 14
+  eq(html.includes('name="ono-build" content="14"'), true, 'T7 ono-build meta present'); // U14 named re-pin: witness 13 -> 14
   eq(main.includes('__onoBuild'), true, 'T7 build number exposed for support reads');
   eq(main.includes("matchMedia('(orientation: portrait)')") && main.includes("'pageshow'"), true, 'T7 redundant iOS fit triggers present');
   eq(touch.includes("'orientationchange'"), true, 'T7 touch layer re-feeds viewport on orientationchange');
@@ -209,7 +209,7 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   eq(meta.isEmblemUnlocked(1, 'meridian-star'), true, 'T10 default emblem open at level 1');
   eq(meta.isEmblemUnlocked(1, 'void-diamond'), false, 'T10 void diamond locked at level 1');
   eq(meta.isEmblemUnlocked(25, 'void-diamond'), true, 'T10 void diamond opens at level 25');
-  eq(meta.BADGES.length, 8, 'T10 eight special badges');
+  eq(meta.BADGES.length, 10, 'T10 ten special badges'); // U14 named re-pin: 8 -> 10 (outfitter + quartermaster)
   const fresh = () => ({ credits: 0, emblem: 'meridian-star', badges: [], daily: { lastClaim: null, streakDay: 0 }, stats: { matches: 0, wins: 0, kills: 0 } });
   const m1 = fresh();
   eq(meta.recordMatch(m1, 1, 'win', 1).join(','), 'first-blood', 'T10 first kill earns FIRST BLOOD');
@@ -234,6 +234,65 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   eq(html.includes('id="meta-panel"') && html.includes('id="emblem-pickers"') && html.includes('id="daily-btn"'), true, 'T10 meta panel markup present');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   eq(main.includes('function renderMetaPanel') && main.includes('claimDailyReward(profile.meta') && main.includes('recordMatch(profile.meta'), true, 'T10 meta panel + daily + recordMatch wired in main');
+}
+
+// T11: U14 — meta phase 2 (tier packages, special offers, shop
+// emblems, purchase engine). Pure-module pins on js/meta.js plus
+// the shop wiring. In-game currency only (Brett's law).
+{
+  const meta = await import('../js/meta.js');
+  eq(meta.SHOP_EMBLEMS.length, 6, 'T11 six shop emblems');
+  eq(meta.TIER_PACKAGES.length, 3, 'T11 three tier packages');
+  eq(meta.SPECIAL_OFFERS.length, 3, 'T11 three special offers');
+  eq(meta.SHOP_ITEM_IDS.join(','), 'field-pack,ranger-pack,command-pack,medic-kit,ace-kit,flare-kit', 'T11 shop item ids (packages then offers)');
+  eq(meta.getShopItem('field-pack').price, 150, 'T11 field pack costs 150 MC');
+  eq(meta.getShopItem('command-pack').emblem, 'command-banner', 'T11 command pack grants command banner');
+  eq(meta.isShopItemId('ace-kit'), true, 'T11 ace kit is a shop item');
+  eq(meta.isShopItemId('nope'), false, 'T11 unknown id is not a shop item');
+  eq(meta.getEmblem('command-banner').name, 'COMMAND BANNER', 'T11 getEmblem resolves a shop emblem');
+  eq(meta.getEmblem('nope').id, 'meridian-star', 'T11 unknown emblem still falls back to the default');
+  eq(meta.isEmblemId('ace'), true, 'T11 isEmblemId covers shop emblems');
+  eq(meta.getShopEmblem('ace').itemId, 'ace-kit', 'T11 shop emblem names its granting item');
+  // Prices: packages are never discounted; the featured offer
+  // sells at floor(price x 0.7); other offers stay at base.
+  const fDate = '2026-10-29';
+  eq(meta.priceFor('field-pack', fDate), 150, 'T11 package price is never discounted');
+  eq(meta.priceFor('nope', fDate), null, 'T11 unknown item has no price');
+  const fid = meta.featuredOfferId(fDate);
+  eq(meta.SPECIAL_OFFERS.some(o => o.id === fid), true, 'T11 featured offer is one of the offers');
+  eq(meta.featuredOfferId(fDate), fid, 'T11 featured rotation is deterministic for a date');
+  eq(meta.featuredOfferId('not-a-date'), null, 'T11 invalid date features nothing');
+  const fItem = meta.getShopItem(fid);
+  eq(meta.priceFor(fid, fDate), Math.floor(fItem.price * 0.7), 'T11 featured offer sells at floor(0.7 x price)');
+  const plain = meta.SPECIAL_OFFERS.find(o => o.id !== fid);
+  eq(meta.priceFor(plain.id, fDate), plain.price, 'T11 non-featured offer stays at base price');
+  // Purchase engine: success charges once and records ownership;
+  // duplicate / insufficient / unknown refusals charge nothing.
+  const fresh = () => ({ credits: 0, emblem: 'meridian-star', owned: [], badges: [], daily: { lastClaim: null, streakDay: 0 }, stats: { matches: 0, wins: 0, kills: 0 } });
+  const buyer = fresh();
+  meta.addCredits(buyer, 2000);
+  const buy1 = meta.purchaseItem(buyer, 'field-pack', fDate);
+  eq(buy1.purchased && buy1.price === 150 && buy1.reason === 'ok', true, 'T11 purchase succeeds at base price');
+  eq(buyer.credits, 1850, 'T11 purchase charges exactly the price');
+  eq(buyer.owned.join(','), 'field-pack', 'T11 purchase records ownership');
+  const dupe = meta.purchaseItem(buyer, 'field-pack', fDate);
+  eq(dupe.purchased === false && dupe.reason === 'owned', true, 'T11 duplicate purchase refused (anti-duplication)');
+  eq(buyer.credits, 1850, 'T11 duplicate refusal charges nothing');
+  eq(meta.evaluateBadges(buyer, 1).includes('outfitter'), true, 'T11 owning one item earns OUTFITTER');
+  eq(meta.evaluateBadges(buyer, 1).includes('quartermaster'), false, 'T11 one package is not QUARTERMASTER yet');
+  meta.purchaseItem(buyer, 'ranger-pack', fDate);
+  meta.purchaseItem(buyer, 'command-pack', fDate);
+  eq(meta.evaluateBadges(buyer, 1).includes('quartermaster'), true, 'T11 owning all 3 packages earns QUARTERMASTER');
+  const poor = fresh(); poor.credits = 10;
+  const broke = meta.purchaseItem(poor, 'ranger-pack', fDate);
+  eq(broke.purchased === false && broke.reason === 'funds', true, 'T11 insufficient funds refused');
+  eq(poor.credits === 10 && poor.owned.length === 0, true, 'T11 funds refusal charges nothing and grants nothing');
+  const ghost = meta.purchaseItem(buyer, 'nope', fDate);
+  eq(ghost.purchased === false && ghost.reason === 'unknown', true, 'T11 unknown item refused');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  eq(html.includes('id="shop-line"') && html.includes('id="package-pickers"') && html.includes('id="offer-line"') && html.includes('id="offer-pickers"'), true, 'T11 shop markup present');
+  const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  eq(main.includes('purchaseItem(profile.meta') && main.includes('featuredOfferId('), true, 'T11 shop purchase + featured rotation wired in main');
 }
 
 if (failures) { console.error(`\nmobile-check: ${failures} failure(s)`); process.exit(1); }
