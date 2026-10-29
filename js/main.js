@@ -21,7 +21,7 @@ import { OnlineSession } from './online.js';
 import { LobbyChat } from './chat.js';   // U6-14 menu chatroom
 import { VoiceChat } from './voice.js'; // U6-15 WebRTC voice
 import { TouchControls, isTouchDevice } from './touchcontrols.js';
-import { worldToMap, radiusToMap, zoneColor, guidanceFor } from './minimap.js'; // U10-01/02
+import { worldToMap, radiusToMap, zoneColor, guidanceFor, enemyDotVisible } from './minimap.js'; // U10-01/02 (+ U12-01 reveal rule)
 import { applyLightingProfile } from './lighting.js';
 // V5 systems (Board 005 §§9–13): shared data/math modules +
 // Atlas's world actors. Solo wires them here; online runs the
@@ -165,7 +165,7 @@ function goLandscape() {
 // hardening law) forbids it, and the lint outranks the
 // convenience. The stamp + versioned asset URLs are the
 // shipped witness; see the U9 report.
-const BUILD_NO = 11;
+const BUILD_NO = 12;
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -2043,9 +2043,12 @@ function drawMinimap(dt) {
     ctx.fillText(z.id || '◆', px, py);
     ctx.font = `700 ${Math.round(S * 0.075)}px system-ui, sans-serif`;
   }
-  // Living bots: friendly cyan, hostile red.
+  // Living bots: friendly cyan always; hostile red ONLY when
+  // that enemy has fired within the reveal window (U12-01 —
+  // Brett's minimap rule: enemies must not always show).
   for (const b of bots) {
     if (b.dead || !b.root) continue;
+    if (!enemyDotVisible(b.team === 'friendly' ? 'friendly' : 'hostile', b.shotAge)) continue;
     const { px, py } = worldToMap(b.root.position.x, b.root.position.z, S);
     ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2);
     ctx.fillStyle = b.team === 'friendly' ? TEAM.you.color : TEAM.kestrel.color;
@@ -2749,7 +2752,10 @@ function launchStreak(id) {
     packageDrop = { actor, x, z, groundY: gy, landed: false, claimT: 0 };
   } else if (id === 'sentry') {
     startPlacement('sentry');
-  } else if (id === 'precision') {
+  } else if (id === 'precision' || id === 'lightning') {
+    // U12-02: lightning rides the precision path with its own
+    // def (warn 1.0 s, radius 5, damage 150 — faster, tighter,
+    // harder). The scheduled call carries its streak id.
     camera.getWorldDirection(_dir);
     player.eyePos(_origin);
     _v5ray.set(_origin, _dir);
@@ -2762,8 +2768,8 @@ function launchStreak(id) {
       scene.add(strikeKit.jet); scene.add(strikeKit.marker);
     }
     strikeKit.placeMarker(px, pz, world.groundHeightAt(px, pz, 0));
-    precisionCall = { x: px, z: pz, at: now + getStreak('precision').warn };
-    showCallout('PRECISION STRIKE INBOUND');
+    precisionCall = { x: px, z: pz, at: now + getStreak(id).warn, id };
+    showCallout(id === 'lightning' ? 'LIGHTNING STRIKE INBOUND' : 'PRECISION STRIKE INBOUND');
   }
 }
 function callStreak() {
@@ -2789,8 +2795,8 @@ function uavPing() {
     uavMarkers.push({ mesh: m, until: v5Time + UAV_SPEC.linger, bot: b });
   }
 }
-function precisionBlast(x, z) {
-  const spec = getStreak('precision');
+function precisionBlast(x, z, streakId = 'precision') {
+  const spec = getStreak(streakId); // U12-02: blast by the calling streak's own def
   spawnExplosionVisual(new THREE.Vector3(x, world.groundHeightAt(x, z, 0) + 0.5, z));
   sfx.explosion();
   const exposed = (px, py, pz) => {
@@ -2947,10 +2953,10 @@ function updateV5Systems(dt) {
   }
   // precision strike arrival.
   if (precisionCall && v5Time >= precisionCall.at) {
-    const { x, z } = precisionCall;
+    const { x, z, id: strikeId } = precisionCall;
     precisionCall = null;
     if (strikeKit) strikeKit.playJetPass(new THREE.Vector3(x - 40, 25, z - 40), new THREE.Vector3(x + 40, 25, z + 40), 1.2);
-    precisionBlast(x, z);
+    precisionBlast(x, z, strikeId || 'precision');
   }
   if (strikeKit) strikeKit.update(dt);
   // scavenger packs: walk-over tops the current magazine
