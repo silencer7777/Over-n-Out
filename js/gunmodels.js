@@ -55,8 +55,20 @@ export const GUN_MATERIALS = {
 const BOT_COLORS = { metal: 0x2b2f34, steel: 0x464c53, polymer: 0x191b1e, glass: 0x51748c, wood: 0x6e4a2f };
 
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-const cylZ = (r, len, seg = 12) => new THREE.CylinderGeometry(r, r, len, seg).rotateX(Math.PI / 2);
-const cylY = (r, len, seg = 10) => new THREE.CylinderGeometry(r, r, len, seg);
+const cylZ = (r, len, seg = 16) => new THREE.CylinderGeometry(r, r, len, seg).rotateX(Math.PI / 2); // U12: 16 seg — barrels read round, not polygonal
+const cylY = (r, len, seg = 14) => new THREE.CylinderGeometry(r, r, len, seg); // U12: 14 seg
+// U12: tapered cylinder along Z (rRear at +Z, rFront at -Z) —
+// muzzle devices and forends that narrow toward the muzzle are
+// what separate a shaped gun silhouette from stacked blocks.
+const cylZT = (rRear, rFront, len, seg = 16) => new THREE.CylinderGeometry(rRear, rFront, len, seg).rotateX(Math.PI / 2);
+
+// U12: receiver chamfer strips — two thin bars rotated 45 deg
+// along the receiver's top side edges. A slab receiver gains a
+// machined bevel line for 24 tris; joins the same part list, so
+// draw calls are unchanged in both build flavours.
+function chamferReceiver(list, halfW, y, z, len) {
+  for (const sd of [-1, 1]) P(list, box(0.015, 0.015, len), 'metal', sd * halfW, y, z, 0, 0, Math.PI / 4);
+}
 
 // Part helper: pushes { geo, mat, x,y,z, rx,ry,rz } onto a list.
 function P(list, geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) {
@@ -115,7 +127,6 @@ function buildAR() {
   for (const s of [-1, 1]) P(L, box(0.006, 0.030, 0.30), 'metal', s * 0.034, 0.005, -0.28); // handguard side rails (U6-02)
   P(L, box(0.004, 0.035, 0.075), 'metal', 0.036, 0.012, 0.055);                  // ejection-port door (U6-02: right-side receiver detail)
   P(L, cylY(0.011, 0.018), 'steel', 0.036, -0.005, 0.115, 0, 0, Math.PI / 2);    // forward assist (U6-02)
-  P(L, cylZ(0.029, 0.075), 'steel', 0, 0.02, -0.665);                            // muzzle brake
   P(L, cylZ(0.031, 0.012), 'steel', 0, 0.02, -0.640);                            // muzzle brake ring
   P(L, box(0.02, 0.055, 0.03), 'metal', 0, 0.055, -0.44);                        // gas block / front sight post
   P(L, cylZ(0.007, 0.22), 'steel', 0, 0.045, -0.35);                             // gas tube (U5-06: runs from the gas block back into the handguard — the AR's gas system)
@@ -123,6 +134,9 @@ function buildAR() {
     P(L, box(0.004, 0.018, 0.038), 'metal', s * 0.032, 0.008, -0.36 + i * 0.065); // handguard vent slots (U5-06)
   }
   railAndOptic(L, -0.10, 0.40, -0.04);
+  chamferReceiver(L, 0.035, 0.052, 0.02, 0.26);                                  // U12: bevelled receiver edges
+  P(L, cylZT(0.030, 0.023, 0.075), 'steel', 0, 0.02, -0.665);                    // U12: tapered muzzle brake (narrows to the muzzle — replaces the straight tube read)
+  P(L, box(0.040, 0.105, 0.046), 'polymer', 0, -0.115, -0.335, 0.38);            // U12: angled foregrip under the handguard — a held rifle silhouette
   magazine(L, 'metal', 0, -0.105, 0.045, 0.075, 3, 0.14);                        // curved magazine (3 segments)
   gripAndGuard(L, 0.125, 0.0);
   P(L, box(0.05, 0.095, 0.21), 'polymer', 0, 0.012, 0.25);                       // stock
@@ -152,6 +166,7 @@ function buildSMG() {
   P(L, box(0.014, 0.014, 0.17), 'metal', 0.018, 0.03, 0.235);                    // wire stock (right strut)
   P(L, box(0.014, 0.014, 0.17), 'metal', -0.018, 0.03, 0.235);                   // wire stock (left strut)
   P(L, box(0.05, 0.07, 0.018), 'polymer', 0, 0.03, 0.325);                       // butt plate
+  chamferReceiver(L, 0.033, 0.050, 0.01, 0.24);                                  // U12: bevelled receiver edges
   receiverDetails(L, 0.033, -0.02, 0.115);
   return { parts: L, muzzle: new THREE.Vector3(0, 0.015, -0.39) };
 }
@@ -166,6 +181,7 @@ function buildShotgun() {
   for (let i = 0; i < 4; i++) {
     P(L, box(0.012, 0.004, 0.022), 'metal', 0, 0.056, -0.45 + i * 0.065);        // heat shield perforations (U5-06)
   }
+  chamferReceiver(L, 0.036, 0.057, 0.06, 0.24);                                  // U12: bevelled receiver edges
   P(L, box(0.088, 0.072, 0.17), 'wood', 0, -0.032, -0.30);                       // pump grip (U6-02: wider — the pump is the shotgun's grip signature)
   P(L, cylZ(0.016, 0.006), 'metal', 0, 0.078, 0.10);                             // ghost-ring rear sight (U6-02)
   P(L, box(0.082, 0.02, 0.03), 'wood', 0, -0.068, -0.36);                        // pump rib detail
@@ -191,8 +207,9 @@ function buildDMR() {
   const L = [];
   P(L, box(0.072, 0.115, 0.29), 'metal', 0, 0, 0.02);                            // receiver
   P(L, box(0.034, 0.018, 0.46), 'steel', 0, 0.068, -0.12);                       // top rail (long)
+  chamferReceiver(L, 0.036, 0.055, 0.02, 0.28);                                  // U12: bevelled receiver edges
+  P(L, cylZT(0.032, 0.025, 0.085), 'steel', 0, 0.02, -0.775);                    // U12: tapered muzzle brake
   P(L, cylZ(0.021, 0.36), 'steel', 0, 0.02, -0.56);                              // heavy barrel
-  P(L, cylZ(0.031, 0.085), 'steel', 0, 0.02, -0.775);                            // muzzle brake
   P(L, cylZ(0.033, 0.012), 'steel', 0, 0.02, -0.748);                            // muzzle brake ring
   P(L, box(0.055, 0.075, 0.30), 'polymer', 0, 0.0, -0.36);                       // handguard (U6-02: long free-float tube — the DMR's reach is its silhouette)
   for (let i = 0; i < 3; i++) for (const s of [-1, 1]) {
@@ -233,6 +250,7 @@ function buildPistol() {
   P(L, box(0.006, 0.006, 0.006), 'accent', 0.012, 0.082, 0.075);                  // rear tritium dot R (U6-02)
   P(L, box(0.005, 0.005, 0.005), 'accent', 0, 0.082, -0.105);                     // front tritium dot (U6-02)
   P(L, box(0.050, 0.016, 0.05), 'steel', 0.0, 0.038, 0.062);                      // slide rear serration block (right)
+  chamferReceiver(L, 0.023, 0.064, -0.005, 0.21);                                // U12: bevelled slide edges — the duty slide reads machined, not cast
   P(L, box(0.040, 0.052, 0.19), 'polymer', 0, -0.012, -0.005);                   // frame
   P(L, cylZ(0.011, 0.025), 'steel', 0, 0.032, -0.125);                           // barrel (muzzle)
   P(L, box(0.012, 0.028, 0.014), 'metal', 0, 0.078, 0.075);                      // rear sight
