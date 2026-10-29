@@ -218,19 +218,20 @@ function buildBotLegs(pal = BOT_PALETTES.hostile) {
   for (const s of [-1, 1]) {
     _part(L, _box(0.21, 0.78, 0.25), pal.camoDark, s * 0.145, 0.48, 0);           // leg (camo trouser) — HIT CORE, byte-identical
     _part(L, _box(0.22, 0.15, 0.37), pal.boot, s * 0.145, 0.075, -0.045);         // boot
-    _part(L, _sph(0.105, 7, 5), pal.boot, s * 0.145, 0.0525, -0.175, 0, 0, 0, 0.95, 0.5, 0.86); // boot toe (V6-3: rounded foot; front reach matched to the old block, -0.265)
-    _part(L, _sph(0.105, 8, 6), pal.gear, s * 0.145, 0.52, -0.13, 0, 0, 0, 0.82, 0.95, 0.45);   // knee pad (V6-3: domed; front reach matched to the old pad)
+    _part(L, _sph(0.105, 9, 6), pal.boot, s * 0.145, 0.0525, -0.175, 0, 0, 0, 0.95, 0.5, 0.86); // boot toe (V6-3: rounded foot; front reach matched to the old block, -0.265) (U12: 9x6)
+    _part(L, _sph(0.105, 10, 7), pal.gear, s * 0.145, 0.52, -0.13, 0, 0, 0, 0.82, 0.95, 0.45);   // knee pad (V6-3: domed; front reach matched to the old pad) (U12: 10x7)
     _part(L, _box(0.19, 0.30, 0.05), pal.gear, s * 0.145, 0.30, -0.135);           // shin guard (V4 kit)
     _part(L, _box(0.22, 0.10, 0.25), pal.camo, s * 0.145, 0.90, 0);                 // thigh pocket block (V5: trimmed)
-    _part(L, _cylT(0.128, 0.104, 0.44, 11), pal.camo, s * 0.145, 0.66, 0);          // thigh (U5-05: tapered overlay — the leg reads as a limb, not a crate; the hit-core box inside is untouched) (U9: 11 seg)
-    _part(L, _cylT(0.100, 0.080, 0.34, 11), pal.camoDark, s * 0.145, 0.27, 0);      // shin (U5-05: tapered overlay, slim to the boot) (U9: 11 seg)
+    _part(L, _cylT(0.128, 0.104, 0.44, 14), pal.camo, s * 0.145, 0.66, 0);          // thigh (U5-05: tapered overlay — the leg reads as a limb, not a crate; the hit-core box inside is untouched) (U9: 11 seg) (U12: 14 seg)
+    _part(L, _cylT(0.100, 0.080, 0.34, 14), pal.camoDark, s * 0.145, 0.27, 0);      // shin (U5-05: tapered overlay, slim to the boot) (U9: 11 seg) (U12: 14 seg)
   }
   _part(L, _box(0.10, 0.22, 0.09), pal.dark, 0.265, 0.86, -0.02);                 // thigh holster, right (V4 kit)
   _part(L, _box(0.17, 0.20, 0.06), pal.gear, -0.145, 0.80, -0.145);                // drop-leg pouch, left (U6-06v: kit asymmetry — soldiers are not mirrored)
   for (const s of [-1, 1]) {
-    _part(L, _cylT(0.082, 0.068, 0.16, 10), pal.camoDark, s * 0.145, 0.17, 0);     // ankle taper (U6-06v: the shin narrows into the boot — no peg legs) (U9: 10 seg)
-    _part(L, _sph(0.115, 9, 7), pal.camo, s * 0.145, 0.93, 0, 0, 0, 0, 1.0, 0.85, 1.05); // hip joint (U9: the leg balls into the pelvis — no shelf joint)
-    _part(L, _sph(0.095, 8, 6), pal.camoDark, s * 0.145, 0.30, 0.05, 0, 0, 0, 0.95, 1.5, 0.95); // calf mass (U9: muscle behind the shin, not a peg)
+    _part(L, _cylT(0.082, 0.068, 0.16, 12), pal.camoDark, s * 0.145, 0.17, 0);     // ankle taper (U6-06v: the shin narrows into the boot — no peg legs) (U9: 10 seg) (U12: 12 seg)
+    _part(L, _cylT(0.100, 0.108, 0.09, 12), pal.gear, s * 0.145, 0.155, 0);     // boot collar (U12: the boot cuffs over the ankle taper — footwear, not a peg in a block)
+    _part(L, _sph(0.115, 11, 8), pal.camo, s * 0.145, 0.93, 0, 0, 0, 0, 1.0, 0.85, 1.05); // hip joint (U9: the leg balls into the pelvis — no shelf joint) (U12: 11x8)
+    _part(L, _sph(0.095, 10, 7), pal.camoDark, s * 0.145, 0.30, 0.05, 0, 0, 0, 0.95, 1.5, 0.95); // calf mass (U9: muscle behind the shin, not a peg) (U12: 10x7)
   }
   return new THREE.Mesh(mergeColoredParts(L), BOT_BODY_MAT);
 }
@@ -240,7 +241,8 @@ function buildBotTorso(pal = BOT_PALETTES.hostile) {
   _part(L, _box(0.66, 0.72, 0.38), pal.camo, 0, 1.11, 0);                           // torso core (hitbox — V3 box, camo cloth) — HIT CORE, byte-identical
   _part(L, _box(0.52, 0.22, 0.32), pal.camoDark, 0, 0.84, 0);                       // pelvis / belt line (V5: hips narrower than shoulders — human ratio)
   _part(L, _sph(0.20, 9, 6), pal.camoDark, 0, 0.86, 0, 0, 0, 0, 1.5, 0.55, 0.92);   // hip mass (U5-05: the pelvis rounds into the thighs — no shelf edge)
-  _part(L, _cylT(0.315, 0.255, 0.52, 12), pal.camo, 0, 1.13, 0, 0, 0, 0, 1.06, 1, 0.62); // ribcage (U9: tapered, flattened barrel over the core — the flat slab sides die; the front tucks inside the vest, the sides round out)
+  _part(L, _cylT(0.315, 0.255, 0.52, 16), pal.camo, 0, 1.13, 0, 0, 0, 0, 1.06, 1, 0.62); // ribcage (U9: tapered, flattened barrel over the core — the flat slab sides die; the front tucks inside the vest, the sides round out) (U12: 16 seg)
+  _part(L, _cylT(0.270, 0.290, 0.14, 14), pal.gear, 0, 0.93, 0, 0, 0, 0, 1.0, 1, 0.62); // waist sash (U12: the belt line tapers between pelvis and ribcage — a waist, not stacked crates; inside the ribcage envelope)
   _part(L, _box(0.12, 0.07, 0.03), pal.steel, 0, 0.86, -0.185);                     // belt buckle (V4 kit)
   _part(L, _sph(0.10, 10, 8), pal.accentDark, 0, 1.17, -0.222, 0, 0, 0, 2.9, 2.7, 0.55); // plate vest front (U9: molded curve inside the old slab's envelope — a plate, not a fridge door) — FACTION colour (readability carrier)
   _part(L, _box(0.09, 0.44, 0.30), pal.accentDark, -0.315, 1.17, 0, 0, 0.28);       // vest wrap panel L (V5: the vest wraps a torso, not a fridge door)
@@ -256,23 +258,25 @@ function buildBotTorso(pal = BOT_PALETTES.hostile) {
   for (const sx of [-0.16, 0.16]) {
     _part(L, _box(0.09, 0.40, 0.025), pal.dark, sx, 1.33, -0.278);                  // pack straps over the rig (V4 kit)
   }
-  _part(L, _cylY(0.07, 0.14, 12), pal.skin, 0, 1.50, 0);                            // neck (V5 people-like: a head sits on a neck, not a collar block) (U9: 12 seg)
+  _part(L, _cylY(0.07, 0.14, 16), pal.skin, 0, 1.50, 0);                            // neck (V5 people-like: a head sits on a neck, not a collar block) (U9: 12 seg) (U12: 16 seg)
   _part(L, _box(0.26, 0.10, 0.26), pal.gear, 0, 1.49, 0);                          // collar / neck guard (V5: slimmed)
   _part(L, _sph(0.15, 8, 6), pal.camo, 0, 1.465, 0.01, 0, 0, 0, 1.6, 0.45, 0.9);    // trapezius (V6-3: the neck slopes into the shoulders — no more head-on-a-box)
   for (const s of [-1, 1]) {
     _part(L, _sph(0.15, 10, 8), s < 0 ? pal.camoLight : pal.camo, s * 0.42, 1.40, 0, 0, 0, 0, 0.85, 0.7, 1.0); // shoulder / deltoid (V6-3: a ball of muscle, not a sloped shelf; outer reach + sole matched to the old block) (U9: 10x8)
     _part(L, _box(0.14, 0.18, 0.19), pal.accent, s * 0.44, 1.45, 0);                // shoulder pad — FACTION colour
   }
-  _part(L, _cylT(0.078, 0.066, 0.42, 9), pal.dark, -0.455, 1.13, 0, 0, 0, 0.06);    // left upper arm (V6-3: tapered limb, thick at the shoulder, slim at the elbow)
+  _part(L, _cylT(0.078, 0.066, 0.42, 13), pal.dark, -0.455, 1.13, 0, 0, 0, 0.06);    // left upper arm (V6-3: tapered limb, thick at the shoulder, slim at the elbow) (U12: 13 seg)
+  _part(L, _sph(0.088, 10, 8), pal.camo, -0.455, 1.24, 0, 0, 0, 0.06, 0.82, 1.45, 0.82); // bicep mass L (U12: muscle over the upper arm, inside the arm envelope)
   _part(L, _box(0.155, 0.09, 0.175), pal.accent, -0.455, 1.27, 0);                  // faction armband, left arm (V4)
-  _part(L, _cylT(0.078, 0.066, 0.40, 9), pal.dark, 0.44, 1.15, -0.09, 0.5);         // right upper arm (forward) (V6-3: tapered limb)
-  _part(L, _cylT(0.064, 0.052, 0.40, 9), pal.dark, 0.35, 1.17, -0.30, Math.PI / 2);  // right forearm (to gun) (U5-05: tapered cylinder, matching the V6-3 upper arms — was a box)
-  _part(L, _cylT(0.062, 0.050, 0.36, 9), pal.dark, -0.33, 1.10, -0.24, Math.PI / 2 - 0.25); // left forearm (support hand) (U5-05: tapered cylinder — was a box)
-  _part(L, _sph(0.06, 7, 5), pal.dark, 0.36, 1.16, -0.52, 0, 0, 0, 0.95, 0.85, 1.3);  // right glove (V6-3: a rounded fist, not a die)
-  _part(L, _sph(0.06, 7, 5), pal.dark, -0.37, 1.08, -0.44, 0, 0, 0, 0.95, 0.85, 1.3); // left glove (V6-3: rounded fist)
+  _part(L, _cylT(0.078, 0.066, 0.40, 13), pal.dark, 0.44, 1.15, -0.09, 0.5);         // right upper arm (forward) (V6-3: tapered limb) (U12: 13 seg)
+  _part(L, _sph(0.088, 10, 8), pal.camo, 0.44, 1.26, -0.05, 0.5, 0, 0, 0.82, 1.45, 0.82); // bicep mass R (U12: muscle over the upper arm, inside the arm envelope)
+  _part(L, _cylT(0.064, 0.052, 0.40, 13), pal.dark, 0.35, 1.17, -0.30, Math.PI / 2);  // right forearm (to gun) (U5-05: tapered cylinder, matching the V6-3 upper arms — was a box) (U12: 13 seg)
+  _part(L, _cylT(0.062, 0.050, 0.36, 13), pal.dark, -0.33, 1.10, -0.24, Math.PI / 2 - 0.25); // left forearm (support hand) (U5-05: tapered cylinder — was a box) (U12: 13 seg)
+  _part(L, _sph(0.06, 10, 8), pal.dark, 0.36, 1.16, -0.52, 0, 0, 0, 0.95, 0.85, 1.3);  // right glove (V6-3: a rounded fist, not a die) (U12: 10x8)
+  _part(L, _sph(0.06, 10, 8), pal.dark, -0.37, 1.08, -0.44, 0, 0, 0, 0.95, 0.85, 1.3); // left glove (V6-3: rounded fist) (U12: 10x8)
   _part(L, _sph(0.085, 7, 5), pal.gear, 0.44, 1.30, -0.16, 0, 0, 0, 0.95, 0.55, 1.05); // right elbow pad (V6-3: domed)
   _part(L, _sph(0.085, 7, 5), pal.gear, -0.455, 1.02, 0.02, 0, 0, 0, 0.95, 0.55, 1.05); // left elbow pad (V6-3: domed)
-  _part(L, _sph(0.10, 10, 8), pal.gear, 0, 1.17, 0.29, 0.02, 0, 0, 2.15, 2.6, 0.95); // backpack (U9: rounded pack in the old box's envelope — the crate on the back is gone) (V5: slimmer, slight kit hunch)
+  _part(L, _sph(0.10, 12, 9), pal.gear, 0, 1.17, 0.29, 0.02, 0, 0, 2.15, 2.6, 0.95); // backpack (U9: rounded pack in the old box's envelope — the crate on the back is gone) (V5: slimmer, slight kit hunch) (U12: 12x9)
   _part(L, _box(0.32, 0.24, 0.06), pal.gearLight, 0, 1.02, 0.40);                   // pack pouch
   _part(L, _cylY(0.008, 0.52), pal.steel, 0.16, 1.70, 0.30);                        // antenna
   return new THREE.Mesh(mergeColoredParts(L), BOT_BODY_MAT);
@@ -281,17 +285,17 @@ function buildBotTorso(pal = BOT_PALETTES.hostile) {
 function buildBotHead(pal = BOT_PALETTES.hostile) {
   const L = [];
   _part(L, _box(0.34, 0.36, 0.34), pal.skin, 0, 1.66, 0);                           // head core (hitbox — V3 box) — HIT CORE, byte-identical
-  _part(L, _sph(0.168, 14, 10), pal.skin, 0, 1.65, -0.012, 0, 0, 0, 1.0, 1.06, 0.96); // face (U5-05: rounded skull mass over the core — a head, not a block; visor at z -0.185 stays proud) (U9: 14x10)
+  _part(L, _sph(0.168, 18, 12), pal.skin, 0, 1.65, -0.012, 0, 0, 0, 1.0, 1.06, 0.96); // face (U5-05: rounded skull mass over the core — a head, not a block; visor at z -0.185 stays proud) (U9: 14x10) (U12: 18x12)
   _part(L, _box(0.045, 0.075, 0.032), pal.skin, 0, 1.628, -0.180);                  // nose (U6-06v: the face gains a profile — reads as a person in silhouette at range)
   for (const s of [-1, 1]) _part(L, _sph(0.046, 8, 6), pal.skin, s * 0.172, 1.66, 0.005, 0, 0, 0, 0.55, 1.0, 0.8); // ears (U6-06v) (U9: 8x6)
   _part(L, _sph(0.13, 8, 6), pal.skin, 0, 1.545, -0.055, 0, 0, 0, 1.05, 0.5, 0.85);  // jaw / chin mass (U6-06v: the lower face rounds into the jaw guard)
-  _part(L, _sph(0.222, 14, 10), pal.gear, 0, 1.76, 0, 0, 0, 0, 1, 0.70, 1);          // helmet dome (U9: a true sphere dome — a helmet is not a can) (V5: round)
-  _part(L, _cylY(0.245, 0.035, 16), pal.gear, 0, 1.71, 0);                          // helmet brim (U9: round disc — the square plate is gone)
+  _part(L, _sph(0.222, 18, 12), pal.gear, 0, 1.76, 0, 0, 0, 0, 1, 0.70, 1);          // helmet dome (U9: a true sphere dome — a helmet is not a can) (V5: round) (U12: 18x12)
+  _part(L, _cylY(0.245, 0.035, 24), pal.gear, 0, 1.71, 0);                          // helmet brim (U9: round disc — the square plate is gone) (U12: 24 seg)
   _part(L, _cylY(0.232, 0.05, 12), pal.camoDark, 0, 1.75, 0);                      // helmet camo band (V4 kit, follows the dome)
   _part(L, _box(0.09, 0.07, 0.07), pal.steel, 0, 1.79, -0.228);                     // NVG mount (V4 kit)
   _part(L, _box(0.07, 0.11, 0.13), pal.gear, -0.205, 1.68, 0.01);                   // headset cup, left (V5 people-like: comms on a person)
   _part(L, _cylY(0.008, 0.15, 6), pal.steel, -0.155, 1.615, -0.115, 1.15, 0, 0.5);  // boom mic, arcing to the mouth (V5)
-  _part(L, _sph(0.10, 9, 7), pal.gear, 0, 1.545, -0.182, 0, 0, 0, 1.55, 0.65, 0.30); // jaw guard (U9: curved shell in the old slab's envelope)
+  _part(L, _sph(0.10, 11, 8), pal.gear, 0, 1.545, -0.182, 0, 0, 0, 1.55, 0.65, 0.30); // jaw guard (U9: curved shell in the old slab's envelope) (U12: 11x8)
   _part(L, _cylT(0.185, 0.195, 0.10, 12), pal.camoDark, 0, 1.565, 0.01);            // neck / balaclava (V6-3: a round neck ring, not a slab)
   const head = new THREE.Mesh(mergeColoredParts(L), BOT_BODY_MAT);
   head.userData.part = 'head';
@@ -355,6 +359,10 @@ export class Bot {
     if (this.weaponId === 'dmr') this.burstCooldown = Math.max(this.burstCooldown, 1.2);
     this.burstLeft = 0;
     this.shotTimer = 0;
+    // U12-01: seconds since this bot last FIRED (hit or miss).
+    // The minimap reveal rule (js/minimap.js enemyDotVisible)
+    // reads it: an enemy dot shows only while this is fresh.
+    this.shotAge = Infinity;
     this.difficulty = difficulty;
     // --- Batch 1 realism state ---
     // Aim-up: time that must be spent with continuous LOS before firing.
@@ -937,6 +945,7 @@ export class Bot {
     }
 
     // --- shooting
+    this.shotAge += dt; // U12-01: the minimap reveal ages every frame
     this.burstCooldown -= dt;
     if (this.burstLeft > 0) {
       this.shotTimer -= dt;
@@ -944,6 +953,7 @@ export class Bot {
         this.shotTimer += this.weapon.bot.shotInterval; // U6-04 CADENCE: carry remainder (matches the table at any refresh rate)
         if (this.shotTimer < -this.weapon.bot.shotInterval) this.shotTimer = -this.weapon.bot.shotInterval;
         this.burstLeft--;
+        this.shotAge = 0; // U12-01: a shot was fired — this shooter is revealed on the minimap
         sfx.enemyShot(dist, this.weapon.sound);
         if (hasLOS) {
           // Base: existing range formula. Shape: first shot loosest, later
