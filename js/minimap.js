@@ -31,6 +31,22 @@ export function radiusToMap(radius, size) {
   return (radius / (2 * MAP_BOUNDS)) * size;
 }
 
+// Brett's U12 minimap rule (Oct 28, post-U11 playtest): enemy
+// dots must NOT always show — an enemy appears on the map only
+// when that enemy FIRES, and the reveal lingers briefly so the
+// dot is readable (2.5 s, Havoc). Teammates always show. This
+// is also an information-leak fix: the map no longer broadcasts
+// continuous enemy positions.
+export const ENEMY_REVEAL_SECONDS = 2.5;
+
+// team: 'friendly' | anything else (hostile). shotAgeSec:
+// seconds since that bot last fired a shot (Infinity = never /
+// long ago). Pure so mobile-check T9 can pin it.
+export function enemyDotVisible(team, shotAgeSec) {
+  if (team === 'friendly') return true;
+  return typeof shotAgeSec === 'number' && shotAgeSec <= ENEMY_REVEAL_SECONDS;
+}
+
 // Zone colour by owner — the TEAM identification language
 // (js/modes.js TEAM): MERIDIAN cyan, KESTREL red, neutral grey.
 export function zoneColor(owner) {
