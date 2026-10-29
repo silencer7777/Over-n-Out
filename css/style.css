@@ -254,8 +254,9 @@ body.touch-mode #stats-top { top:calc(10px + env(safe-area-inset-top)); right:ca
 /* ---------- U6-09 START MENU REDESIGN ---------- */
 /* Brett: the menu "looks kinda dull" — make it lively, modern,
    inviting (CoD Mobile class). Pure CSS/procedural: an animated
-   aurora wash + a slow light sweep + a faint tactical grid over
-   the live scene, a sheened hero title, glass cards for the
+   aurora wash + a slow light sweep over the live scene (U12:
+   Brett ordered the menu grid outlines REMOVED — the sweep and
+   aurora stay, the grid is gone), a sheened hero title, glass cards for the
    panels, and a breathing hero DEPLOY. Every id, handler and
    layout contract from the old menu is untouched — this block
    only restyles. Reduced-motion users get the static version. */
@@ -269,16 +270,16 @@ body.touch-mode #stats-top { top:calc(10px + env(safe-area-inset-top)); right:ca
   animation: menu-aurora 14s ease-in-out infinite alternate;
 }
 #menu::after {
+  /* U12-05: light sweep ONLY — the two repeating-linear-gradient
+     grid layers Brett ordered removed are gone. */
   content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
   background:
-    repeating-linear-gradient(0deg, rgba(182, 255, 176, .028) 0 1px, transparent 1px 44px),
-    repeating-linear-gradient(90deg, rgba(182, 255, 176, .028) 0 1px, transparent 1px 44px),
     linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, .045) 50%, transparent 58%);
-  background-size: auto, auto, 280% 280%;
+  background-size: 280% 280%;
   animation: menu-sweep 9s ease-in-out infinite;
 }
 @keyframes menu-aurora { from { transform: translate3d(-1.5%, -1%, 0) scale(1); } to { transform: translate3d(1.5%, 1.5%, 0) scale(1.05); } }
-@keyframes menu-sweep { 0%, 100% { background-position: 0 0, 0 0, 120% 0; } 50% { background-position: 0 0, 0 0, -20% 0; } }
+@keyframes menu-sweep { 0%, 100% { background-position: 120% 0; } 50% { background-position: -20% 0; } }
 .menu-page { position: relative; z-index: 1; }
 #menu h1 {
   background: linear-gradient(100deg, #ffffff 20%, #b6ffb0 38%, #39ff6a 50%, #b6ffb0 62%, #ffffff 80%);
