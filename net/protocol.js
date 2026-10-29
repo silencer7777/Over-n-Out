@@ -91,7 +91,7 @@ export const PLACE_KINDS = Object.freeze(['claymore', 'tripmine']);
 // Scorestreak ids a client may request on an input sample
 // (Directive 11). Mirrors js/loadouts.js STREAK_IDS; the sim
 // owns selection / meter / active-instance validation.
-export const STREAK_CALL_IDS = Object.freeze(['uav', 'cuav', 'package', 'sentry', 'precision']);
+export const STREAK_CALL_IDS = Object.freeze(['uav', 'cuav', 'package', 'sentry', 'lightning', 'precision']); // U12: lightning is a legal server-validated streak call
 
 // validateHello(msg) -> { ok, errors[] }
 //
