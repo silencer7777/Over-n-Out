@@ -15,6 +15,7 @@
 // by migrateLegacySettings() — nothing Brett saved is wiped.
 
 import { MAX_CLASSES, defaultClass, validateClass } from './loadouts.js';
+import { CREDITS_CAP, DEFAULT_EMBLEM, isEmblemId, isBadgeId, isDateStr } from './meta.js';
 
 export const PROFILE_KEY = 'ono-profile-v1';
 // U6-05: the countdown colour palette. Green is the shipped
@@ -166,10 +167,22 @@ export function unlocksBetween(oldLevel, newLevel) {
 // { sensitivity } }. createProfile() is the sanitized default;
 // sanitizeProfile() repairs anything read from storage or the wire.
 // ----------------------------------------------------------------
+// U13 meta block defaults (js/meta.js owns the tables/guards).
+export function createMeta() {
+  return {
+    credits: 0,
+    emblem: DEFAULT_EMBLEM,
+    badges: [],
+    daily: { lastClaim: null, streakDay: 0 },
+    stats: { matches: 0, wins: 0, kills: 0 },
+  };
+}
+
 export function createProfile() {
   return {
     v: 1,
     xp: 0,
+    meta: createMeta(),
     classes: Array.from({ length: MAX_CLASSES }, (_, i) => defaultClass(i)),
     activeClass: 0,
     // V6 Update 5 (U5-08): the settings block grows up into the
@@ -206,6 +219,29 @@ export function sanitizeProfile(raw) {
   }
   // A locked class slot can never be the active one after a repair.
   if (p.activeClass + 1 > unlockedClassSlots(levelForXp(p.xp))) p.activeClass = 0;
+  // U13 meta block — repaired like everything else: credits
+  // clamped to the guarded wallet's range, emblem validated,
+  // badges filtered to known ids (deduped, capped), the daily
+  // date shape-checked, stats clamped to non-negative ints.
+  // A profile saved before U13 has no meta block and migrates
+  // to defaults with xp/classes/settings untouched.
+  if (raw.meta && typeof raw.meta === 'object') {
+    const m = raw.meta;
+    if (Number.isFinite(m.credits)) p.meta.credits = Math.max(0, Math.min(CREDITS_CAP, Math.floor(m.credits)));
+    if (isEmblemId(m.emblem)) p.meta.emblem = m.emblem;
+    if (Array.isArray(m.badges)) {
+      p.meta.badges = [...new Set(m.badges.filter(id => isBadgeId(id)))].slice(0, 32);
+    }
+    if (m.daily && typeof m.daily === 'object') {
+      if (isDateStr(m.daily.lastClaim)) p.meta.daily.lastClaim = m.daily.lastClaim;
+      if (Number.isFinite(m.daily.streakDay)) p.meta.daily.streakDay = Math.max(0, Math.min(7, Math.floor(m.daily.streakDay)));
+    }
+    if (m.stats && typeof m.stats === 'object') {
+      for (const k of ['matches', 'wins', 'kills']) {
+        if (Number.isFinite(m.stats[k]) && m.stats[k] >= 0) p.meta.stats[k] = Math.floor(m.stats[k]);
+      }
+    }
+  }
   if (raw.settings && typeof raw.settings === 'object') {
     const s = raw.settings;
     if (Number.isFinite(s.sensitivity)) p.settings.sensitivity = s.sensitivity;
