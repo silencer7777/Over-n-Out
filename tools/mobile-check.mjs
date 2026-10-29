@@ -139,8 +139,8 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   const touch = readFileSync(new URL('../js/touchcontrols.js', import.meta.url), 'utf8');
-  eq(html.includes('id="build-stamp"') && html.includes('BUILD U12'), true, 'T7 menu build stamp present (cache witness)'); // U12 named re-pin: witness 11 -> 12
-  eq(html.includes('name="ono-build" content="12"'), true, 'T7 ono-build meta present'); // U12 named re-pin
+  eq(html.includes('id="build-stamp"') && html.includes('BUILD U13'), true, 'T7 menu build stamp present (cache witness)'); // U13 named re-pin: witness 12 -> 13
+  eq(html.includes('name="ono-build" content="13"'), true, 'T7 ono-build meta present'); // U13 named re-pin
   eq(main.includes('__onoBuild'), true, 'T7 build number exposed for support reads');
   eq(main.includes("matchMedia('(orientation: portrait)')") && main.includes("'pageshow'"), true, 'T7 redundant iOS fit triggers present');
   eq(touch.includes("'orientationchange'"), true, 'T7 touch layer re-feeds viewport on orientationchange');
@@ -197,6 +197,43 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   const streaks = await import('../js/streaks.js');
   const lg = streaks.getStreak('lightning');
   eq(lg && lg.cost === 1100 && lg.warn === 1.0 && lg.radius === 5 && lg.damage === 150, true, 'T9 lightning def: 1100 / warn 1.0 / r5 / dmg 150');
+}
+
+// T10: U13 — meta phase 1 (emblems, badges, daily rewards,
+// guarded credits). Pure-module pins on js/meta.js plus the
+// menu wiring. Brett's law: in-game currency only.
+{
+  const meta = await import('../js/meta.js');
+  eq(meta.EMBLEMS.length, 8, 'T10 eight emblems');
+  eq(meta.getEmblem('nope').id, 'meridian-star', 'T10 unknown emblem falls back to the default');
+  eq(meta.isEmblemUnlocked(1, 'meridian-star'), true, 'T10 default emblem open at level 1');
+  eq(meta.isEmblemUnlocked(1, 'void-diamond'), false, 'T10 void diamond locked at level 1');
+  eq(meta.isEmblemUnlocked(25, 'void-diamond'), true, 'T10 void diamond opens at level 25');
+  eq(meta.BADGES.length, 8, 'T10 eight special badges');
+  const fresh = () => ({ credits: 0, emblem: 'meridian-star', badges: [], daily: { lastClaim: null, streakDay: 0 }, stats: { matches: 0, wins: 0, kills: 0 } });
+  const m1 = fresh();
+  eq(meta.recordMatch(m1, 1, 'win', 1).join(','), 'first-blood', 'T10 first kill earns FIRST BLOOD');
+  eq(meta.evaluateBadges(m1, 1).length, 0, 'T10 badge evaluation is idempotent (no re-farm)');
+  eq(m1.stats.matches === 1 && m1.stats.wins === 1 && m1.stats.kills === 1, true, 'T10 recordMatch settles stats');
+  const c1 = fresh();
+  const claim1 = meta.claimDailyReward(c1, '2026-10-29');
+  eq(claim1.claimed && claim1.amount === 50 && claim1.streakDay === 1 && c1.credits === 50, true, 'T10 day-1 daily pays 50 MC');
+  eq(meta.claimDailyReward(c1, '2026-10-29').claimed, false, 'T10 same-day re-claim refused (anti-duplication)');
+  eq(c1.credits, 50, 'T10 refused re-claim pays nothing');
+  const claim2 = meta.claimDailyReward(c1, '2026-10-30');
+  eq(claim2.claimed && claim2.streakDay === 2 && claim2.amount === 75, true, 'T10 consecutive day advances the streak');
+  const claim3 = meta.claimDailyReward(c1, '2026-11-05');
+  eq(claim3.claimed && claim3.streakDay === 1 && claim3.amount === 50, true, 'T10 a gap resets the streak to day 1');
+  const c2 = fresh(); c2.daily = { lastClaim: '2026-10-28', streakDay: 7 };
+  const wrap = meta.claimDailyReward(c2, '2026-10-29');
+  eq(wrap.streakDay === 1 && wrap.amount === 50, true, 'T10 streak wraps 7 -> 1');
+  eq(meta.spendCredits(c1, 999999), false, 'T10 spend refuses insufficient funds');
+  eq(meta.spendCredits(c1, 25), true, 'T10 spend within balance succeeds');
+  eq(c1.credits >= 0, true, 'T10 balance never goes negative');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  eq(html.includes('id="meta-panel"') && html.includes('id="emblem-pickers"') && html.includes('id="daily-btn"'), true, 'T10 meta panel markup present');
+  const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  eq(main.includes('function renderMetaPanel') && main.includes('claimDailyReward(profile.meta') && main.includes('recordMatch(profile.meta'), true, 'T10 meta panel + daily + recordMatch wired in main');
 }
 
 if (failures) { console.error(`\nmobile-check: ${failures} failure(s)`); process.exit(1); }
