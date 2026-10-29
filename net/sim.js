@@ -1552,9 +1552,9 @@ function stepStrikes(match, events) {
   const due = match.strikes.filter(s => match.time >= s.at);
   if (!due.length) return;
   match.strikes = match.strikes.filter(s => match.time < s.at);
-  const def = getStreak('precision');
   for (const s of due) {
-    events.push({ kind: 'precision_strike', by: s.by, x: +s.x.toFixed(1), z: +s.z.toFixed(1) });
+    const def = getStreak(s.id || 'precision'); // U12: each strike blasts by its OWN streak def (lightning: tighter, harder, faster)
+    events.push({ kind: (s.id || 'precision') + '_strike', by: s.by, x: +s.x.toFixed(1), z: +s.z.toFixed(1) });
     const exposed = (x, y, z) => raycastWorld(x, y + 1.5, z, 0, 1, 0, 40, match.world) >= 40;
     for (const b of match.bots) {
       if (b.dead) continue;
@@ -1563,7 +1563,7 @@ function stepStrikes(match, events) {
       const dmg = def.damage * (1 - (d / def.radius) * 0.6);
       if (damageBot(match, b, dmg, false, events, s.by)) {
         if (b.team === 'kestrel') match.kills++;
-        events.push({ kind: 'kill', by: s.by, target: b.id, via: 'precision' });
+        events.push({ kind: 'kill', by: s.by, target: b.id, via: s.id || 'precision' });
       }
     }
     for (const p of match.players.values()) {
@@ -1602,7 +1602,7 @@ function callStreak(match, p, id, input, events) {
     dropPackage(match, p, events);
   } else if (id === 'sentry') {
     placeSentry(match, p, events);
-  } else if (id === 'precision') {
+  } else if (id === 'precision' || id === 'lightning') { // U12: lightning schedules through the same server-authoritative strike path
     let tx = input && typeof input.streakX === 'number' && Number.isFinite(input.streakX) ? input.streakX : null;
     let tz = input && typeof input.streakZ === 'number' && Number.isFinite(input.streakZ) ? input.streakZ : null;
     if (tx === null || tz === null) {
@@ -1612,8 +1612,8 @@ function callStreak(match, p, id, input, events) {
     const B = match.world.bounds;
     tx = Math.max(-B, Math.min(B, tx));
     tz = Math.max(-B, Math.min(B, tz));
-    match.strikes.push({ x: tx, z: tz, at: match.time + def.warn, by: p.id });
-    events.push({ kind: 'precision_warning', by: p.id, x: +tx.toFixed(1), z: +tz.toFixed(1) });
+    match.strikes.push({ x: tx, z: tz, at: match.time + def.warn, by: p.id, id });
+    events.push({ kind: id + '_warning', by: p.id, x: +tx.toFixed(1), z: +tz.toFixed(1) });
   }
 }
 
