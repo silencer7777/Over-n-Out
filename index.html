@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="ono-build" content="12">
+<meta name="ono-build" content="13">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss: https:; object-src 'none'; base-uri 'self'">
 <title>OVER N' OUT — Browser FPS</title>
-<link rel="stylesheet" href="css/style.css?v=12">
+<link rel="stylesheet" href="css/style.css?v=13">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -71,10 +71,19 @@
   <div id="menu-page-main" class="menu-page">
     <h1>OVER <span>N'</span> OUT</h1>
     <p class="tag">TACTICAL BROWSER FPS · v0.6.0-dev</p>
-    <div id="menu-chips" aria-hidden="true"><span class="mchip hot">UPDATE 10 — LIVE BUILD</span><span class="mchip">WORKING OPTICS</span><span class="mchip">TEAM CHAT + VOICE</span><span class="mchip">4 MAPS · 4 IDENTITIES</span></div>
+    <div id="menu-chips" aria-hidden="true"><span class="mchip hot">UPDATE 13 — LIVE BUILD</span><span class="mchip">WORKING OPTICS</span><span class="mchip">TEAM CHAT + VOICE</span><span class="mchip">4 MAPS · 4 IDENTITIES</span></div>
     <p id="menu-msg">Hostile waves inbound. Hold the compound.</p>
     <div id="results" class="hidden"><div class="story-label">AFTER ACTION — XP</div><div id="results-body"></div></div>
     <div id="profile-line">LEVEL 1 · 0 XP</div>
+    <!-- U13 meta phase 1: SERVICE RECORD — emblems, special
+         badges, daily rewards, Meridian Credits (in-game only). -->
+    <div id="meta-panel">
+      <div class="loadout-label">SERVICE RECORD — EMBLEMS · BADGES · DAILY REWARDS</div>
+      <div id="meta-line">★ MERIDIAN STAR · 0 MC · 0 / 8 BADGES</div>
+      <div class="loadout-row" id="emblem-pickers"></div>
+      <div id="badge-line">BADGES: none yet — first kill earns FIRST BLOOD</div>
+      <div class="online-row"><button id="daily-btn" type="button">🎁 CLAIM DAILY REWARD</button><span id="daily-line"></span></div>
+    </div>
     <div id="mode-pick"><label for="mode-select">MISSION</label><select id="mode-select"><option value="waves" selected>WAVE DEFENSE — hold the compound</option><option value="tdm">TEAM DEATHMATCH — first to 30</option><option value="domination">DOMINATION — hold the zones</option><option value="assault">RELAY ASSAULT — scramble the Carrier relay</option></select></div>
     <div id="mode-goal"></div>
     <div id="biome-pick"><label for="biome-select">LEVEL</label><select id="biome-select"><option value="compound" selected>THE COMPOUND — OUTPOST MERIDIAN</option><option value="forest">DENSE FOREST — MERIDIAN RELAY</option><option value="snow">SNOW STATION — RELAY NORTH</option><option value="mars">MARS UPLINK — SURFACE (LOW-G)</option></select></div>
@@ -119,7 +128,7 @@
     <button id="menu-options-btn" type="button">⚙ &nbsp;OPTIONS — CONTROLS · SCREEN · MOVEMENT · AUDIO</button>
     <button id="menu-more-btn" type="button">📜 &nbsp;STORY · CONTROLS REFERENCE</button>
     <p class="fine">One build for desktop + phone — on touch screens, on-screen controls appear automatically when you deploy.</p>
-    <p class="fine" id="build-stamp">BUILD U12 · v0.6.0-dev</p>
+    <p class="fine" id="build-stamp">BUILD U13 · v0.6.0-dev</p>
   </div>
   <div id="menu-page-more" class="menu-page hidden">
     <div class="menu-page-title">OPTIONS</div>
@@ -169,6 +178,6 @@
 <script type="importmap">
 { "imports": { "three": "./vendor/three.module.js" } }
 </script>
-<script type="module" src="js/main.js?v=12"></script>
+<script type="module" src="js/main.js?v=13"></script>
 </body>
 </html>
