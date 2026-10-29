@@ -224,7 +224,7 @@ export function getPerk(id) {
 // DEFINITIONS (thresholds, effects) live in js/streaks.js;
 // this list is the id vocabulary only, and smoke asserts the
 // two never drift (Board 005 Addendum 3).
-export const STREAK_IDS = ['uav', 'cuav', 'package', 'sentry', 'precision'];
+export const STREAK_IDS = ['uav', 'cuav', 'package', 'sentry', 'lightning', 'precision']; // U12: lightning joins the ladder
 
 // Camo (V5 customization) — cosmetic identity only; the sim
 // attaches no stats (Havoc §7: cosmetics never enter the stats
@@ -342,6 +342,7 @@ export function countLoadoutCombinations() {
   for (const cat of PERK_CATEGORIES) {
     perkWays *= PERKS.filter(p => p.category === cat).length + 1;
   }
-  const streakWays = 10;   // C(5,3): exactly 3 distinct of the 5-streak ladder
+  const n = STREAK_IDS.length;
+  const streakWays = n * (n - 1) * (n - 2) / 6;   // C(n,3): exactly 3 distinct streaks (U12: computed, not hardcoded — the ladder grows)
   return total * TACTICALS.length * LETHALS.length * perkWays * streakWays * CAMOS.length;
 }
