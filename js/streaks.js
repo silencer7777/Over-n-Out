@@ -24,6 +24,8 @@ export const STREAKS = [
     blurb: 'A crate falls on your position: full resupply + a rolled streak. Anyone can claim it.' },
   { id: 'sentry', name: 'SENTRY GUN', cost: 1050, duration: 45, hp: 100,
     blurb: 'A placed auto-turret, 45 s battery. Flash does not blind it; smoke blocks it.' },
+  { id: 'lightning', name: 'LIGHTNING STRIKE', cost: 1100, duration: 0, warn: 1.0, radius: 5, damage: 150,
+    blurb: 'A near-instant strike on your aim point: only 1 s of warning, tighter and harder than the precision strike. Solid cover negates it. (U12 — Brett’s scorestreak expansion, phase 1.)' },
   { id: 'precision', name: 'PRECISION STRIKE', cost: 1300, duration: 0, warn: 2.5, radius: 7, damage: 130,
     blurb: 'A strike on your aim point after a 2.5 s warning. Solid cover negates it.' },
 ];
