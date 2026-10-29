@@ -304,6 +304,33 @@ only when they cost the graphics mission nothing:
   count is now 10.** Still open: Stage 2 signed sessions
   (hardening not certified complete); Brett's U9 re-test
   verdicts. Queue head: scenery/mountains, then meta.
+- **Update 11 LANDED + PUSHED LIVE** (Oct 28, commits
+  `a051032` spec + `695134e` code + this landing): queue item
+  5 — scenery realism + background mountains. **Finding:**
+  the two flat silhouette ridge rings (r 100 / r 124) were
+  placed for the old ±50 arena (corner ~71); since U6-12 the
+  bounds are ±80 (corner ~113.1), so the r 100 circle crossed
+  the playable square at its diagonals. **Shipped:** four
+  vertex-coloured ridge rings re-based outside the bounds
+  (foothill 122 / near 132 / mid 152 / far 178; minimum radius
+  after bump+hash swing ~115.8 > 113.1), dark base → lighter
+  crest with deterministic jitter, plus ONE merged distant-
+  peak range (18 summits, r 195–225, heights ~34–58, pale
+  apex caps). Visual only — no colliders/shootables; the
+  re-basing is this update's anti-glitch item. Build witness
+  11 (mobile-check T7 **named re-pin**, witness-only); smoke
+  gained H1 pins (horizon names present, old radii absent,
+  vertex colours present). Perf: client static calls +3/map
+  exactly as budgeted (48/61/60/62 → 51/64/63/65, bar 165),
+  tris +360/map, shadow casters Δ0 (estimate stays 199/200).
+  All five gates green on tree + snapshot; live byte-verified
+  (BUILD U11 stamp, `BUILD_NO = 11`, world.js 87,158 B exact;
+  Pages flipped ~2 min after push, remote verified via
+  Contents API in the interim). Report:
+  `docs/sessions/v6-update-11-report.md`. **The count is
+  now 11.** Still open: Stage 2 signed sessions (hardening
+  not certified complete); Brett's U9 re-test verdicts.
+  Queue head: meta systems (emblems + badges first).
 
 ## Owner directives (Brett, Oct 28, 2026) — release law, lighting lock lifted, focus queue
 
