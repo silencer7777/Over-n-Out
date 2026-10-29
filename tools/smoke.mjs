@@ -1,7 +1,7 @@
 // Smoke test: syntax-check every JS module, boot the server, fetch key routes.
 // Used by the guardian script and GitHub Actions CI. Exit 1 on any failure.
 import { readdirSync, statSync, copyFileSync, unlinkSync, readFileSync } from 'node:fs';
-import { spawn, execFileSync } from 'node:child_process';
+import { spawn, execFile, execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import http from 'node:http';
 
@@ -19,16 +19,47 @@ function* walk(dir) {
 }
 
 // 1) Syntax check (as .mjs so ES-module syntax parses)
-for (const file of walk(ROOT)) {
-  const tmp = file + '.check.mjs';
-  try {
-    copyFileSync(file, tmp);
-    execFileSync(process.execPath, ['--check', tmp], { stdio: 'pipe' });
-    ok('syntax ' + file.replace(ROOT, ''));
-  } catch (e) {
-    fail('syntax ' + file.replace(ROOT, '') + '\n' + (e.stderr?.toString() || e.message));
-  } finally { try { unlinkSync(tmp); } catch {} }
+// Bounded-parallel (training, Oct 29 — EFFICIENCY): each `node --check`
+// spawn costs ~90ms of process startup, and this serial loop was the
+// largest single phase of smoke runtime (~34% of wall-clock in the Coach
+// grading pass's phase timing; the share grows under load). Four workers
+// (2-core box; no fork flood), each file still gets its own .check.mjs
+// copy, and results are buffered and printed in original walk order —
+// the ok/fail lines are unchanged.
+// Temp names are unique per process and temp artifacts are never walked
+// as sources: two smoke instances on the same tree (hourly guardian +
+// a build/training run) otherwise share '<file>.check.mjs' paths and
+// unlink each other's temps — the 2026-10-29 16:07 UTC guardian run
+// false-failed 4 checks that way (Coach re-grade, training Oct 29).
+const syntaxFiles = [...walk(ROOT)].filter(f => !f.endsWith('.check.mjs'));
+const syntaxErrors = new Array(syntaxFiles.length).fill(null);
+{
+  let nextIdx = 0;
+  const syntaxWorker = async () => {
+    while (nextIdx < syntaxFiles.length) {
+      const i = nextIdx++;
+      const file = syntaxFiles[i];
+      const tmp = file + '.' + process.pid + '.check.mjs';
+      try {
+        copyFileSync(file, tmp);
+        await new Promise(resolve => {
+          execFile(process.execPath, ['--check', tmp], (err, _stdout, stderr) => {
+            if (err) syntaxErrors[i] = stderr?.toString() || err.message;
+            resolve();
+          });
+        });
+      } catch (e) {
+        syntaxErrors[i] = e.stderr?.toString() || e.message;
+      } finally { try { unlinkSync(tmp); } catch {} }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(4, syntaxFiles.length) }, syntaxWorker));
 }
+syntaxFiles.forEach((file, i) => {
+  const rel = 'syntax ' + file.replace(ROOT, '');
+  if (syntaxErrors[i] === null) ok(rel);
+  else fail(rel + '\n' + syntaxErrors[i]);
+});
 
 // 1b) Security lint — "secured calls" mandate: game code under js/ ONLY
 // (never vendor/ — vendored Three.js legitimately contains URLs in comments)
@@ -667,6 +698,19 @@ try {
     && msan.meta.stats.matches === 3 && msan.meta.stats.wins === 0 && msan.meta.stats.kills === 12
     && san.meta && san.meta.credits === 0 && san.xp === 5000) ok('PG9 meta block: defaults + sanitize/clamp + pre-U13 migration lossless');
   else fail(`PG9 meta → ${JSON.stringify(msan.meta)} / migrated ${JSON.stringify(san.meta)}`);
+  // PG10 (U14): the owned list — createMeta defaults, sanitize
+  // filter/dedupe, the unearned shop-emblem reset (a shop emblem
+  // whose granting item is not owned cannot be worn), and
+  // lossless migration of a pre-U14 meta (no owned key).
+  const up = P.createProfile();
+  const usan = P.sanitizeProfile({ xp: 10, meta: { credits: 2000, emblem: 'command-banner', owned: ['command-pack', 'command-pack', 'bogus', 'field-pack'] } });
+  const uworn = P.sanitizeProfile({ xp: 10, meta: { emblem: 'command-banner', owned: ['field-pack'] } });
+  const umig = P.sanitizeProfile({ xp: 777, meta: { credits: 40, emblem: 'tower', badges: [], daily: { lastClaim: null, streakDay: 0 }, stats: { matches: 1, wins: 1, kills: 2 } } });
+  if (Array.isArray(up.meta.owned) && up.meta.owned.length === 0
+    && usan.meta.owned.join(',') === 'command-pack,field-pack' && usan.meta.emblem === 'command-banner'
+    && uworn.meta.emblem === 'meridian-star'
+    && Array.isArray(umig.meta.owned) && umig.meta.owned.length === 0 && umig.xp === 777 && umig.meta.credits === 40) ok('PG10 owned: defaults [] + sanitize filter/dedupe + unearned shop emblem resets + pre-U14 migration lossless');
+  else fail(`PG10 owned → ${JSON.stringify(usan.meta)} / worn ${JSON.stringify(uworn.meta)} / migrated ${JSON.stringify(umig.meta)}`);
 } catch (e) { fail('PG progression checks: ' + e.message); }
 
 try {
@@ -679,7 +723,7 @@ try {
 
 // 2) Boot server + fetch routes
 const PORT = 8199;
-const srv = spawn(process.execPath, [join(ROOT, 'server/server.js')], { env: { ...process.env, PORT }, stdio: 'pipe' });
+let srv = spawn(process.execPath, [join(ROOT, 'server/server.js')], { env: { ...process.env, PORT }, stdio: 'pipe' });
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 // Raw-path GET via node:http — fetch/undici normalizes `..` away before
@@ -702,7 +746,48 @@ function rawGet(rawPath) {
 }
 
 try {
-  await wait(900);
+  // Poll until the server answers instead of a fixed wait(900) (training,
+  // Oct 29 — EFFICIENCY): measured server-ready median is 96–165ms, so the
+  // fixed wait burned ~750ms per run, and a boot slower than 900ms would
+  // false-fail. 50ms poll, 5s deadline; if the server never comes up, the
+  // route loop below fails and reports exactly as before. No check lines
+  // are added or removed by waiting differently.
+  //
+  // Concurrent-instance rule (training follow-up, Oct 29 — Coach re-grade):
+  // if our server child died, another smoke instance owns port 8199.
+  // Riding its server false-fails when it finishes and kills the server
+  // mid-section (ECONNRESET), so instead wait for the port to free and
+  // boot our own — all before any check line is printed. Solo runs own
+  // their server immediately and never take the wait path.
+  const waitReady = async () => {
+    const deadline = Date.now() + 5000;
+    let ready = false;
+    while (!ready && Date.now() < deadline && srv.exitCode === null) {
+      try {
+        const probe = await fetch(`http://localhost:${PORT}/`);
+        await probe.text();
+        ready = probe.ok;
+      } catch { await wait(50); }
+    }
+    if (ready) { await wait(150); ready = srv.exitCode === null; }
+    return ready;
+  };
+  if (!(await waitReady()) && srv.exitCode !== null) {
+    // Not our server (or none): wait for the port to free, then respawn.
+    const freeDeadline = Date.now() + 60000;
+    let free = false;
+    while (!free && Date.now() < freeDeadline) {
+      try {
+        const p = await fetch(`http://localhost:${PORT}/`);
+        await p.text();
+        await wait(100);
+      } catch { free = true; }
+    }
+    if (free) {
+      srv = spawn(process.execPath, [join(ROOT, 'server/server.js')], { env: { ...process.env, PORT }, stdio: 'pipe' });
+      await waitReady();
+    }
+  }
   for (const route of ['/', '/js/main.js', '/js/player.js', '/js/bots.js', '/js/world.js', '/js/audio.js', '/js/weapons.js', '/js/story.js', '/js/perfmeter.js', '/js/quality.js', '/js/biomes.js', '/js/geo.js', '/js/gunmodels.js', '/js/worlddata.js', '/js/modes.js', '/js/loadouts.js', '/js/progression.js', '/js/online.js', '/css/style.css', '/vendor/three.module.js']) {
     const res = await fetch(`http://localhost:${PORT}${route}`);
     if (!res.ok) fail(`GET ${route} → ${res.status}`); else ok(`GET ${route} → 200`);
@@ -769,7 +854,7 @@ try {
 
   // M11 (U10): minimap + guidance ids, CSP meta, and the
   // localhost-default bind for the online server entrypoint.
-  for (const idAttr of ['id="minimap"', 'id="objective-guide"', 'id="og-arrow"', 'id="og-text"', 'id="meta-panel"', 'id="meta-line"', 'id="emblem-pickers"', 'id="badge-line"', 'id="daily-btn"', 'id="daily-line"']) {
+  for (const idAttr of ['id="minimap"', 'id="objective-guide"', 'id="og-arrow"', 'id="og-text"', 'id="meta-panel"', 'id="meta-line"', 'id="emblem-pickers"', 'id="badge-line"', 'id="daily-btn"', 'id="daily-line"', 'id="shop-line"', 'id="package-pickers"', 'id="offer-line"', 'id="offer-pickers"']) {
     if (!home.includes(idAttr)) fail(`M11 served HTML missing ${idAttr}`); else ok(`M11 served HTML contains ${idAttr}`);
   }
   if (!home.includes('Content-Security-Policy') || !home.includes("object-src 'none'")) fail('M11 CSP meta missing or weakened'); else ok('M11 CSP meta present (object-src none)');
