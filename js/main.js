@@ -17,6 +17,7 @@ import {
   unlockedClassSlots, isAttachmentUnlocked, isPerkUnlocked, isCamoUnlocked, unlocksBetween, awardXp, XP_VALUES, UNLOCKS, PRESTIGE,
 } from './progression.js';
 import { CAMO_IDS, getCamo } from './camo.js';
+import { EMBLEMS, getEmblem, isEmblemUnlocked, getBadge, claimDailyReward, recordMatch } from './meta.js'; // U13 meta phase 1
 import { OnlineSession } from './online.js';
 import { LobbyChat } from './chat.js';   // U6-14 menu chatroom
 import { VoiceChat } from './voice.js'; // U6-15 WebRTC voice
@@ -165,7 +166,7 @@ function goLandscape() {
 // hardening law) forbids it, and the lint outranks the
 // convenience. The stamp + versioned asset URLs are the
 // shipped witness; see the U9 report.
-const BUILD_NO = 12;
+const BUILD_NO = 13;
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -289,6 +290,8 @@ const voicePeersEl = $('voice-peers'), chatMutedListEl = $('chat-muted-list');  
 let voice = null;                  // VoiceChat — the in-match voice mesh
 let lobbyChat = null;              // LobbyChat — the menu chatroom socket
 const camoPickersEl = $('camo-pickers');
+const metaLineEl = $('meta-line'), emblemPickersEl = $('emblem-pickers'), badgeLineEl = $('badge-line');
+const dailyBtn = $('daily-btn'), dailyLineEl = $('daily-line');
 const QUALITY_BY_MODE = { high: 0, medium: 2, low: 3 };
 
 function applySettings() {
@@ -382,6 +385,67 @@ function renderCamoPickers() {
     camoPickersEl.appendChild(btn);
   }
 }
+
+// Meta panel (U13): the SERVICE RECORD — emblem picker, badge
+// line, Meridian Credits, and the daily-reward claim. Rendered
+// from the profile with DOM APIs only (no innerHTML). Emblem
+// selection and daily claims persist immediately. The daily
+// claim uses the player's LOCAL date; js/meta.js refuses a
+// second claim for the same date (anti-duplication).
+function localDateStr() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+function renderMetaPanel() {
+  const meta = profile.meta;
+  if (metaLineEl) {
+    const e = getEmblem(meta.emblem);
+    metaLineEl.textContent = `${e.glyph} ${e.name} · ${meta.credits} MC · ${meta.badges.length} / 8 BADGES`;
+  }
+  if (emblemPickersEl) {
+    emblemPickersEl.textContent = '';
+    const lvl = myLevel();
+    for (const e of EMBLEMS) {
+      const unlocked = isEmblemUnlocked(lvl, e.id);
+      const btn = document.createElement('button');
+      btn.className = 'wpn' + (e.id === meta.emblem ? ' selected' : '') + (unlocked ? '' : ' locked');
+      btn.textContent = unlocked ? `${e.glyph} ${e.name}` : `🔒 L${e.level} ${e.name}`;
+      btn.disabled = !unlocked;
+      btn.addEventListener('click', () => {
+        profile.meta.emblem = e.id;
+        persistProfile();
+        renderMetaPanel();
+      });
+      emblemPickersEl.appendChild(btn);
+    }
+  }
+  if (badgeLineEl) {
+    badgeLineEl.textContent = meta.badges.length
+      ? 'BADGES: ' + meta.badges.map(id => { const b = getBadge(id); return b ? b.name : id; }).join(' · ')
+      : 'BADGES: none yet — first kill earns FIRST BLOOD';
+  }
+  if (dailyLineEl && dailyBtn) {
+    const today = localDateStr();
+    if (meta.daily.lastClaim === today) {
+      dailyBtn.disabled = true;
+      dailyBtn.textContent = '✓ DAILY REWARD CLAIMED';
+      dailyLineEl.textContent = `Streak day ${meta.daily.streakDay} claimed — come back tomorrow for the next reward.`;
+    } else {
+      dailyBtn.disabled = false;
+      dailyBtn.textContent = '🎁 CLAIM DAILY REWARD';
+      dailyLineEl.textContent = meta.daily.streakDay
+        ? `Daily streak day ${meta.daily.streakDay} banked — claim today to keep it growing.`
+        : 'A Meridian Credits reward waits every day — day 1 pays 50 MC.';
+    }
+  }
+}
+if (dailyBtn) dailyBtn.addEventListener('click', () => {
+  const r = claimDailyReward(profile.meta, localDateStr());
+  if (r.claimed) persistProfile();
+  renderMetaPanel();
+  if (r.claimed && dailyLineEl) dailyLineEl.textContent = `+${r.amount} MC — streak day ${r.streakDay}. Balance: ${profile.meta.credits} MC.`;
+});
 
 // Menu theme (U5-01): starts on the first user gesture anywhere
 // (autoplay law), but only while a menu is actually up; the
@@ -479,6 +543,7 @@ function syncLoadoutUi() {
   renderClassTabs();
   renderAttPickers();
   renderCamoPickers(); // U5-10: after the .wpn sweep, so camo selection state wins
+  renderMetaPanel(); // U13: emblem buttons ride .wpn too — re-render after the sweep
   refreshGearLine();
   refreshProfileLine();
 }
@@ -1245,6 +1310,10 @@ function endMatch(result) {
   if (result === 'lose') xpAdd('matchLoss', 1);                // a played match is never a zero (Havoc)
   const entries = [...xpLedger.entries()].map(([source, count]) => ({ source, count }));
   const award = awardXp(profile, entries);
+  // U13: settle the solo match into the lifetime meta stats and
+  // evaluate special badges (idempotent — js/meta.js). Online
+  // matches settle on the server and are NOT recorded here.
+  const newBadges = recordMatch(profile.meta, award.newLevel, result, kills);
   persistProfile();
   state = 'over';
   killStreak = 0; streakTimer = 0;
@@ -1268,10 +1337,11 @@ function endMatch(result) {
         : `LEVEL ${award.newLevel} · ${profile.xp} XP`,
     ];
     for (const u of award.unlocks) lines.push(`UNLOCKED: ${u.label}`);
+    for (const id of newBadges) { const b = getBadge(id); lines.push(`BADGE EARNED: ${b ? b.name : id}`); }
     if (foundTransmissions.size) lines.push(`TRANSMISSIONS RECOVERED: ${foundTransmissions.size} / ${WORLD_TRANSMISSIONS.length}`);
     lines.forEach((t, i) => {
       const div = document.createElement('div');
-      if (t.startsWith('UNLOCKED')) div.className = 'unlock';
+      if (t.startsWith('UNLOCKED') || t.startsWith('BADGE EARNED')) div.className = 'unlock';
       div.textContent = t;
       resultsBodyEl.appendChild(div);
     });
@@ -1285,6 +1355,7 @@ function endMatch(result) {
   renderClassTabs();
   renderAttPickers();
   renderCamoPickers();
+  renderMetaPanel();
   sfx.startMenuMusic(); // U5-01: the theme returns with the menu
 }
 
