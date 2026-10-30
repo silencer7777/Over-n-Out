@@ -74,6 +74,7 @@ export class Player {
     this.radius = 0.55;
     this.bobT = 0;
     this.recoil = 0;
+    this.recoilYaw = 0;          // V7: horizontal recoil-pattern offset (decays like recoil)
     this.baseFov = camera.fov;   // 75 from main.js; sprint eases toward 82
     this.landDip = 0;            // current landing-dip camera offset (<= 0)
     this.landDipMax = 0;         // dip depth captured at touchdown
@@ -292,8 +293,13 @@ export class Player {
     // Orientation
     this.rig.rotation.y = this.yaw;
     this.camera.rotation.x = this.pitch + this.recoil;
+    this.camera.rotation.y = this.recoilYaw || 0;   // V7: horizontal recoil-pattern wander
     this.recoil *= Math.pow(0.0001, dt); // fast decay
     if (this.recoil < 0.0005) this.recoil = 0;
+    if (this.recoilYaw) {
+      this.recoilYaw *= Math.pow(0.0001, dt);
+      if (Math.abs(this.recoilYaw) < 0.0005) this.recoilYaw = 0;
+    }
 
     // Wish direction in rig space
     const f = (input.forward ? 1 : 0) - (input.back ? 1 : 0);
@@ -569,8 +575,18 @@ export class Player {
     this._prevSlideT = this.slideT; // U6-10: slide-end detection for the stance step
   }
 
-  kick(strength = 0.021) {
-    this.recoil = Math.min(this.recoil + strength, 0.09);
+  kick(strength = 0.021, recoilV, recoilH) {
+    // V7 recoil pattern: the camera climb is the weapon's recoilV
+    // (falling back to the scalar strength), and each shot adds a
+    // bounded random horizontal wander of up to recoilH — a real
+    // pattern the player can learn and pull against, instead of
+    // the pre-V7 pure vertical pop. Attachments that mod recoil
+    // scale all three (see effectiveWeapon).
+    this.recoil = Math.min(this.recoil + (recoilV ?? strength), 0.09);
+    if (recoilH) {
+      this.recoilYaw = Math.max(-0.035, Math.min(0.035,
+        (this.recoilYaw || 0) + recoilH * (Math.random() * 2 - 1)));
+    }
     // Gun kickback scales mildly with the weapon's recoil strength
     // (the AR's 0.021 reproduces the original 0.03 kick exactly).
     this.gunKick = Math.min(this.gunKick + 0.03 * (strength / 0.021), 0.075);
