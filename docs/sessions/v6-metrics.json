@@ -1,12 +1,12 @@
 {
   "tool": "v6-metrics",
-  "generatedAt": "2026-10-29T03:04:07.129Z",
+  "generatedAt": "2026-10-30T07:40:00.420Z",
   "sections": {
     "gates": {
       "smoke": {
-        "passed": true,
-        "checks": 297,
-        "tail": " | SMOKE PASSED"
+        "passed": false,
+        "checks": 310,
+        "error": "✗ T2 worlddata EXTRA_COLLIDERS → 43 (expected 37)\n"
       },
       "reachability": {
         "passed": true,
@@ -25,8 +25,8 @@
       },
       "soak": {
         "passed": true,
-        "losUsPerRay": 7.93,
-        "simMsPerTick": 0.048
+        "losUsPerRay": 7.24,
+        "simMsPerTick": 0.054
       },
       "perMapReachability": {
         "maps": {
@@ -60,18 +60,18 @@
           "kind": "client",
           "static": {
             "calls": 51,
-            "tris": 31268,
-            "verts": 48243,
+            "tris": 33788,
+            "verts": 50025,
             "shadowCasters": 30,
-            "casterTris": 21222,
+            "casterTris": 23742,
             "instancedMeshes": 9,
-            "instances": 442,
-            "instancedTris": 22222,
-            "instancedShare": 0.711,
+            "instances": 460,
+            "instancedTris": 24742,
+            "instancedShare": 0.732,
             "flatTris": 5940,
-            "flatShare": 0.19,
-            "texturedTris": 20572,
-            "texturedShare": 0.658,
+            "flatShare": 0.176,
+            "texturedTris": 23092,
+            "texturedShare": 0.683,
             "largestUntexturedMesh": {
               "tris": 40,
               "area": 263122.8,
@@ -94,9 +94,9 @@
                 "widthSegments": 10,
                 "radius": 1
               },
-              "count": 60,
+              "count": 78,
               "trisEach": 140,
-              "tris": 8400,
+              "tris": 10920,
               "flat": false,
               "textured": true,
               "castShadow": true,
@@ -449,14 +449,14 @@
           },
           "sustained": {
             "calls": 134,
-            "tris": 90532
+            "tris": 93052
           },
           "inclTransients": {
             "calls": 135,
-            "tris": 90532
+            "tris": 93052
           },
           "shadowPassEstimate": 189,
-          "shadowTrisEstimate": 75078,
+          "shadowTrisEstimate": 77598,
           "equipmentReserveCalls": 32,
           "streakReserveCalls": 17,
           "remoteFigureCalls": 21,
@@ -470,18 +470,18 @@
           "kind": "client",
           "static": {
             "calls": 64,
-            "tris": 222262,
-            "verts": 204189,
+            "tris": 224782,
+            "verts": 205971,
             "shadowCasters": 38,
-            "casterTris": 193712,
+            "casterTris": 196232,
             "instancedMeshes": 17,
-            "instances": 2470,
-            "instancedTris": 212854,
+            "instances": 2488,
+            "instancedTris": 215374,
             "instancedShare": 0.958,
             "flatTris": 7956,
-            "flatShare": 0.036,
-            "texturedTris": 209380,
-            "texturedShare": 0.942,
+            "flatShare": 0.035,
+            "texturedTris": 211900,
+            "texturedShare": 0.943,
             "largestUntexturedMesh": {
               "tris": 40,
               "area": 263122.8,
@@ -554,9 +554,9 @@
                 "widthSegments": 10,
                 "radius": 1
               },
-              "count": 60,
+              "count": 78,
               "trisEach": 140,
-              "tris": 8400,
+              "tris": 10920,
               "flat": false,
               "textured": true,
               "castShadow": true,
@@ -939,14 +939,14 @@
           },
           "sustained": {
             "calls": 147,
-            "tris": 281526
+            "tris": 284046
           },
           "inclTransients": {
             "calls": 148,
-            "tris": 281526
+            "tris": 284046
           },
           "shadowPassEstimate": 210,
-          "shadowTrisEstimate": 247568,
+          "shadowTrisEstimate": 250088,
           "equipmentReserveCalls": 32,
           "streakReserveCalls": 17,
           "remoteFigureCalls": 21,
@@ -1543,18 +1543,18 @@
           "kind": "client",
           "static": {
             "calls": 63,
-            "tris": 68736,
-            "verts": 78333,
+            "tris": 71256,
+            "verts": 80115,
             "shadowCasters": 40,
-            "casterTris": 58138,
+            "casterTris": 60658,
             "instancedMeshes": 16,
-            "instances": 783,
-            "instancedTris": 59222,
-            "instancedShare": 0.862,
+            "instances": 801,
+            "instancedTris": 61742,
+            "instancedShare": 0.866,
             "flatTris": 6516,
-            "flatShare": 0.095,
-            "texturedTris": 57320,
-            "texturedShare": 0.834,
+            "flatShare": 0.091,
+            "texturedTris": 59840,
+            "texturedShare": 0.84,
             "largestUntexturedMesh": {
               "tris": 40,
               "area": 263122.8,
@@ -1589,13 +1589,13 @@
               "kind": "instanced",
               "geo": "SphereGeometry",
               "params": {
-                "heightSegments": 6,
-                "widthSegments": 8,
+                "heightSegments": 8,
+                "widthSegments": 10,
                 "radius": 1
               },
-              "count": 120,
-              "trisEach": 80,
-              "tris": 9600,
+              "count": 78,
+              "trisEach": 140,
+              "tris": 10920,
               "flat": false,
               "textured": true,
               "castShadow": true,
@@ -1605,13 +1605,13 @@
               "kind": "instanced",
               "geo": "SphereGeometry",
               "params": {
-                "heightSegments": 8,
-                "widthSegments": 10,
+                "heightSegments": 6,
+                "widthSegments": 8,
                 "radius": 1
               },
-              "count": 60,
-              "trisEach": 140,
-              "tris": 8400,
+              "count": 120,
+              "trisEach": 80,
+              "tris": 9600,
               "flat": false,
               "textured": true,
               "castShadow": true,
@@ -2037,14 +2037,14 @@
           },
           "sustained": {
             "calls": 146,
-            "tris": 128000
+            "tris": 130520
           },
           "inclTransients": {
             "calls": 147,
-            "tris": 128000
+            "tris": 130520
           },
           "shadowPassEstimate": 211,
-          "shadowTrisEstimate": 111994,
+          "shadowTrisEstimate": 114514,
           "equipmentReserveCalls": 32,
           "streakReserveCalls": 17,
           "remoteFigureCalls": 21,
@@ -2552,18 +2552,18 @@
           "kind": "client",
           "static": {
             "calls": 65,
-            "tris": 53258,
-            "verts": 64897,
+            "tris": 55778,
+            "verts": 66679,
             "shadowCasters": 40,
-            "casterTris": 33744,
+            "casterTris": 36264,
             "instancedMeshes": 14,
-            "instances": 649,
-            "instancedTris": 43558,
-            "instancedShare": 0.818,
+            "instances": 667,
+            "instancedTris": 46078,
+            "instancedShare": 0.826,
             "flatTris": 5940,
-            "flatShare": 0.112,
-            "texturedTris": 42220,
-            "texturedShare": 0.793,
+            "flatShare": 0.106,
+            "texturedTris": 44740,
+            "texturedShare": 0.802,
             "largestUntexturedMesh": {
               "tris": 40,
               "area": 263122.8,
@@ -2582,6 +2582,22 @@
               "kind": "instanced",
               "geo": "SphereGeometry",
               "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              },
+              "count": 78,
+              "trisEach": 140,
+              "tris": 10920,
+              "flat": false,
+              "textured": true,
+              "castShadow": true,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
                 "heightSegments": 6,
                 "widthSegments": 7,
                 "radius": 1
@@ -2592,22 +2608,6 @@
               "flat": false,
               "textured": true,
               "castShadow": false,
-              "instanceColor": true
-            },
-            {
-              "kind": "instanced",
-              "geo": "SphereGeometry",
-              "params": {
-                "heightSegments": 8,
-                "widthSegments": 10,
-                "radius": 1
-              },
-              "count": 60,
-              "trisEach": 140,
-              "tris": 8400,
-              "flat": false,
-              "textured": true,
-              "castShadow": true,
               "instanceColor": true
             },
             {
@@ -3012,14 +3012,14 @@
           },
           "sustained": {
             "calls": 148,
-            "tris": 112522
+            "tris": 115042
           },
           "inclTransients": {
             "calls": 149,
-            "tris": 112522
+            "tris": 115042
           },
           "shadowPassEstimate": 213,
-          "shadowTrisEstimate": 87600,
+          "shadowTrisEstimate": 90120,
           "equipmentReserveCalls": 32,
           "streakReserveCalls": 17,
           "remoteFigureCalls": 21,
@@ -4022,6 +4022,7 @@
         "sentry": 4,
         "carePackage": 2,
         "strike": 2,
+        "dog": 2,
         "smoke": 5
       }
     },
@@ -4029,34 +4030,34 @@
       "standard": {
         "label": "soak-parity (2 scripted clients)",
         "clients": 2,
-        "ticks": 1072,
+        "ticks": 2086,
         "sanity": {
           "welcomesReceived": 2,
           "matchBooted": true,
-          "snapshotsReceived": 1428
+          "snapshotsReceived": 2780
         },
-        "msPerTickAvg": 0.141,
+        "msPerTickAvg": 0.098,
         "windowMsPerTick": null,
-        "maxWave": 1,
-        "maxAliveBots": 4,
-        "maxSnapshotBytes": 1081,
+        "maxWave": 2,
+        "maxAliveBots": 6,
+        "maxSnapshotBytes": 1525,
         "snapshotCapBytes": 4096,
         "snapshotWithinCap": true
       },
       "stress": {
         "label": "stress (4 scripted clients, window at wave >= 5 = alive cap 9)",
         "clients": 4,
-        "ticks": 1911,
+        "ticks": 4865,
         "sanity": {
           "welcomesReceived": 4,
           "matchBooted": true,
-          "snapshotsReceived": 5092
+          "snapshotsReceived": 12972
         },
-        "msPerTickAvg": 0.145,
+        "msPerTickAvg": 0.084,
         "windowMsPerTick": null,
-        "maxWave": 3,
-        "maxAliveBots": 7,
-        "maxSnapshotBytes": 1687,
+        "maxWave": 2,
+        "maxAliveBots": 6,
+        "maxSnapshotBytes": 1675,
         "snapshotCapBytes": 4096,
         "snapshotWithinCap": true
       },
@@ -4090,8 +4091,8 @@
     },
     "capabilities": {
       "packageVersion": "0.6.0-dev",
-      "losProfileUsPerRay": 7.93,
-      "loadoutCombinations": 99727200,
+      "losProfileUsPerRay": 7.24,
+      "loadoutCombinations": 174522600,
       "camoCount": 9,
       "mapRegistry": {
         "compound": {
@@ -4131,9 +4132,9 @@
     "FLAT SURFACE STRIKE (LAYOUT snow (pre-wiring projection)): largest in-scope untextured static mesh ≈ 33924.8 m² (BoxGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 12 tris of flat colour",
     "FLAT SURFACE STRIKE (LAYOUT mars (pre-wiring projection)): largest in-scope untextured static mesh ≈ 33924.8 m² (BoxGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 12 tris of flat colour",
     "SOLDIER BAR (§2.4): bot costs 8 calls > 7 — Update 4 must hold ≤7 calls per bot while smoothing the kit read",
-    "tree is DIRTY at measurement time — numbers describe the working tree, not HEAD (fda1286)"
+    "tree is DIRTY at measurement time — numbers describe the working tree, not HEAD (f1d016e)"
   ],
-  "head": "fda1286",
+  "head": "f1d016e",
   "treeClean": false,
   "bars": {
     "drawCallsPerMap": 165,
