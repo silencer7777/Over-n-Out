@@ -30,7 +30,8 @@ import { applyLightingProfile } from './lighting.js';
 import { EQUIPMENT, losSmokeState, smokeDensity, claymoreDamage, tripDamage, segmentsDistanceXZ, SPAWN_EXCLUSION } from './equipment-data.js';
 import { createStreakState, feedStreak, streakFeedFor, streakReady, nextReadyStreak, activateStreak, expireStreaks, getStreak, dronePositionAt, UAV_SPEC, CUAV_SPEC, PACKAGE_SPEC, SENTRY_SPEC, DOG_SPEC } from './streaks.js';
 import { spawnSmoke } from './smokevisual.js';
-import { buildEquipmentMesh, createUAVActor, createSentryActor, createCarePackage, createStrikeVisuals, createDogActor } from './equipment.js';
+import { buildEquipmentMesh, createUAVActor, createSentryActor, createCarePackage, createStrikeVisuals, createDogActor, createVehicleActor } from './equipment.js';
+import { VEHICLE_SPEC, VEHICLE_PADS, createVehicleState, stepVehicle, damageVehicle } from './vehicles.js'; // R2-1: drivable vehicles
 
 // ---------------- setup ----------------
 const canvas = document.getElementById('game');
@@ -167,8 +168,8 @@ function goLandscape() {
 // convenience. The stamp + versioned asset URLs are the
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
-// version tag — Brett reads "BUILD V7" in the menu footer.
-const BUILD_NO = 'V7';
+// version tag — Brett reads "BUILD V7.1" in the menu footer.
+const BUILD_NO = 'V7.1';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -190,6 +191,7 @@ const modeSelect = $('mode-select');
 const modeGoalEl = $('mode-goal');
 const scoreLineEl = $('score-line');
 const gearHudEl = $('gear-hud');
+const vehicleHudEl = $('vehicle-hud'); // R2-1: driving readout
 const flashOverlayEl = $('flash-overlay');
 const scopeOverlayEl = $('scope-overlay'); // U6-01 optic picture
 const scopeMagEl = scopeOverlayEl ? scopeOverlayEl.querySelector('.scope-mag') : null;
@@ -1392,6 +1394,18 @@ function damagePlayer(dmg, srcPos, kind) {
   // V5 Flak Jacket: explosive intake ×0.55 (applied after the
   // ×0.45 player rule at the call sites, per Havoc §5).
   if (kind === 'explosive' && hasPerk('flak')) dmg *= perkField('explosiveMult');
+  // R2-1: while driving, the vehicle eats its armor share of
+  // every hit first (quad 25% / truck 55%) — the truck tanks,
+  // the quad mostly doesn't. A wrecked vehicle stops absorbing.
+  if (driving) {
+    const share = driving.spec.armorShare;
+    if (damageVehicle(driving, dmg * share) && contextLineEl) {
+      contextLineEl.textContent = `${driving.spec.name} DISABLED — FIGHT ON FOOT`;
+      contextLineEl.style.opacity = 1;
+      setTimeout(() => contextLineEl.style.opacity = 0, 2200);
+    }
+    dmg *= (1 - share);
+  }
   player.hp -= dmg;
   sfx.hurt();
   showDamageDirection(srcPos);
@@ -1413,6 +1427,7 @@ function updateHealth() {
 // Mode-aware death: waves/assault end the run; TDM/Domination
 // respawn the operator and score for the Kestrel squad.
 function playerDown() {
+  if (driving) exitVehicle(true); // R2-1: a downed driver is out of the vehicle
   if (selectedMode === 'tdm' || selectedMode === 'domination') {
     M.scoreThem++;
     M.respawnT = getMode(selectedMode).respawnDelay || 2.5;
@@ -1565,6 +1580,7 @@ function startRun() {
 // The spawns that used to happen inside startRun — now fired at
 // GO by the countdown (U5-09). Identical rosters, identical order.
 function beginMatchSpawns() {
+  spawnVehicles(); // R2-1: fresh quad + truck on the pads every match
   if (selectedMode === 'waves' || selectedMode === 'assault') {
     startWave();
   } else {
@@ -1683,9 +1699,10 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR' && state === 'playing') reload();
   if (e.code === 'KeyR' && state === 'online') edgeReload = true;
   if (e.code === 'KeyF' && state === 'playing' && inspectT <= 0) inspectT = INSPECT_LEN;
-  if (e.code === 'KeyG' && state === 'playing') useLethal();
-  if (e.code === 'KeyT' && state === 'playing') { if (placing) cancelPlacement(); else throwGear(deployedClass().tactical); }
-  if (e.code === 'KeyX' && state === 'playing') callStreak();
+  if (e.code === 'KeyG' && state === 'playing' && !driving) useLethal();
+  if (e.code === 'KeyT' && state === 'playing' && !driving) { if (placing) cancelPlacement(); else throwGear(deployedClass().tactical); }
+  if (e.code === 'KeyX' && state === 'playing' && !driving) callStreak();
+  if (e.code === 'KeyE' && state === 'playing') tryInteract(); // R2-1: enter / exit vehicle
   if (e.code === 'KeyG' && state === 'online') edgeThrowL = true;
   if (e.code === 'KeyT' && state === 'online') edgeThrowT = true;
   if ((state === 'playing' || state === 'online') && e.code.startsWith('Digit')) {
@@ -1753,7 +1770,8 @@ if (TOUCH_MODE) {
         if (state === 'playing') { if (placing) cancelPlacement(); else throwGear(deployedClass().tactical); }
         else if (state === 'online') edgeThrowT = true;
       },
-      streak: () => { if (state === 'playing') callStreak(); },
+      streak: () => { if (state === 'playing' && !driving) callStreak(); },
+      interact: () => { if (state === 'playing') tryInteract(); }, // R2-1: USE button
       stance: () => { pendingStanceTap = true; }, // U6-10
       weapon: i => {
         if ((state === 'playing' || state === 'online') && i >= 0 && i < WEAPON_ORDER.length) switchWeapon(WEAPON_ORDER[i]);
@@ -2530,13 +2548,15 @@ function tick() {
         updateHealth();
         if (contextLineEl) contextLineEl.style.opacity = 0;
       }
+    } else if (driving) {
+      stepDrive(dt); // R2-1: the vehicle steps instead of the walker
     } else {
       player.update(dt, input);
     }
 
     bloom = Math.max(0, bloom - 2.2 * dt);
     fireCooldown -= dt;
-    if (!down && fireCooldown <= 0) {
+    if (!down && !driving && fireCooldown <= 0) {
       const weapon = currentWeapon();
       if (weapon.auto) {
         if (firing) shoot();
@@ -2613,6 +2633,7 @@ function tick() {
       return keep;
     });
     uiLeft.textContent = alive + toSpawn;
+    stepVehiclesAmbient(dt); // R2-1: pose parked vehicles + proximity prompt
 
     // wave clear (wave modes only)
     if ((selectedMode === 'waves' || selectedMode === 'assault') && toSpawn === 0 && alive === 0 && state === 'playing') {
@@ -2753,6 +2774,180 @@ let uavFlight = null, cuavFlight = null;   // { startedAt, phase, baseY }
 let pingIndex = 0, pingT = 0;
 const uavMarkers = [];                // { mesh, until }
 let packageDrop = null;               // { actor, x, z, groundY, landed, claimT }
+// ---- drivable vehicles (V7 Round 2, R2-1) ----
+// Two vehicles (RUNNER QUAD + PATROL TRUCK, js/vehicles.js)
+// spawn on fixed pads every match. E / USE enters and exits;
+// while driving, the vehicle physics steps INSTEAD of the
+// player walker, the rider rig rides at the vehicle position
+// (so bots engage the vehicle, and damagePlayer splits fire
+// by the vehicle's armor share), firing/streaks/gear are
+// locked out, and running a hostile over is a kill like any
+// other (bot.damage + onBotKilled credit).
+const vehicles = [];                  // { state, actor }
+let driving = null;                   // vehicle state being driven
+let driveShake = 0;
+const VEHICLE_ENV = {
+  colliders: world.colliders, bounds: world.bounds,
+  groundHeightAt: (x, z, y) => world.groundHeightAt(x, z, y),
+  collide: (pos, radius, colliders, bounds, feetY) => collide(pos, radius, colliders, bounds, feetY),
+};
+
+function spawnVehicles() {
+  clearVehicles();
+  for (const pad of VEHICLE_PADS) {
+    const st = createVehicleState(pad.spec, pad.x, pad.z, pad.heading);
+    st.pos.y = world.groundHeightAt(pad.x, pad.z, 0);
+    const actor = createVehicleActor(pad.spec, (x, z, y) => world.groundHeightAt(x, z, y));
+    actor.group.position.set(st.pos.x, st.pos.y, st.pos.z);
+    actor.group.rotation.y = pad.heading;
+    scene.add(actor.group);
+    vehicles.push({ state: st, actor });
+  }
+}
+
+function clearVehicles() {
+  if (driving) exitVehicle(true);
+  for (const v of vehicles) scene.remove(v.actor.group);
+  vehicles.length = 0;
+  setVehiclePrompt('');
+}
+
+function enterVehicle(v) {
+  driving = v.state;
+  player.gun.visible = false;
+  player.vel.set(0, 0, 0);
+  if (vehicleHudEl) vehicleHudEl.classList.remove('hidden');
+  updateVehicleHud(true);
+  setVehiclePrompt('');
+  if (contextLineEl) {
+    contextLineEl.textContent = `${v.state.spec.name} — ${TOUCH_MODE ? 'STICK drives · USE exits' : 'W A S D drives · E exits'}`;
+    contextLineEl.style.opacity = 1;
+    setTimeout(() => contextLineEl.style.opacity = 0, 2400);
+  }
+}
+
+function exitVehicle(forced) {
+  if (!driving) return;
+  const st = driving;
+  driving = null;
+  player.gun.visible = true;
+  player.vel.set(0, 0, 0);
+  if (vehicleHudEl) vehicleHudEl.classList.add('hidden');
+  if (forced) return; // death/menu: the rig is repositioned by the caller flow
+  // Step out at the first clear side/rear offset.
+  const fx = -Math.sin(st.heading), fz = -Math.cos(st.heading);
+  const rx = -fz, rz = fx;
+  const offs = [[rx, rz], [-rx, -rz], [-fx, -fz]];
+  for (const [ox, oz] of offs) {
+    const cand = {
+      x: st.pos.x + ox * (st.spec.radius + 1.1), y: st.pos.y,
+      z: st.pos.z + oz * (st.spec.radius + 1.1),
+    };
+    const bx = cand.x, bz = cand.z;
+    collide(cand, player.radius, world.colliders, world.bounds, st.pos.y);
+    if (Math.hypot(cand.x - bx, cand.z - bz) < 0.25) {
+      cand.y = world.groundHeightAt(cand.x, cand.z, st.pos.y);
+      player.rig.position.set(cand.x, cand.y, cand.z);
+      return;
+    }
+  }
+  player.rig.position.set(st.pos.x, st.pos.y, st.pos.z);
+}
+
+function tryInteract() {
+  if (state !== 'playing' || M.respawnT > 0) return;
+  if (driving) { exitVehicle(false); return; }
+  let best = null, bestD = 3.0;
+  for (const v of vehicles) {
+    if (v.state.disabled) continue; // a wreck is cover, not a ride
+    const d = Math.hypot(v.state.pos.x - player.position.x, v.state.pos.z - player.position.z);
+    if (d < bestD) { bestD = d; best = v; }
+  }
+  if (best) enterVehicle(best);
+}
+
+function stepDrive(dt) {
+  const st = driving;
+  const res = stepVehicle(st, {
+    throttle: (input.forward ? 1 : 0) - (input.back ? 1 : 0),
+    steer: (input.right ? 1 : 0) - (input.left ? 1 : 0),
+  }, dt, VEHICLE_ENV);
+  // The rider rides: rig at the vehicle, yaw = heading, mouse
+  // keeps pitch only. Bots target player.position, so they
+  // engage the vehicle; damagePlayer applies the armor split.
+  player.rig.position.set(st.pos.x, st.pos.y, st.pos.z);
+  player.yaw = st.heading; player.targetYaw = st.heading; player.yawTarget = st.heading;
+  player.pitch += (player.targetPitch - player.pitch) * Math.min(1, dt * 18);
+  player.rig.rotation.y = st.heading;
+  camera.rotation.set(player.pitch, 0, 0);
+  if (res.impact > 0) {
+    driveShake = Math.min(0.14, res.impact * 0.009);
+    if (res.impact > 8) sfx.hurt();
+  }
+  driveShake = Math.max(0, driveShake - dt * 0.5);
+  camera.position.y = st.spec.seatHeight + (driveShake > 0 ? (Math.random() - 0.5) * driveShake : 0);
+  player.aiming = false;
+  // Pose the driven actor + run-over checks.
+  for (const v of vehicles) if (v.state === st) v.actor.update(dt, st);
+  if (Math.abs(st.speed) > 3.5) {
+    const now = performance.now() / 1000;
+    const fx = -Math.sin(st.heading), fz = -Math.cos(st.heading);
+    for (const b of bots) {
+      if (b.dead || b.team === 'friendly') continue;
+      const bp = b.root.position;
+      const d = Math.hypot(bp.x - st.pos.x, bp.z - st.pos.z);
+      if (d > st.spec.radius + 0.55) continue;
+      if ((st.runover.get(b) || 0) > now) continue;
+      st.runover.set(b, now + 0.6);
+      const dmg = st.spec.runoverDamage * Math.min(1, Math.abs(st.speed) / st.spec.maxSpeed + 0.35);
+      const killed = b.damage(dmg, false, fx, fz);
+      sfx.hit();
+      hitmarker.classList.toggle('kill', !!killed);
+      hitmarker.style.opacity = 1;
+      setTimeout(() => hitmarker.style.opacity = 0, killed ? 150 : 70);
+      if (killed) onBotKilled(b);
+      st.speed *= 0.92; // bodies cost momentum
+    }
+  }
+  updateVehicleHud(false);
+}
+
+let vehicleHudText = '';
+function updateVehicleHud(force) {
+  if (!vehicleHudEl || !driving) return;
+  const st = driving;
+  const t = `${st.spec.name} · ${Math.round(Math.abs(st.speed) * 3.6)} KM/H · HULL ${Math.max(0, Math.ceil(st.hp / st.spec.hp * 100))}%${st.disabled ? ' · DISABLED' : ''}`;
+  if (force || t !== vehicleHudText) { vehicleHudText = t; vehicleHudEl.textContent = t; }
+}
+
+let vehiclePromptText = '';
+function setVehiclePrompt(t) {
+  if (!contextLineEl) return;
+  if (t) {
+    vehiclePromptText = t;
+    if (contextLineEl.textContent !== t) contextLineEl.textContent = t;
+    contextLineEl.style.opacity = 1;
+  } else if (vehiclePromptText && contextLineEl.textContent === vehiclePromptText) {
+    contextLineEl.style.opacity = 0;
+    vehiclePromptText = '';
+  }
+}
+
+// Parked vehicles breathe (actor pose on terrain) and the
+// nearest one offers its enter prompt.
+function stepVehiclesAmbient(dt) {
+  for (const v of vehicles) {
+    if (v.state !== driving) v.actor.update(dt, v.state);
+  }
+  if (driving || state !== 'playing' || M.respawnT > 0) { setVehiclePrompt(''); return; }
+  let best = null, bestD = 3.0;
+  for (const v of vehicles) {
+    const d = Math.hypot(v.state.pos.x - player.position.x, v.state.pos.z - player.position.z);
+    if (d < bestD) { bestD = d; best = v; }
+  }
+  setVehiclePrompt(best ? `${TOUCH_MODE ? 'USE' : 'E'} — ENTER ${best.state.spec.name}${best.state.disabled ? ' (DISABLED)' : ''}` : '');
+}
+
 const dogPack = [];                   // U15: live attack dogs { actor, hp, biteT, phase }
 let strikeKit = null, precisionCall = null;   // { x, z, at }
 let placing = null;                   // { kind, ghost, valid }
@@ -2812,6 +3007,7 @@ function resetV5Match() {
   uavFlight = null; cuavFlight = null;
   if (packageDrop) { scene.remove(packageDrop.actor.group); packageDrop = null; }
   clearDogPack();
+  clearVehicles(); // R2-1
   if (strikeKit) { scene.remove(strikeKit.jet); scene.remove(strikeKit.marker); strikeKit = null; }
   precisionCall = null;
   if (placing) { scene.remove(placing.ghost); placing = null; }
