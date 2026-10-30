@@ -623,3 +623,32 @@ bot lives + concurrent-bot ceiling, never a bare "100").
   now 14.** Still open: Stage 2 signed sessions (hardening
   not certified complete). Queue head: attack dogs (AI),
   movement follow-ups.
+- **Update 15 LANDED + PUSHED LIVE** (Oct 29, commits
+  `54db3f0` spec + `16acfb7` code + this landing): queue head
+  — **attack dogs** (Ghost + Vega), Brett's phased
+  scorestreak expansion phase 2. **Ladder:** `dogs` at
+  **1200** (between lightning 1100 and precision 1300),
+  40 s; `DOG_SPEC` shared by both runtimes — pack of **3**,
+  hp **60**, speed **5.4**, bite **20** dmg / **1.7 m** /
+  **0.9 s**. **Actor:** `createDogActor()` — merged body +
+  wagging tail, 2 calls/dog transient only. **Solo brain:**
+  seek nearest hostile, collide-true movement, bite via
+  `bot.damage`, heel when idle, strike-blast damage, expiry
+  cleanup. **Sim:** server-authoritative pack (validated
+  callStreak spawn, sim collide, kill events `via: 'dogs'`
+  crediting the owner, blastEntities damage, `snap.dogs`
+  carriage) — headless-verified: spawn/heel/40 s expiry +
+  **6 dog kills in 40 s** vs wave 1. **Anti-duplication:**
+  one active pack per owner on every path. **Named
+  remainder:** no direct-gunfire hit volumes on dogs yet
+  (blast only) — spec'd for a later V6 update. Build
+  witness 15 (mobile-check T7 **named re-pin**; smoke ST1
+  **named re-pin** for the ladder; new T12 ×19). Perf
+  **Δ0 statics** (calls 134/147/146/148, forest 281,526
+  tris, shadow 199/200). All five gates green on tree +
+  snapshot (+ ws-soak, soak); live byte-verified (5 key
+  files exact, BUILD U15 stamp, ATTACK DOGS live). Report:
+  `docs/sessions/v6-update-15-report.md`. **The count is
+  now 15.** Still open: Stage 2 signed sessions (hardening
+  not certified complete). Queue head: movement-feel
+  follow-ups, dog gunfire hit-volumes.
