@@ -613,3 +613,78 @@ surface), and wrote the same prescription Coach did.
 
 **New lesson:** 27 (shared temp names + shared ports make
 concurrent runs false-fail — and parallelism amplifies both).
+
+---
+
+## Fri Oct 30, 2026 — TEAM UPGRADE CYCLE 1 (efficiency pass, V7 night)
+
+**Order:** Brett, Oct 30 00:35 PDT — upgrade the team at least
+twice by morning, with measurable outcomes. Run by the Coordinator
+inside the V7 build night (slices sequenced so the ship never
+waited on training).
+
+**Drill:** the five-gate release battery (smoke, biome-check,
+reachability, reachability-maps, mobile-check) as an operator
+workflow. Baseline serial run measured first.
+
+**Measured results:**
+- Serial battery: **12.6 s** wall, all green.
+- Naive all-parallel runner: **12.4 s** — no wall-clock win
+  (smoke is one CPU-bound long pole at ~11 s) — AND it produced a
+  real false failure: biome-check's transient
+  `tools/.biomes-check-tmp.mjs` was caught mid-flight by smoke's
+  syntax sweep (✗ syntax). The shared-temp collision class of
+  Lesson 27, one directory over.
+- Adopted: `tools/gates-parallel.sh` — two lanes (lane 1: smoke
+  then biome-check, sequential because they share the tools/
+  temp space; lane 2: reachability + reachability-maps +
+  mobile-check alongside). **12.1 s, all five PASS, twice
+  consecutively.**
+
+**Outcome (what got faster/safer):** gate verification for a build
+is now ONE command with ONE verdict and a per-gate log for
+triage (5 invocations + manual log-chasing → 1). The collision
+mode is designed out, not lucked out. Lesson recorded: measure
+before parallelizing; parallelize operator round-trips, not a
+CPU-bound long pole; and any two tools that share a temp
+directory are a sequential lane by definition.
+
+**Commits:** `97f4d83` (runner + V7 version bump).
+
+---
+
+## Fri Oct 30, 2026 — TEAM UPGRADE CYCLE 2 (capability / role-sharpening pass, V7 night)
+
+**Order:** same Brett directive — second distinct cycle.
+
+**Drill:** sharpen the FINAL EXPANSION's new seats from
+aspirational tasks into verifiable ones. Test case: seat 73
+(Iris "Trueup" Nakamura, Spec Accuracy Checker) — her standing
+task ("a displayed number that disagrees with specSheet() is a
+release blocker") was prose until tonight. The cycle built her
+instrument and ran it against the whole arsenal.
+
+**Artifact:** `tools/spec-audit.mjs` — recomputes every build's
+spec sheet from the tables and asserts the gunsmith's promises:
+(1) ADS spread < hip spread for every weapon, stock and with
+every single fitting attachment; (2) every attachment moves at
+least one measured number on at least one weapon it fits (no
+dead attachments); (3) panel numbers equal a hand recomputation
+from the effective row (no display drift).
+
+**Measured results:** first run — **all promises hold.** All 15
+attachments move measured specs (optics on 1–5 weapons by fit,
+magazines on 5, barrels on 3); zero sheet drift across all
+weapon × single-attachment builds (5 weapons × up to 16 builds);
+zero ADS≥hip violations. The audit now runs in seconds and is
+the acceptance test every future attachment must pass before it
+ships (Balance Audit seats 45–49 consume its output per slot).
+
+**Outcome (what got sharper):** 50 new seats onboarded the same
+night they were created (TEAM.md, commit `f1d016e`); the roster's
+checking seats now hold instruments, not intentions — spec
+checking went from "a person eyeballs the panel" to a 0.1 s
+deterministic audit, and the perf accountants' ledgers are read
+off `tools/v6-metrics.mjs` output in the V7 report scorecard.
+
+**Commits:** `f1d016e` (roster), this log + `tools/spec-audit.mjs`.
