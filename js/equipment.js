@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeColoredParts } from './geo.js';
+import { VEHICLE_SPEC } from './vehicles.js';
 
 // ============================================================
 // equipment.js — deployable + streak MODELS (V5, Atlas;
@@ -377,6 +378,104 @@ export function createStrikeVisuals() {
         marker.scale.setScalar(s);
         ringMat.opacity = markT < 2.2 ? 0.55 : Math.max(0, 0.55 - (markT - 2.2) * 1.2);
         if (ringMat.opacity <= 0 && markT > 2.2) { marker.visible = false; markT = -1; }
+      }
+    },
+  };
+}
+
+// --- DRIVABLE VEHICLES (V7 Round 2, R2-1) -------------------
+// Actor models for js/vehicles.js. ONE merged vertex-colored
+// mesh per vehicle, procedural only, castShadow FALSE (the
+// shadow budget is 199/200 and vehicles do not spend it).
+// Wheels are merged into the body (no spin) — terrain pitch/
+// roll and acceleration squat sell the motion instead.
+const VEH_PAL = {
+  olive: 0x4f5a3a, oliveLight: 0x5d6a46, oliveDark: 0x3e472e,
+  tan: 0x8a7a5c, tanDark: 0x6f6249,
+  gunmetal: 0x3a3f45, steelDark: 0x2c2f33, black: 0x141518,
+  tire: 0x17181a, glass: 0x1c2733, lamp: 0xd8e6ff,
+};
+function _vehWheel(list, r, w, x, y, z) {
+  _p(list, _cylY(r, w), VEH_PAL.tire, x, y, z, 0, 0, Math.PI / 2);
+  _p(list, _cylY(r * 0.45, w + 0.02), VEH_PAL.gunmetal, x, y, z, 0, 0, Math.PI / 2);
+}
+function quadParts() {
+  const L = [];
+  for (const sx of [-1, 1]) for (const sz of [-1, 1])
+    _vehWheel(L, 0.34, 0.2, sx * 0.40, 0.34, sz * 0.50);
+  _p(L, _box(0.55, 0.22, 1.15), VEH_PAL.olive, 0, 0.55, 0);                    // frame
+  _p(L, _box(0.60, 0.30, 0.50), VEH_PAL.oliveLight, 0, 0.62, -0.35);          // front body
+  _p(L, _box(0.20, 0.10, 0.04), VEH_PAL.lamp, 0, 0.66, -0.61);                // headlight
+  _p(L, _box(0.40, 0.12, 0.55), VEH_PAL.black, 0, 0.74, 0.28);                // seat
+  _p(L, _box(0.55, 0.06, 0.30), VEH_PAL.gunmetal, 0, 0.80, 0.62);             // rear rack
+  _p(L, _box(0.06, 0.30, 0.06), VEH_PAL.steelDark, 0, 0.82, -0.50, 0.3);      // bar stem
+  _p(L, _box(0.50, 0.05, 0.05), VEH_PAL.steelDark, 0, 0.97, -0.54);           // handlebar
+  for (const sx of [-1, 1]) {
+    _p(L, _box(0.24, 0.08, 0.62), VEH_PAL.oliveDark, sx * 0.40, 0.72, -0.50); // fender F
+    _p(L, _box(0.24, 0.08, 0.62), VEH_PAL.oliveDark, sx * 0.40, 0.72, 0.50);  // fender R
+  }
+  _p(L, _cylY(0.05, 0.30, 8), VEH_PAL.gunmetal, 0.18, 0.52, 0.55, Math.PI / 2); // exhaust
+  return L;
+}
+function truckParts() {
+  const L = [];
+  for (const sx of [-1, 1]) for (const sz of [-1, 1])
+    _vehWheel(L, 0.52, 0.3, sx * 0.78, 0.52, sz * 1.15);
+  _p(L, _box(1.50, 0.35, 3.50), VEH_PAL.gunmetal, 0, 0.72, 0);                // chassis
+  _p(L, _box(1.45, 0.50, 1.00), VEH_PAL.tan, 0, 1.12, -1.20);                 // hood
+  _p(L, _box(1.20, 0.40, 0.06), VEH_PAL.black, 0, 0.95, -1.72);               // grille
+  _p(L, _box(1.55, 0.30, 0.15), VEH_PAL.steelDark, 0, 0.55, -1.85);           // bumper
+  _p(L, _box(1.45, 0.95, 1.15), VEH_PAL.tan, 0, 1.55, -0.25);                 // cab
+  _p(L, _box(1.30, 0.58, 0.06), VEH_PAL.glass, 0, 1.64, -0.84, -0.12);        // windshield
+  _p(L, _box(1.50, 0.08, 1.50), VEH_PAL.tanDark, 0, 0.95, 0.95);              // bed floor
+  for (const sx of [-1, 1])
+    _p(L, _box(0.08, 0.55, 1.50), VEH_PAL.tanDark, sx * 0.71, 1.22, 0.95);    // bed walls
+  _p(L, _box(1.50, 0.55, 0.08), VEH_PAL.tanDark, 0, 1.22, 1.70);              // tailgate
+  _p(L, _box(0.90, 0.09, 0.12), VEH_PAL.gunmetal, 0, 2.08, -0.25);            // light bar
+  for (const lx of [-0.28, 0, 0.28])
+    _p(L, _box(0.16, 0.07, 0.04), VEH_PAL.lamp, lx, 2.08, -0.32);             // bar lamps
+  _p(L, _cylY(0.16, 0.70, 10), VEH_PAL.steelDark, 0.80, 0.62, 0.30, 0, 0, Math.PI / 2); // side tank
+  return L;
+}
+
+// createVehicleActor(specId, groundHeightAt) -> { group, update }
+// update(dt, st): pose the group from the vehicle state —
+// terrain pitch/roll sampled from the ground contract plus an
+// acceleration squat, all smoothed. A disabled vehicle gets a
+// burnt-out tint the first frame it is seen dead.
+export function createVehicleActor(specId, groundHeightAt) {
+  const spec = VEHICLE_SPEC[specId] || VEHICLE_SPEC.quad;
+  const group = new THREE.Group();
+  group.name = 'vehicle-' + spec.id;
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.72, metalness: 0.18 });
+  const body = new THREE.Mesh(mergeColoredParts(spec.id === 'truck' ? truckParts() : quadParts()), mat);
+  body.castShadow = false;
+  body.receiveShadow = false;
+  group.add(body);
+  let pitch = 0, roll = 0, prevSpeed = 0, wasDisabled = false;
+  return {
+    group,
+    update(dt, st) {
+      group.position.set(st.pos.x, st.pos.y, st.pos.z);
+      const fx = -Math.sin(st.heading), fz = -Math.cos(st.heading);
+      const rx = -fz, rz = fx; // right vector
+      const reach = spec.id === 'truck' ? 1.5 : 0.85;
+      const hF = groundHeightAt(st.pos.x + fx * reach, st.pos.z + fz * reach, st.pos.y);
+      const hB = groundHeightAt(st.pos.x - fx * reach, st.pos.z - fz * reach, st.pos.y);
+      const hR = groundHeightAt(st.pos.x + rx * reach, st.pos.z + rz * reach, st.pos.y);
+      const hL = groundHeightAt(st.pos.x - rx * reach, st.pos.z - rz * reach, st.pos.y);
+      let tPitch = Math.max(-0.32, Math.min(0.32, Math.atan2(hB - hF, reach * 2)));
+      let tRoll = Math.max(-0.32, Math.min(0.32, Math.atan2(hR - hL, reach * 2)));
+      const acc = dt > 0 ? (st.speed - prevSpeed) / dt : 0;
+      prevSpeed = st.speed;
+      tPitch += Math.max(-0.05, Math.min(0.05, acc * 0.0022));
+      const k = Math.min(1, dt * 7);
+      pitch += (tPitch - pitch) * k;
+      roll += (tRoll - roll) * k;
+      group.rotation.set(pitch, st.heading, roll);
+      if (st.disabled && !wasDisabled) {
+        wasDisabled = true;
+        mat.color.set(0x4a4a4a);   // burnt-out wreck tint
       }
     },
   };
