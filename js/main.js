@@ -168,8 +168,8 @@ function goLandscape() {
 // convenience. The stamp + versioned asset URLs are the
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
-// version tag — Brett reads "BUILD V7.1" in the menu footer.
-const BUILD_NO = 'V7.1';
+// version tag — Brett reads "BUILD V7.2" in the menu footer.
+const BUILD_NO = 'V7.2';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -1192,6 +1192,15 @@ function shoot() {
 
   const targets = [];
   for (const b of bots) { if (!b.dead && b.team !== 'friendly') targets.push(...b.hitMeshes); } // U6-07: no friendly fire (mirrors the sim)
+  // R2-2: hostile dog bodies are gunfire targets too (meshes
+  // carry userData.dogRef from spawnDogPack). Solo fields only
+  // friendly packs today, so this collects nothing yet — the
+  // day an enemy pack exists its bodies are already valid
+  // targets and the resolution below already handles dogRef.
+  for (const d of dogPack) {
+    if (d.team === 'friendly') continue;
+    d.actor.group.traverse(o => { if (o.isMesh) targets.push(o); });
+  }
   for (const s of world.shootables) targets.push(s);
   for (const d of devices) { if (!d.dead && d.mesh) targets.push(d.mesh); }   // V5: placed equipment is destructible by gunfire (HP in equipment-data)
 
@@ -1225,6 +1234,10 @@ function shoot() {
           if (isHead) xpAdd('headshot', 1);
           onBotKilled(bot);
         }
+      } else if (hit.object.userData.dogRef) {
+        // R2-2: hostile dog body (see target collection above).
+        hitAny = true;
+        damageDog(hit.object.userData.dogRef, falloffDamage(weapon, hit.distance));
       } else if (hit.object.userData.explosive) {
         explodeBarrel(hit.object);
       } else if (hit.object.userData.deviceRef) {
@@ -3209,7 +3222,9 @@ function spawnDogPack() {
     const x = player.position.x + Math.cos(a) * 1.6, z = player.position.z + Math.sin(a) * 1.6;
     actor.group.position.set(x, world.groundHeightAt(x, z, player.position.y), z);
     scene.add(actor.group);
-    dogPack.push({ actor, hp: DOG_SPEC.hp, biteT: 0, phase: i * 2.1 });
+    const entry = { actor, hp: DOG_SPEC.hp, biteT: 0, phase: i * 2.1, team: 'friendly' };
+    actor.group.traverse(o => { o.userData.dogRef = entry; }); // R2-2: gunfire target tag (see shoot())
+    dogPack.push(entry);
   }
   showCallout('ATTACK DOGS RELEASED');
 }
