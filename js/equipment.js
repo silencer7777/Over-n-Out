@@ -100,7 +100,7 @@ export function buildEquipmentMesh(kind) {
   return m;
 }
 
-export const EQUIPMENT_DRAW_CALLS = { claymore: 1, tripmine: 1, uav: 6, sentry: 4, carePackage: 2, strike: 2 };
+export const EQUIPMENT_DRAW_CALLS = { claymore: 1, tripmine: 1, uav: 6, sentry: 4, carePackage: 2, strike: 2, dog: 2 };
 
 // --- UAV ACTOR --------------------------------------------------
 // A real moving actor (owner clarification): the airframe
@@ -280,6 +280,61 @@ export function createCarePackage() {
       sway += dt;
       group.rotation.x = Math.sin(sway * 1.4) * 0.07; // pendulum sway under canopy
       group.rotation.z = Math.cos(sway * 1.1) * 0.07;
+    },
+  };
+}
+
+// --- ATTACK DOG (U15 — price 2: merged body 1 + tail 1) -------
+// A military working dog: low tan body, dark vest, collar,
+// pricked ears, snout forward. FRONT is -z (the bot facing
+// convention). Legs ride in the merged body in a mid-stride
+// pose — the run reads through the actor's bob/rock/lunge
+// animation, the same economy the sentry's scan uses. The sim
+// owns position/targets/bites; this actor only renders the
+// pose it is put in (group position/rotation set by the host).
+const DOG_COAT = 0x9a7a4e, DOG_COAT_DARK = 0x77592f, DOG_VEST = 0x3e472e;
+export function createDogActor() {
+  const group = new THREE.Group();
+  group.name = 'dog-actor';
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.02 });
+  const B = [];
+  _p(B, _box(0.34, 0.36, 0.86), DOG_COAT, 0, 0.52, 0.02);                       // torso
+  _p(B, _box(0.37, 0.20, 0.44), DOG_VEST, 0, 0.60, 0.03);                      // working vest
+  _p(B, _box(0.20, 0.22, 0.30), DOG_COAT, 0, 0.68, -0.52);                     // head
+  _p(B, _box(0.13, 0.13, 0.24), DOG_COAT_DARK, 0, 0.60, -0.74);                // snout
+  _p(B, _box(0.05, 0.16, 0.05), DOG_COAT_DARK, -0.08, 0.86, -0.48, 0, 0, 0.18); // ear L
+  _p(B, _box(0.05, 0.16, 0.05), DOG_COAT_DARK, 0.08, 0.86, -0.48, 0, 0, -0.18); // ear R
+  _p(B, _box(0.30, 0.07, 0.10), DOG_VEST, 0, 0.76, -0.40);                     // collar
+  for (const sx of [-1, 1]) {
+    _p(B, _box(0.09, 0.42, 0.11), DOG_COAT, sx * 0.11, 0.21, -0.28, 0.35);     // front leg (stride)
+    _p(B, _box(0.09, 0.42, 0.11), DOG_COAT, sx * 0.11, 0.21, 0.30, -0.35);     // rear leg (stride)
+  }
+  const body = new THREE.Mesh(mergeColoredParts(B), mat);
+  body.castShadow = true;
+  group.add(body);
+  const T = [];
+  _p(T, _box(0.07, 0.07, 0.42), DOG_COAT_DARK, 0, 0, -0.18);
+  const tail = new THREE.Mesh(mergeColoredParts(T), mat);
+  tail.position.set(0, 0.66, 0.44);
+  group.add(tail);
+  let clock = Math.random() * 6, lungeT = 0;
+  return {
+    group,
+    lunge() { lungeT = 0.28; },
+    // move: 0..1 gait amount from the host brain; the bob/rock
+    // sell the run, the lunge sells the bite.
+    update(dt, move = 0) {
+      clock += dt * (4 + move * 9);
+      const bob = move > 0.02 ? Math.abs(Math.sin(clock)) * 0.055 * move : 0;
+      body.position.y = bob;
+      body.rotation.x = move > 0.02 ? Math.sin(clock * 2) * 0.045 * move : 0;
+      tail.rotation.y = Math.sin(clock * 1.7) * 0.45;
+      tail.position.y = 0.66 + bob;
+      if (lungeT > 0) {
+        lungeT -= dt;
+        const k = Math.max(0, lungeT / 0.28);
+        body.position.z = -0.22 * Math.sin(k * Math.PI);
+      } else body.position.z = 0;
     },
   };
 }
