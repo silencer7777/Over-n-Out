@@ -219,6 +219,16 @@ export function validateInput(msg) {
   if (msg.tactical !== undefined && typeof msg.tactical !== 'boolean') {
     errors.push('tactical must be a boolean when present');
   }
+  // Optional vehicle interact edge (R2-5): the E / USE press
+  // rides the input sample like the throw edges — strictly
+  // boolean when present. The sim derives the edge and owns
+  // proximity / occupancy / wreck validation from authoritative
+  // state; the sample claims nothing about which vehicle, or
+  // whether entering is even possible. No version bump, same
+  // as the streak edge (Directive 11).
+  if (msg.interact !== undefined && typeof msg.interact !== 'boolean') {
+    errors.push('interact must be a boolean when present');
+  }
   // Optional stance fields (V6 Update 6, U6-10): held-state
   // booleans like aim — stance (C/Ctrl held) and prone (Z held).
   // The sim's shared stance machine (js/stance.js) derives
