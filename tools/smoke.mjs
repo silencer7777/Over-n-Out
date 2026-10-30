@@ -633,8 +633,8 @@ try {
   else fail('EQ4 claymore cone math wrong');
   // ST1 ladder thresholds + vocabulary never drift from loadouts.
   const costs = Object.fromEntries(S.STREAKS.map(s => [s.id, s.cost]));
-  if (costs.uav === 500 && costs.cuav === 650 && costs.package === 800 && costs.sentry === 1050 && costs.lightning === 1100 && costs.precision === 1300
-    && JSON.stringify(L.STREAK_IDS) === JSON.stringify(S.STREAKS.map(s => s.id))) ok('ST1 streak ladder 500/650/800/1050/1100/1300 (U12: lightning added); ids match loadouts vocabulary');
+  if (costs.uav === 500 && costs.cuav === 650 && costs.package === 800 && costs.sentry === 1050 && costs.lightning === 1100 && costs.dogs === 1200 && costs.precision === 1300
+    && JSON.stringify(L.STREAK_IDS) === JSON.stringify(S.STREAKS.map(s => s.id))) ok('ST1 streak ladder 500/650/800/1050/1100/1200/1300 (U12: lightning added; U15 named re-pin: dogs added); ids match loadouts vocabulary');
   else fail(`ST1 streak ladder drifted: ${JSON.stringify(costs)}`);
   // ST2 meter: death does not reset; spend-on-call; UAV drone spec.
   const st = S.createStreakState(['uav', 'cuav', 'package']);
