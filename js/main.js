@@ -169,7 +169,7 @@ function goLandscape() {
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
 // version tag — Brett reads "BUILD V7.2" in the menu footer.
-const BUILD_NO = 'V7.3';
+const BUILD_NO = 'V7.4';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -2290,6 +2290,14 @@ function drawMinimap(dt) {
     ctx.fillText(z.id || '◆', px, py);
     ctx.font = `700 ${Math.round(S * 0.075)}px system-ui, sans-serif`;
   }
+  // R2-4: vehicles as steel-blue squares (the driven one gets
+  // a white outline) — Brett can find his ride at a glance.
+  for (const v of vehicles) {
+    const { px, py } = worldToMap(v.state.pos.x, v.state.pos.z, S);
+    ctx.fillStyle = v.state.disabled ? 'rgba(120,120,120,0.8)' : 'rgba(140,200,255,0.9)';
+    ctx.fillRect(px - 3, py - 3, 6, 6);
+    if (driving === v.state) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.4; ctx.strokeRect(px - 4.5, py - 4.5, 9, 9); }
+  }
   // Living bots: friendly cyan always; hostile red ONLY when
   // that enemy has fired within the reveal window (U12-01 —
   // Brett's minimap rule: enemies must not always show).
@@ -2828,6 +2836,7 @@ function clearVehicles() {
 function enterVehicle(v) {
   driving = v.state;
   player.gun.visible = false;
+  if (sfx.startEngine) sfx.startEngine(); // R2-4: engine loop
   player.vel.set(0, 0, 0);
   if (vehicleHudEl) vehicleHudEl.classList.remove('hidden');
   updateVehicleHud(true);
@@ -2843,6 +2852,7 @@ function exitVehicle(forced) {
   if (!driving) return;
   const st = driving;
   driving = null;
+  if (sfx.stopEngine) sfx.stopEngine(); // R2-4
   player.gun.visible = true;
   player.vel.set(0, 0, 0);
   if (vehicleHudEl) vehicleHudEl.classList.add('hidden');
@@ -2899,6 +2909,14 @@ function stepDrive(dt) {
   }
   driveShake = Math.max(0, driveShake - dt * 0.5);
   camera.position.y = st.spec.seatHeight + (driveShake > 0 ? (Math.random() - 0.5) * driveShake : 0);
+  // R2-4 feel: speed FOV bloom (75 -> ~82 at top speed, the
+  // sprint language) + the engine loop follows speed/load.
+  // player.update eases FOV home again on exit.
+  const speedK = Math.min(1, Math.abs(st.speed) / st.spec.maxSpeed);
+  const targetFov = player.baseFov + 7 * speedK;
+  camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 5);
+  camera.updateProjectionMatrix();
+  if (sfx.setEngine) sfx.setEngine(speedK, Math.abs((input.forward ? 1 : 0) - (input.back ? 1 : 0)));
   player.aiming = false;
   // Pose the driven actor + run-over checks.
   for (const v of vehicles) if (v.state === st) v.actor.update(dt, st);
