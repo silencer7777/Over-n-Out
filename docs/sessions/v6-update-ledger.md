@@ -716,3 +716,30 @@ vs the gated snapshot; Pages serves BUILD V7.1).
 - Solo only by design this slice: online vehicles are R2-5
   (stretch) through the sim's existing patterns, or they
   don't ship — never a parallel trust path.
+
+## V7.2 — Round 2 slice 2: DOGS TAKE DIRECT GUNFIRE (~03:05 PT)
+
+The V7 deferral, closed. **v0.7.2, BUILD V7.2, live
+byte-verified** (index + sim.js sha256-exact vs the gated
+snapshot; the contents push again errored at the very end
+after all content landed — post-push audit is the standard).
+
+- Sim (net/sim.js): player raycasts include enemy dog bodies
+  (0.76 x 0.62 m low box; friendly packs never candidates —
+  the U6-07 no-friendly-fire rule) with 'hit' events (client
+  hitmarker) and damageDogSim kills (dog_down). Sentries
+  acquire dogs as targets (nearer enemy wins; x0.6 hit chance
+  — low profile). Bots target enemy dogs inside 25 m (x0.6;
+  damageDogSim, no kill credit — dog_down is the feed event).
+- Solo (main.js): dog pack entries carry team + userData
+  .dogRef mesh tags; shoot() collects hostile dog bodies and
+  resolves dogRef hits through damageDog(). STRUCTURAL
+  today: solo fields friendly packs only, so the collection
+  is empty until an enemy pack exists — stated plainly, the
+  sim paths are the live ones and are integration-proven.
+- Tests: smoke DG1 (player shoots an enemy dog down in 3
+  ticks of fire; the friendly dog beside it untouched), DG2
+  (sentry acquires + wears a dog down 60 -> 38 hp), DG3 (a
+  kestrel bot whose only nearby enemy is a dog targets it —
+  targetId = the dog — and lands fire), DG4 (solo wiring
+  pins). All five gates green on tree + snapshot.
