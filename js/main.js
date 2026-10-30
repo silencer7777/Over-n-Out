@@ -3,7 +3,7 @@ import { buildWorld, collide } from './world.js';
 import { Player } from './player.js';
 import { Bot } from './bots.js';
 import { Sfx } from './audio.js';
-import { WEAPONS, WEAPON_ORDER, getWeapon } from './weapons.js';
+import { WEAPONS, WEAPON_ORDER, getWeapon, coneOffset } from './weapons.js';
 import { STORY, briefingForWave, objectiveForWave, deathLine, clearLine, streakLine, briefingForMode, transmissionLine } from './story.js';
 import { TRANSMISSIONS as WORLD_TRANSMISSIONS, SPAWN_POINTS } from './worlddata.js';
 import { FpsMeter } from './perfmeter.js';
@@ -11,7 +11,7 @@ import { QualityScaler } from './quality.js';
 import { applyBiome, clearBiome } from './biomes.js';
 import { getMode, objectiveText, TEAM } from './modes.js';
 import { STANCE } from './stance.js';
-import { SLOTS, attachmentsFor, getAttachment, effectiveWeapon, THROWABLES, getPerk } from './loadouts.js';
+import { SLOTS, attachmentsFor, getAttachment, effectiveWeapon, specSheet, THROWABLES, getPerk } from './loadouts.js';
 import {
   loadProfile, saveProfile, migrateLegacySettings, levelForXp, levelProgress,
   unlockedClassSlots, isAttachmentUnlocked, isPerkUnlocked, isCamoUnlocked, unlocksBetween, awardXp, XP_VALUES, UNLOCKS, PRESTIGE,
@@ -166,7 +166,9 @@ function goLandscape() {
 // hardening law) forbids it, and the lint outranks the
 // convenience. The stamp + versioned asset URLs are the
 // shipped witness; see the U9 report.
-const BUILD_NO = 15;
+// V7: the witness switches from the V6 update count to the
+// version tag — Brett reads "BUILD V7" in the menu footer.
+const BUILD_NO = 'V7';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -209,6 +211,7 @@ const profileLineEl = $('profile-line');
 const classTabsEl = $('class-tabs');
 const classLevelNoteEl = $('class-level-note');
 const attPickersEl = $('att-pickers');
+const specPanelEl = $('spec-panel');   // V7: gunsmith measured specs
 const gearLineEl = $('gear-line');
 const resultsEl = $('results');
 const resultsBodyEl = $('results-body');
@@ -589,14 +592,79 @@ function renderAttPickers() {
     const current = cls.attachments.find(id => getAttachment(id)?.slot === slot) || '';
     sel.value = current;
     sel.addEventListener('change', () => {
+      const before = specSheet(getWeapon(cls.primary), unlockedAtts(cls));   // V7: measure before the swap
       cls.attachments = cls.attachments.filter(id => getAttachment(id)?.slot !== slot);
       if (sel.value) cls.attachments.push(sel.value);
       persistProfile();
       refreshGearLine();
+      renderSpecPanel(before);   // V7: show the deltas this change made
     });
     cell.append(lab, sel);
     attPickersEl.appendChild(cell);
   }
+}
+
+// V7: the attachments that actually fire for a class (unlock-
+// filtered, same rule as effWeaponFor) — the spec panel measures
+// THIS build, not the paper one.
+function unlockedAtts(cls) {
+  return (cls.attachments || []).filter(a => isAttachmentUnlocked(myLevel(), a));
+}
+
+// V7 GUNSMITH SPEC PANEL: measured bars + numbers for the active
+// class's primary build (specSheet in js/loadouts.js). When
+// `before` (a prior sheet for the same weapon) is passed, each
+// rating shows its delta — equip a grip, watch CONTROL move.
+const SPEC_ROWS = [
+  { key: 'damage', label: 'DAMAGE', fmt: (s) => `${s.damageTotal} / SHOT` },
+  { key: 'fireRate', label: 'FIRE RATE', fmt: (s) => `${s.rpm} RPM` },
+  { key: 'accuracy', label: 'ACCURACY', fmt: (s) => `ADS ${s.adsDeg}°` },
+  { key: 'range', label: 'RANGE', fmt: (s) => `${s.range} M` },
+  { key: 'control', label: 'CONTROL', fmt: (s) => `RECOIL ${s.recoil}` },
+];
+function renderSpecPanel(before = null) {
+  if (!specPanelEl) return;
+  specPanelEl.textContent = '';
+  const cls = activeClass();
+  const sheet = specSheet(getWeapon(cls.primary), unlockedAtts(cls));
+  const head = document.createElement('div');
+  head.className = 'loadout-label';
+  head.textContent = `GUNSMITH — ${sheet.name} MEASURED SPECS`;
+  specPanelEl.appendChild(head);
+  for (const row of SPEC_ROWS) {
+    const rating = sheet.ratings[row.key];
+    const el = document.createElement('div');
+    el.className = 'spec-row';
+    const lab = document.createElement('span');
+    lab.className = 'spec-lab';
+    lab.textContent = row.label;
+    const bar = document.createElement('div');
+    bar.className = 'spec-bar';
+    const fill = document.createElement('div');
+    fill.className = 'spec-fill';
+    fill.style.width = rating + '%';
+    bar.appendChild(fill);
+    const val = document.createElement('span');
+    val.className = 'spec-val';
+    val.textContent = `${rating} · ${row.fmt(sheet)}`;
+    const delta = document.createElement('span');
+    delta.className = 'spec-delta';
+    if (before && before.id === sheet.id) {
+      const d = rating - before.ratings[row.key];
+      if (d !== 0) {
+        delta.textContent = (d > 0 ? '▲ +' : '▼ ') + d;
+        delta.classList.add(d > 0 ? 'up' : 'down');
+      }
+    }
+    el.append(lab, bar, val, delta);
+    specPanelEl.appendChild(el);
+  }
+  const nums = document.createElement('div');
+  nums.id = 'spec-nums';
+  nums.textContent =
+    `HIP SPREAD ${sheet.hipDeg}° · ADS SPREAD ${sheet.adsDeg}° · FULL DMG TO ${sheet.rangeFull} M · ` +
+    `VELOCITY ${sheet.velocity} M/S · MAG ${sheet.mag} · RELOAD ${sheet.reload} S · ZOOM ${sheet.adsZoom}× · DPS ${sheet.dps}`;
+  specPanelEl.appendChild(nums);
 }
 
 function refreshGearLine() {
@@ -612,6 +680,7 @@ function syncLoadoutUi() {
   document.querySelectorAll('.wpn').forEach(b => b.classList.toggle('selected', b.dataset.weapon === startingId));
   renderClassTabs();
   renderAttPickers();
+  renderSpecPanel();   // V7: measured specs ride every loadout sync
   renderCamoPickers(); // U5-10: after the .wpn sweep, so camo selection state wins
   renderMetaPanel(); // U13: emblem buttons ride .wpn too — re-render after the sweep
   refreshGearLine();
@@ -1107,9 +1176,14 @@ function shoot() {
   fireCooldown += weapon.interval;
   if (fireCooldown < -weapon.interval) fireCooldown = -weapon.interval;
   bloom = Math.min(1, bloom + 0.16 * weapon.bloomRate);
-  player.kick(weapon.recoil); sfx.shot(weapon.sound);
+  player.kick(weapon.recoil, weapon.recoilV, weapon.recoilH); sfx.shot(weapon.sound);
   ammoNum.textContent = mags[currentId];
 
+  // V7 UNIFIED SPREAD (mirrors net/sim.js shootSim exactly):
+  // (base + bloom + move penalty) × ADS total × stance. weapon.
+  // spreadAds is now the TOTAL aimed multiplier (base adsMult ×
+  // attachments) — aiming genuinely tightens the cone, optic or
+  // not; the move penalty never applies while aiming.
   const moveSpread = (player.aiming ? 0 : (Math.hypot(player.vel.x, player.vel.z) > 6 ? 0.004 : 0));
   const aimMult = player.aiming ? weapon.spreadAds : 1;
   const spread = (weapon.spread + bloom * 0.028 + moveSpread) * aimMult * (player.spreadMult || 1); // U6-10: stance steadiness
@@ -1127,9 +1201,10 @@ function shoot() {
   let tracerCount = 0;
   for (let p = 0; p < weapon.pellets; p++) {
     camera.getWorldDirection(_dir);
-    _dir.x += (Math.random() - 0.5) * 2 * spread;
-    _dir.y += (Math.random() - 0.5) * 2 * spread;
-    _dir.z += (Math.random() - 0.5) * 2 * spread;
+    const [cox, coy, coz] = coneOffset(Math.random, spread);   // V7: center-weighted cone (shared with the sim)
+    _dir.x += cox;
+    _dir.y += coy;
+    _dir.z += coz;
     _dir.normalize();
     raycaster.set(_origin, _dir);
     const results = raycaster.intersectObjects(targets, false);
