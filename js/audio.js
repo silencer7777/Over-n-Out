@@ -137,6 +137,50 @@ export class Sfx {
     }
   }
   // ---------------------------------------------------------------
+  // VEHICLE ENGINE (V7 Round 2, R2-4 polish) — a procedural
+  // engine loop in the ambient idiom: two detuned oscillators
+  // (saw + square sub) through a lowpass, pitch and level
+  // driven by the vehicle's speed each frame. No samples.
+  // Safe to call any time: no-ops before a context exists and
+  // never throws (audio must not be able to break a match).
+  startEngine() {
+    if (!this.ctx || !this.master || this._engine) return;
+    try {
+      const c = this.ctx;
+      const o1 = c.createOscillator(); o1.type = 'sawtooth'; o1.frequency.value = 52;
+      const o2 = c.createOscillator(); o2.type = 'square'; o2.frequency.value = 26;
+      const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 320; f.Q.value = 2;
+      const g = c.createGain(); g.gain.value = 0.0;
+      o1.connect(f); o2.connect(f); f.connect(g); g.connect(this.master);
+      o1.start(); o2.start();
+      g.gain.setTargetAtTime(0.05, c.currentTime, 0.15);
+      this._engine = { o1, o2, f, g };
+    } catch (e) { this._engine = null; }
+  }
+  // speedK: 0..1 of the vehicle's top speed; load: 0..1
+  // throttle input magnitude. Called per frame while driving.
+  setEngine(speedK, load) {
+    if (!this._engine || !this.ctx) return;
+    try {
+      const c = this.ctx, e = this._engine, t = c.currentTime;
+      const rpm = 52 + speedK * 88 + load * 9;
+      e.o1.frequency.setTargetAtTime(rpm, t, 0.06);
+      e.o2.frequency.setTargetAtTime(rpm * 0.5, t, 0.06);
+      e.f.frequency.setTargetAtTime(300 + speedK * 640, t, 0.08);
+      e.g.gain.setTargetAtTime(0.045 + speedK * 0.055 + load * 0.012, t, 0.09);
+    } catch (err) { /* never throw from audio */ }
+  }
+  stopEngine() {
+    if (!this._engine || !this.ctx) { this._engine = null; return; }
+    try {
+      const e = this._engine, t = this.ctx.currentTime;
+      e.g.gain.setTargetAtTime(0.0, t, 0.08);
+      const nodes = this._engine;
+      setTimeout(() => { try { nodes.o1.stop(); nodes.o2.stop(); } catch (err) { /* already stopped */ } }, 350);
+    } catch (err) { /* never throw from audio */ }
+    this._engine = null;
+  }
+  // ---------------------------------------------------------------
   // MENU THEME (V6 Update 5, U5-01) — an original procedural
   // composition in the house WebAudio idiom: no files, no samples,
   // nothing copyrighted. A four-bar loop in D minor at 96 BPM:
