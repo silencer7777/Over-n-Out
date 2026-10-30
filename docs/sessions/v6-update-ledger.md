@@ -793,3 +793,46 @@ The V7 deferral, landed per map by the map crews' pattern.
   half-way: the remaining window could not gate it clean
   with margin, and a half-wired online path is exactly what
   the round's law forbids. Solo vehicles are complete.
+
+## V7.5 — Round 2 FINAL slice: ONLINE VEHICLES (R2-5)
+
+- Brett's order: Round 2's last deferral pulled forward the
+  same night, before the 07:00 PT stop. Shipped ~03:00 PT.
+  Full report: docs/sessions/v7-round2-online-vehicles.md.
+- PROTOCOL: `interact` joins the input frame as an optional
+  edge, strictly boolean when present (validateInput, the
+  lethal/tactical precedent). No version bump — old frames
+  stay valid.
+- SIM (net/sim.js): vehicles spawn per match from
+  VEHICLE_PADS on every mode + map (ids v1 quad / v2 truck);
+  enter/exit are server-validated (3.5 m + height band,
+  unoccupied, not disabled); driving REPLACES the walker on
+  the shared THREE-free stepVehicle physics (no new trust
+  paths — the same collide + bounds the players use);
+  damagePlayerSim splits incoming damage by the spec's
+  armorShare at entry (truck 0.55 / quad 0.25), wrecks stop
+  absorbing; run-overs credit the driver via:'vehicle' with
+  a 0.6 s per-target immunity; death and respawn free the
+  vehicle; a disabled wreck keeps its driver seated until
+  they E out. Dogs bite the hull split like everything else.
+- SNAPSHOT: players[] gains `veh`; new `snap.vehicles` rows
+  [id, specId, x, y, z, heading, speed, hp, disabled,
+  driverId] — server-authoritative, as designed.
+- CLIENT: OnlineSession renders snapshot vehicles as
+  castShadow-FALSE actors (shadow budget untouched at
+  199/200) with puppet-rule interpolation; the DRIVER
+  predicts their own vehicle with the shared physics and
+  the standing correction (snap > 3 m, blend 0.25 > 0.3 m);
+  KeyE + touch USE set the interact edge through
+  buildOnlineSample; the walker stands down while driving;
+  minimap squares, prompts, engine audio, speed FOV and the
+  hull HUD reuse the solo language (VH7 re-pinned to the
+  shared mapVehicles projection — named re-pin).
+- TESTS: OV0-OV8 (protocol, enter gating, wreck refusal,
+  drive + bounds + impact hull, armor split, run-over,
+  exit, snapshot carriage, client pins) + an end-to-end
+  GameServer/LoopbackTransport probe (wire interact ->
+  veh_enter -> drove 30 -> 18.9 at 17.5 m/s -> veh_exit).
+  All five gates green on the git-archive snapshot;
+  spec-audit clean. Perf unchanged (no new casters; vehicle
+  actors are mid-match only, same as solo).
