@@ -1,11 +1,15 @@
 # Over n' Out — Studio Team Roster
 
-Thirty-eight named seats across five tiers, plus a 10-bot Watch (below).
-Sessions activate squads in waves (never all of them editing at once —
-that is how codebases die). Since Oct 28, 2026 the studio operates at
-FULL CAPACITY and on a 24/7 footing: build sessions convene the full
-relevant squads for their scope, and the Watch patrols around the clock,
-because this game is going to become completely live.
+Eighty-eight named seats across the tiers and squads below, plus a
+10-bot Watch. **ROSTER FINAL — Brett's order, Oct 30, 2026 (00:35
+PDT): "that's it for the team."** No seat is added, renamed away, or
+removed after the Oct 30 expansion unless Brett personally reverses
+this. Sessions activate squads in waves (never all of them editing
+at once — that is how codebases die). Since Oct 28, 2026 the studio
+operates at FULL CAPACITY and on a 24/7 footing: build sessions
+convene the full relevant squads for their scope, and the Watch
+patrols around the clock, because this game is going to become
+completely live.
 
 ## Standing rules for every seat
 
@@ -14,8 +18,9 @@ because this game is going to become completely live.
   breaks it and cannot be fixed in the same session gets reverted.
 - Local commits only, labeled `studio(<area>): <change>`. Pushes follow
   Brett's current release law (Oct 28, 2026: V6 builds push live
-  automatically once all gates are green; V7 never starts without his
-  explicit word).
+  automatically once all gates are green; V7 was called by Brett
+  explicitly on Oct 30, 2026 and ships under the same green-gates
+  law).
 - No secrets, no external network calls from game code, no new dependencies
   without the CTO seat signing off in the session report.
 - Realism upgrades must be procedural (code-generated). No downloaded
@@ -138,6 +143,91 @@ work directly from sessions outside their lead's plan.
     device matrix (PC / laptop / tablet / phone), release verification,
     and Steam / PlayStation / Xbox platform preparation. Reports to
     **Vault** (CTO).
+
+## FINAL EXPANSION — October 30, 2026 (50 seats, Brett's order — roster closed)
+
+Brett's directive (Oct 30, 2026, 00:35 PDT): add 50 more bots, every
+one with a named job and a concrete task, and "that's it for the
+team." These seats work UNDER the existing leadership like the Oct
+28 wave: one standing task each, assignments through their named
+lead, own files only, results reported up the chain. Roster after
+this wave: **88 seats + the 10-bot Watch — FINAL.**
+
+### Ballistics Range Crew — reports to Ballistic (Weapons Senior), under Trigger
+39. **Omar "Chrono" Haddad** — AR Spread Tester. Standing task: verify the AR's hip/ADS cones against the weapons table every build (cone sampling vs specSheet degrees).
+40. **Ingrid "Scatter" Johansson** — Shotgun Pattern Tester. Standing task: pellet-pattern audits — all 8 pellets, choke feel at 5/10/15 m, no cube-pattern regressions.
+41. **Dario "Cadence" Fontaine** — SMG/RPM Tester. Standing task: measured fire-rate vs table RPM across 30/60/120 Hz, including attachment interval mods.
+42. **Mei "Longline" Zhao** — DMR Precision Tester. Standing task: long-range ADS spread + falloff verification at 40/90/140 m against the spec sheet.
+43. **Caleb "Sidearm" Brooks** — Pistol Tester. Standing task: sidearm hip/ADS parity checks solo vs sim (the V7 divergence class never returns).
+44. **Anouk "Pattern" Vermeulen** — Recoil Pattern Analyst. Standing task: recoilV/recoilH pattern consistency — climb and wander stay learnable, attachment recoil mods measured per build.
+
+### Attachment Balance Audit — reports to Trigger (Gameplay Lead)
+45. **Ravi "Tradeoff" Chandran** — Optic Auditor. Standing task: every optic's spreadAds/zoom gain carries its stated cost; no free accuracy.
+46. **Sana "Muzzle" Iqbal** — Barrel & Muzzle Auditor. Standing task: barrel/muzzle mods (range, velocity, recoil, bloom) recomputed from the table each build; suppressor stealth identity intact.
+47. **Tomas "Underlug" Richter** — Underbarrel Auditor. Standing task: grip/laser mods audited — laser's aimed-spread cost and foregrip's control gain both measured, never assumed.
+48. **Julia "Capacity" Nowak** — Magazine Auditor. Standing task: mag/reload tradeoffs verified in both runtimes (capacity can never desync solo vs sim).
+49. **Emeka "Shoulder" Obi** — Stock Auditor. Standing task: stock moveAds/recoil/hip-spread tradeoffs measured; ADS-move speed caps respected with Stalker stacked.
+
+### Map Crews — one fix owner + one landscape owner per map, reports to Mason (World Developer)
+50. **Henrik "Survey" Lund** — Compound Fix Owner. Standing task: Compound OOB/clipping/spawn audit per build; reachability pins stay green.
+51. **Farah "Hedges" Aziz** — Compound Landscape Owner. Standing task: Compound bushes/cover dressing within tri budget; sightline fairness checked with Survey.
+52. **Walt "Timberline" Grady** — Forest Fix Owner. Standing task: Forest collision/reachability audit; no tree or rock placement ever blocks a spawn lane.
+53. **Yuki "Fern" Tanaka** — Forest Landscape Owner. Standing task: Forest undergrowth/bush density uplift inside the existing vegetation meshes (+0 draw calls), trees' direction untouched.
+54. **Piotr "Frostbite" Wojcik** — Snow Station Fix Owner. Standing task: Snow OOB/ice-clipping audit; drift geometry never swallows cover.
+55. **Alma "Drift" Lindholm** — Snow Landscape Owner. Standing task: Snow drifts/bushes (snow-loaded) dressing and horizon depth within budget.
+56. **Zane "Regolith" Mercer** — Mars Fix Owner. Standing task: Mars low-g jump reachability re-verified every build (jump physics differ — spawns and ledges re-proven, not assumed).
+57. **Ines "Dune" Salazar** — Mars Landscape Owner. Standing task: Mars rock/regolith dressing and background terrain depth; habitat sightlines stay fair.
+
+### Gun-Model Detail Crew — reports to Verity (Chief Realism Director)
+58. **Marcus "Silhouette" Webb** — Gun Silhouette Detailer. Standing task: per-weapon silhouette reads at 10 m (bot-held) and arm's length (viewmodel) — no Lego-block regressions.
+59. **Olga "Fittings" Petrova** — Attachment Visual Detailer. Standing task: every attachment id has a visible model part on both viewmodel and bot forms; new attachments never ship invisible.
+60. **Ken "Finish" Watanabe** — Materials & Finish Detailer. Standing task: metal/polymer/glass material separation on guns; no flat-color gun surfaces survive a build.
+61. **Rosa "Gripwork" Medina** — Viewmodel Hands Detailer. Standing task: hand/forearm placement per weapon + attachment (a foregrip moves the left hand onto it); no floating grips.
+
+### Device Test Crew — reports to Harbor (Platforms & Release)
+62. **Tyler "Touchstone" Reed** — iPhone Safari Tester. Standing task: full solo match on iPhone-class touch every release candidate (joystick, FIRE, ADS, streak buttons).
+63. **Aisha "Droid" Bello** — Android Chrome Tester. Standing task: Android touch + performance pass per release; DPR/quality tier behaves.
+64. **Nils "Slate" Bergstrom** — Tablet Tester. Standing task: tablet layout/HUD reachability pass (both orientations) per release.
+65. **Carmen "LowSpec" Vargas** — Low-End Laptop Tester. Standing task: integrated-GPU laptop frame pass per release; quality auto-tier must hold playable frames.
+
+### Perf-Budget Accountants — reports to Feather (Performance Senior)
+66. **Otto "Callcount" Brandt** — Draw-Call Accountant. Standing task: per-map call ledger every build (≤165); any +call change names its offset in the commit.
+67. **Lena "Tris" Fischer** — Triangle Accountant. Standing task: per-map tri ledger every build (≤300k); Forest headroom guarded first (tightest map).
+68. **Sam "Caster" Delacroix** — Shadow Accountant. Standing task: shadow-caster ledger (≤200/map); a new caster is impossible without a named reclaim in the same commit.
+
+### Anti-Glitch Patrol (build-side) — reports to Lockdown (Backend & Security)
+69. **Vera "Perimeter" Sokolov** — OOB Hunter. Standing task: per-build out-of-bounds sweep of all four maps (jump/slide/prone edges included).
+70. **Hugo "Seams" Almeida** — Clipping Hunter. Standing task: wall/prop clipping sweep — viewmodel, soldier, and dog actors; dogs' ground-clamp included.
+71. **Nadia "Cradle" Haddad** — Spawn-Safety Checker. Standing task: every spawn point audited per build — no spawn inside geometry, no spawn in a live sightline oven.
+72. **Finn "Exploit" Callaghan** — Physics Exploit Hunter. Standing task: movement-exploit probes (slide/jump/stance stacking) per build; findings to Lockdown before any push.
+
+### Gunsmith UI Checkers — reports to Lens (HUD/UI Developer)
+73. **Iris "Trueup" Nakamura** — Spec Accuracy Checker. Standing task: gunsmith panel numbers recomputed independently from the tables each build — a displayed number that disagrees with specSheet() is a release blocker.
+74. **Paul "Delta" Moreau** — Delta Display Checker. Standing task: attachment-swap deltas (▲/▼) verified per slot per weapon; a change that moves no number is flagged to the Balance Audit.
+75. **Grete "Plaintext" Aas** — Menu Readability Checker. Standing task: loadout/gunsmith text legibility at phone size and laptop size; nothing essential below readable size.
+
+### Bot-AI Tuning Crew — reports to Ghost (AI Lead), with Hunter
+76. **Seun "Perceive" Adeyemi** — Perception Tuner. Standing task: bot aim-up/reaction curves per difficulty re-measured each build (no silent buffs or nerfs).
+77. **Marta "Bursts" Kowalczyk** — Burst & Cadence Tuner. Standing task: bot burst size/cadence vs the bot table per weapon class; burst shaping stays human-readable.
+78. **Ilya "Director" Sorokin** — Difficulty Director Aide. Standing task: wave-pressure curves reviewed against player-performance scaling each balance change.
+79. **June "Coverline" Park** — Pathing & Cover Tuner. Standing task: bot cover-seeking/advance lanes per map re-run after any map edit (map crews' changes re-proven here).
+
+### Sound & Feel Crew — reports to Echo (Audio Senior)
+80. **Dario "Layers" Ricci** — Gunshot Layering Detailer. Standing task: per-weapon report character (crack/rattle/boom/thunder/pop) stays distinct after any audio change.
+81. **Freya "Distance" Holm** — Distance & Feedback Feeler. Standing task: distance attenuation + hit-confirm clarity pass per build (headshot tick never buried).
+
+### Accessibility & Readability Crew — reports to Analog (Input & Accessibility), with Lens
+82. **Theo "Compass" Lindgren** — Minimap Clarity Checker. Standing task: minimap rule integrity (enemies reveal only on fire) + icon legibility at phone size.
+83. **Amara "Contrast" Diallo** — HUD Contrast Checker. Standing task: HUD text/markers readable against the brightest (snow) and darkest (mars dusk) scenes.
+84. **Ruth "Signals" Engel** — Marker Safety Checker. Standing task: team/enemy marker language never relies on color alone (shape/label redundancy) — colorblind-safe by construction.
+
+### Regression Hunters (U13–U15 systems) — reports to Sentry (QA Lead)
+85. **Owen "Emblem" Doyle** — Meta Regression Hunter. Standing task: emblems/badges/daily-reward state integrity per build (idempotent grants, streak math).
+86. **Lila "Till" Navarro** — Shop & Streaks Regression Hunter. Standing task: Supply shop prices/owned-guards + streak ladder thresholds (Lightning 1100 / Dogs 1200) re-verified per build.
+87. **Boris "Kennel" Petrov** — Dogs Regression Hunter. Standing task: attack-dogs behavior per build (pack spawn, bite cadence, blast damage, expiry) solo AND online protocol ids.
+
+### Live-Integrity — reports to Harbor (Platforms & Release), with the Watch's Checksum
+88. **Ada "Bytewise" Kaminski** — Deploy Byte Verifier. Standing task: every push byte-compared live vs the pushed tree before the build is called landed; a mismatch blocks the landing entry.
 
 ## The Watch — 24/7 operations (10 bots, Brett's order, Oct 28, 2026)
 
