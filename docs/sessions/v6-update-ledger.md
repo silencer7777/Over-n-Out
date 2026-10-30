@@ -743,3 +743,53 @@ after all content landed — post-push audit is the standard).
   kestrel bot whose only nearby enemy is a dog targets it —
   targetId = the dog — and lands fire), DG4 (solo wiring
   pins). All five gates green on tree + snapshot.
+
+## V7.3 — Round 2 slice 3: LANDSCAPE UPLIFTS (~03:20 PT)
+
+The V7 deferral, landed per map by the map crews' pattern.
+**v0.7.3, BUILD V7.3, live byte-verified.**
+
+- Forest (Fern): +6 blocking bushes (92 -> 98; every one
+  >= 1.3 m, bush-rule colliders; B4 identity exact at 245).
+- Snow (Drift): +6 drifts (46 -> 52), all >= 1.8 m so all
+  carry drift colliders.
+- Mars (Dune): +6 rust rocks (40 -> 46), all >= 1.5 m so
+  all carry rock colliders.
+- Method (the V6-supplement law): own rng stream per map
+  (SEED + 31337) planted after every shipped scatter — the
+  shipped placements are byte-identical; separations mirror
+  each map's own rules; each supplement renders in its OWN
+  InstancedMesh with castShadow OFF (shadow budget held:
+  casters unchanged in metrics) and +1 draw call per map
+  (forest 148, snow 147, mars 149 — all <= 165). Tris:
+  forest 285,726 (<= 300k). All supplements keep >= 3.5 m
+  clear of the R2-1 vehicle pads. biome-check B21-B23 pin
+  the counts; reachability + sightline audits green.
+
+## V7.4 — Round 2 slice 4: VEHICLE FEEL + R2-4/R2-5 calls
+
+- FEEL (the R2-4 budget, spent on the headline feature):
+  procedural engine loop (audio.js startEngine/setEngine/
+  stopEngine — two detuned oscillators through a lowpass,
+  pitch/level follow speed + throttle; never throws, no-ops
+  without a context); speed FOV bloom while driving (75 ->
+  ~82 at top speed; player.update eases it home on exit);
+  vehicles on the minimap (steel-blue squares, white outline
+  on yours, grey when disabled); controls screen now lists
+  E — enter/exit vehicle. VH7 pins the layer.
+- R2-4 (movement feel) — NO PHYSICS SHIPPED, by the spec's
+  own rule: the look/locomotion layer already carries two
+  measured passes (V6-3 feel state; U7-03 error-adaptive
+  look + soft-start at a measured 0.140 -> 0.147 s cost),
+  and everything left is either pinned by the reachability
+  gates (top speeds, accel, jump) or would alter approved
+  feel (sensitivity, ADS). Nothing measured better, so
+  nothing shipped.
+- R2-5 (online vehicles) — DEFERRED with a full design in
+  v7-round2-spec.md (protocol interact edge per the
+  lethal/tactical precedent; sim stepVehicles on the shared
+  vehicles.js physics; snapshot carriage; client prediction
+  + the existing 0.25-blend correction). Not attempted
+  half-way: the remaining window could not gate it clean
+  with margin, and a half-wired online path is exactly what
+  the round's law forbids. Solo vehicles are complete.
