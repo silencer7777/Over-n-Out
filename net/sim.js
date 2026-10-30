@@ -861,8 +861,8 @@ function shootSim(match, p, events) {
     dx /= dl; dy /= dl; dz /= dl;
 
     let bestT = 120, bestKind = null, bestBot = null, bestHead = false, bestBarrel = null;
-    let bestEq = null, bestUav = null, bestSentry = null, bestPkg = null;
-    const clearOthers = () => { bestBot = null; bestBarrel = null; bestEq = null; bestUav = null; bestSentry = null; bestPkg = null; };
+    let bestEq = null, bestUav = null, bestSentry = null, bestPkg = null, bestDog = null;
+    const clearOthers = () => { bestBot = null; bestBarrel = null; bestEq = null; bestUav = null; bestSentry = null; bestPkg = null; bestDog = null; };
     const tw = raycastWorld(ox, oy, oz, dx, dy, dz, 120, match.world);
     if (tw < bestT) { bestT = tw; bestKind = 'world'; }
     for (const barrel of match.barrels) {
@@ -883,6 +883,14 @@ function shootSim(match, p, events) {
       if (t < bestT) {
         bestT = t; bestKind = 'bot'; clearOthers(); bestBot = bot; bestHead = th < tb;
       }
+    }
+    // R2-2: attack dogs are real gunfire targets — a low body
+    // box, enemy pack members only (no friendly fire, U6-07).
+    for (const dog of match.dogs) {
+      if (dog.team === p.team) continue;
+      const db = { min: [dog.pos.x - 0.38, dog.pos.y, dog.pos.z - 0.38], max: [dog.pos.x + 0.38, dog.pos.y + 0.62, dog.pos.z + 0.38] };
+      const t = rayAabb(ox, oy, oz, dx, dy, dz, db.min, db.max);
+      if (t < bestT) { bestT = t; bestKind = 'dog'; clearOthers(); bestDog = dog; }
     }
     // Placed equipment is physical state with HP (Havoc: 20 —
     // one hit from anything destroys it, silently: shooting a
@@ -930,6 +938,11 @@ function shootSim(match, p, events) {
         match.kills++;
         events.push({ kind: 'kill', by: p.id, target: bestBot.id, via: 'gunfire' });
       }
+    } else if (bestKind === 'dog' && bestDog) {
+      hitAny = true;
+      const dmg = falloffDamage(weapon, bestT);
+      events.push({ kind: 'hit', by: p.id, target: bestDog.id, head: false, dmg: Math.round(dmg) });
+      damageDogSim(match, bestDog, dmg, events, p.id); // emits dog_down on the kill
     } else if (bestKind === 'barrel' && bestBarrel) {
       explodeBarrelSim(match, bestBarrel, events, p.id);
     } else if (bestKind === 'equipment' && bestEq) {
@@ -1499,11 +1512,18 @@ function stepSentries(match, dt, events) {
       events.push({ kind: 'sentry_down', id: s.id, cause: 'battery' });
       continue;
     }
-    let tgt = null, td = Infinity;
+    let tgt = null, td = Infinity, tgtIsDog = false;
     for (const b of match.bots) {
       if (b.dead || b.team === s.team) continue;
       const d = Math.hypot(b.pos.x - s.x, b.pos.z - s.z);
       if (d < td && d <= SENTRY_SPEC.range) { td = d; tgt = b; }
+    }
+    // R2-2: a nearer enemy dog is the sentry's target instead
+    // (dogs share the pos/id shape the engagement code reads).
+    for (const dog of match.dogs) {
+      if (dog.team === s.team) continue;
+      const d = Math.hypot(dog.pos.x - s.x, dog.pos.z - s.z);
+      if (d < td && d <= SENTRY_SPEC.range) { td = d; tgt = dog; tgtIsDog = true; }
     }
     let losF = 0;
     if (tgt) {
@@ -1543,9 +1563,12 @@ function stepSentries(match, dt, events) {
           let chance = Math.min(0.52 - td * 0.011, 0.45);
           chance = Math.max(0.10, chance) * hitScalarFor('ar', td) * burstMult;
           chance = Math.min(chance, 0.55);
+          if (tgtIsDog) chance *= 0.6; // R2-2: low profile — dogs are hard to track
           if (match.rng() < chance) {
             const raw = wBot.bot.damageMin + match.rng() * (wBot.bot.damageMax - wBot.bot.damageMin);
-            if (damageBot(match, tgt, raw * falloffFactor(wBot, td), false, events, s.owner)) {
+            if (tgtIsDog) {
+              damageDogSim(match, tgt, raw * falloffFactor(wBot, td), events, s.owner); // dog_down is the feed event; no kill credit
+            } else if (damageBot(match, tgt, raw * falloffFactor(wBot, td), false, events, s.owner)) {
               events.push({ kind: 'kill', by: s.owner, target: tgt.id, via: 'sentry' });
             }
           }
@@ -1800,16 +1823,25 @@ function stepBot(match, bot, dt, events) {
   // friendly (team 'you') bots; friendly bots hunt Kestrel only.
   // (In Wave Defense every bot is Kestrel and every enemy is a
   // player — the M1 behaviour, unchanged.)
-  let target = null, targetDist = Infinity, targetPlayer = null, targetBotRef = null;
+  let target = null, targetDist = Infinity, targetPlayer = null, targetBotRef = null, targetDogRef = null;
   const consider = (ref, isPlayer) => {
     const d = Math.hypot(ref.pos.x - bot.pos.x, ref.pos.z - bot.pos.z);
-    if (d < targetDist) { targetDist = d; target = ref; targetPlayer = isPlayer ? ref : null; targetBotRef = isPlayer ? null : ref; }
+    if (d < targetDist) { targetDist = d; target = ref; targetPlayer = isPlayer ? ref : null; targetBotRef = isPlayer ? null : ref; targetDogRef = null; }
+  };
+  // R2-2: an enemy dog inside 25 m is a valid target — it is
+  // about to bite, after all. Dogs share the pos/id shape the
+  // movement + aim code below already reads.
+  const considerDog = (dog) => {
+    const d = Math.hypot(dog.pos.x - bot.pos.x, dog.pos.z - bot.pos.z);
+    if (d <= 25 && d < targetDist) { targetDist = d; target = dog; targetPlayer = null; targetBotRef = null; targetDogRef = dog; }
   };
   if (bot.team === 'kestrel') {
     for (const p of match.players.values()) { if (p.alive) consider(p, true); }
     for (const b of match.bots) { if (b !== bot && !b.dead && b.team === 'you') consider(b, false); }
+    for (const dog of match.dogs) { if (dog.team !== bot.team) considerDog(dog); }
   } else {
     for (const b of match.bots) { if (b !== bot && !b.dead && b.team === 'kestrel') consider(b, false); }
+    for (const dog of match.dogs) { if (dog.team !== bot.team) considerDog(dog); }
   }
   if (!target) return true; // nobody to hunt — hold position
   if (bot.targetId !== target.id) {
@@ -2008,11 +2040,14 @@ function stepBot(match, bot, dt, events) {
         chance = Math.max(0.10, chance) * hitScalarFor(bot.weaponId, dist) * bot.difficulty * burstMult * moveFactor;
         chance = Math.min(chance, 0.55);
         if (targetPlayer) chance *= STANCE[targetPlayer.stance].hit; // U6-10: stance hit rule vs players
+        if (targetDogRef) chance *= 0.6; // R2-2: low profile
         if (match.rng() < chance) {
           const raw = bot.weapon.bot.damageMin + match.rng() * (bot.weapon.bot.damageMax - bot.weapon.bot.damageMin);
           const dmg = raw * falloffFactor(bot.weapon, dist);
           if (targetPlayer) {
             damagePlayerSim(match, targetPlayer, dmg, events);
+          } else if (targetDogRef) {
+            damageDogSim(match, targetDogRef, dmg, events, bot.id); // dog_down is the feed event; no kill credit
           } else if (targetBotRef && damageBot(match, targetBotRef, dmg, false, events, bot.id)) {
             events.push({ kind: 'kill', by: bot.id, target: targetBotRef.id, via: 'gunfire' });
           }
