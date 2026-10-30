@@ -1,11 +1,11 @@
 {
   "tool": "v6-metrics",
-  "generatedAt": "2026-10-30T08:56:19.524Z",
+  "generatedAt": "2026-10-30T09:10:34.584Z",
   "sections": {
     "gates": {
       "smoke": {
         "passed": true,
-        "checks": 320,
+        "checks": 324,
         "tail": " | SMOKE PASSED"
       },
       "reachability": {
@@ -15,7 +15,7 @@
       },
       "biomeCheck": {
         "passed": true,
-        "checks": 50,
+        "checks": 53,
         "tail": " | BIOME CHECK PASSED"
       },
       "wsSoak": {
@@ -25,7 +25,7 @@
       },
       "soak": {
         "passed": true,
-        "losUsPerRay": 8.64,
+        "losUsPerRay": 7.23,
         "simMsPerTick": 0.057
       },
       "perMapReachability": {
@@ -469,18 +469,18 @@
         "client": {
           "kind": "client",
           "static": {
-            "calls": 64,
-            "tris": 224782,
-            "verts": 205971,
+            "calls": 65,
+            "tris": 226462,
+            "verts": 207159,
             "shadowCasters": 38,
             "casterTris": 196232,
-            "instancedMeshes": 17,
-            "instances": 2488,
-            "instancedTris": 215374,
+            "instancedMeshes": 18,
+            "instances": 2500,
+            "instancedTris": 217054,
             "instancedShare": 0.958,
             "flatTris": 7956,
             "flatShare": 0.035,
-            "texturedTris": 211900,
+            "texturedTris": 213580,
             "texturedShare": 0.943,
             "largestUntexturedMesh": {
               "tris": 40,
@@ -493,7 +493,7 @@
               "geo": "SphereGeometry",
               "name": "sun-disc"
             },
-            "renderables": 64
+            "renderables": 65
           },
           "topInstanced": [
             {
@@ -677,18 +677,17 @@
             },
             {
               "kind": "instanced",
-              "geo": "ConeGeometry",
+              "geo": "SphereGeometry",
               "params": {
-                "height": 0.5,
-                "radialSegments": 5,
-                "heightSegments": 1,
-                "radius": 0.16
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
               },
-              "count": 90,
-              "trisEach": 15,
-              "tris": 1350,
-              "flat": true,
-              "textured": false,
+              "count": 12,
+              "trisEach": 140,
+              "tris": 1680,
+              "flat": false,
+              "textured": true,
               "castShadow": false,
               "instanceColor": true
             }
@@ -938,25 +937,25 @@
             ]
           },
           "sustained": {
-            "calls": 147,
-            "tris": 284046
+            "calls": 148,
+            "tris": 285726
           },
           "inclTransients": {
-            "calls": 148,
-            "tris": 284046
+            "calls": 149,
+            "tris": 285726
           },
-          "shadowPassEstimate": 210,
+          "shadowPassEstimate": 211,
           "shadowTrisEstimate": 250088,
           "equipmentReserveCalls": 32,
           "streakReserveCalls": 17,
           "remoteFigureCalls": 21,
-          "grandWorstCase": 217,
+          "grandWorstCase": 218,
           "vegetation": {
             "group": "biome-forest",
             "trees": 116,
-            "bushes": 92,
-            "groupTris": 190994,
-            "groupCalls": 13,
+            "bushes": 98,
+            "groupTris": 192674,
+            "groupCalls": 14,
             "instancedSets": [
               {
                 "geo": "CylinderGeometry",
@@ -1062,6 +1061,20 @@
                 "instanceColor": true
               },
               {
+                "geo": "SphereGeometry",
+                "params": {
+                  "heightSegments": 8,
+                  "widthSegments": 10,
+                  "radius": 1
+                },
+                "count": 12,
+                "trisEach": 140,
+                "tris": 1680,
+                "flat": false,
+                "textured": true,
+                "instanceColor": true
+              },
+              {
                 "geo": "DodecahedronGeometry",
                 "params": {
                   "radius": 0.22,
@@ -1076,7 +1089,7 @@
               }
             ],
             "foliageMassesPerTree": 7,
-            "vegetationTrisPerTree": 1643,
+            "vegetationTrisPerTree": 1658,
             "trunk": {
               "params": {
                 "radiusTop": 0.2,
@@ -1542,19 +1555,19 @@
         "client": {
           "kind": "client",
           "static": {
-            "calls": 63,
-            "tris": 71256,
-            "verts": 80115,
+            "calls": 64,
+            "tris": 72096,
+            "verts": 80709,
             "shadowCasters": 40,
             "casterTris": 60658,
-            "instancedMeshes": 16,
-            "instances": 801,
-            "instancedTris": 61742,
-            "instancedShare": 0.866,
+            "instancedMeshes": 17,
+            "instances": 807,
+            "instancedTris": 62582,
+            "instancedShare": 0.868,
             "flatTris": 6516,
-            "flatShare": 0.091,
-            "texturedTris": 59840,
-            "texturedShare": 0.84,
+            "flatShare": 0.09,
+            "texturedTris": 60680,
+            "texturedShare": 0.842,
             "largestUntexturedMesh": {
               "tris": 40,
               "area": 263122.8,
@@ -1566,7 +1579,7 @@
               "geo": "SphereGeometry",
               "name": "sun-disc"
             },
-            "renderables": 63
+            "renderables": 64
           },
           "topInstanced": [
             {
@@ -1733,6 +1746,22 @@
             },
             {
               "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              },
+              "count": 6,
+              "trisEach": 140,
+              "tris": 840,
+              "flat": false,
+              "textured": true,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
               "geo": "CylinderGeometry",
               "params": {
                 "radiusTop": 0.2,
@@ -1747,24 +1776,6 @@
               "flat": false,
               "textured": true,
               "castShadow": true,
-              "instanceColor": true
-            },
-            {
-              "kind": "instanced",
-              "geo": "CylinderGeometry",
-              "params": {
-                "radiusTop": 0.03,
-                "radiusBottom": 0.09,
-                "height": 1.7,
-                "radialSegments": 6,
-                "heightSegments": 1
-              },
-              "count": 28,
-              "trisEach": 24,
-              "tris": 672,
-              "flat": false,
-              "textured": true,
-              "castShadow": false,
               "instanceColor": true
             }
           ],
@@ -1869,15 +1880,15 @@
             }
           ],
           "textures": {
-            "uniqueTextures": 19,
-            "materials": 50,
-            "totalTexels": 1525760,
-            "estVramMB": 8.1,
+            "uniqueTextures": 20,
+            "materials": 51,
+            "totalTexels": 1591296,
+            "estVramMB": 8.5,
             "byResolution": {
               "4x512": 1,
               "128x128": 1,
               "512x512": 2,
-              "256x256": 15
+              "256x256": 16
             },
             "textures": [
               {
@@ -1893,6 +1904,14 @@
                 "w": 512,
                 "h": 512,
                 "texels": 262144,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
                 "slots": [
                   "map"
                 ]
@@ -2036,25 +2055,25 @@
             ]
           },
           "sustained": {
-            "calls": 146,
-            "tris": 130520
+            "calls": 147,
+            "tris": 131360
           },
           "inclTransients": {
-            "calls": 147,
-            "tris": 130520
+            "calls": 148,
+            "tris": 131360
           },
-          "shadowPassEstimate": 211,
+          "shadowPassEstimate": 212,
           "shadowTrisEstimate": 114514,
           "equipmentReserveCalls": 32,
           "streakReserveCalls": 17,
           "remoteFigureCalls": 21,
-          "grandWorstCase": 216,
+          "grandWorstCase": 217,
           "vegetation": {
             "group": "biome-snow",
             "trees": null,
             "bushes": null,
-            "groupTris": 37468,
-            "groupCalls": 12,
+            "groupTris": 38308,
+            "groupCalls": 13,
             "instancedSets": [
               {
                 "geo": "SphereGeometry",
@@ -2080,6 +2099,20 @@
                 "trisEach": 36,
                 "tris": 576,
                 "flat": true,
+                "textured": true,
+                "instanceColor": true
+              },
+              {
+                "geo": "SphereGeometry",
+                "params": {
+                  "heightSegments": 8,
+                  "widthSegments": 10,
+                  "radius": 1
+                },
+                "count": 6,
+                "trisEach": 140,
+                "tris": 840,
+                "flat": false,
                 "textured": true,
                 "instanceColor": true
               },
@@ -2184,7 +2217,7 @@
                 "radius": 1
               }
             },
-            "instanceColorCoverage": 0.71
+            "instanceColorCoverage": 0.75
           }
         },
         "layout": {
@@ -2551,19 +2584,19 @@
         "client": {
           "kind": "client",
           "static": {
-            "calls": 65,
-            "tris": 55778,
-            "verts": 66679,
+            "calls": 66,
+            "tris": 56618,
+            "verts": 67273,
             "shadowCasters": 40,
             "casterTris": 36264,
-            "instancedMeshes": 14,
-            "instances": 667,
-            "instancedTris": 46078,
-            "instancedShare": 0.826,
+            "instancedMeshes": 15,
+            "instances": 673,
+            "instancedTris": 46918,
+            "instancedShare": 0.829,
             "flatTris": 5940,
-            "flatShare": 0.106,
-            "texturedTris": 44740,
-            "texturedShare": 0.802,
+            "flatShare": 0.105,
+            "texturedTris": 45580,
+            "texturedShare": 0.805,
             "largestUntexturedMesh": {
               "tris": 40,
               "area": 263122.8,
@@ -2575,7 +2608,7 @@
               "geo": "SphereGeometry",
               "name": "sun-disc"
             },
-            "renderables": 65
+            "renderables": 66
           },
           "topInstanced": [
             {
@@ -2740,6 +2773,22 @@
             },
             {
               "kind": "instanced",
+              "geo": "SphereGeometry",
+              "params": {
+                "heightSegments": 8,
+                "widthSegments": 10,
+                "radius": 1
+              },
+              "count": 6,
+              "trisEach": 140,
+              "tris": 840,
+              "flat": false,
+              "textured": true,
+              "castShadow": false,
+              "instanceColor": true
+            },
+            {
+              "kind": "instanced",
               "geo": "CylinderGeometry",
               "params": {
                 "radiusTop": 0.2,
@@ -2754,24 +2803,6 @@
               "flat": false,
               "textured": true,
               "castShadow": true,
-              "instanceColor": true
-            },
-            {
-              "kind": "instanced",
-              "geo": "CylinderGeometry",
-              "params": {
-                "radiusTop": 0.03,
-                "radiusBottom": 0.09,
-                "height": 1.7,
-                "radialSegments": 6,
-                "heightSegments": 1
-              },
-              "count": 28,
-              "trisEach": 24,
-              "tris": 672,
-              "flat": false,
-              "textured": true,
-              "castShadow": false,
               "instanceColor": true
             }
           ],
@@ -2876,15 +2907,15 @@
             }
           ],
           "textures": {
-            "uniqueTextures": 15,
-            "materials": 50,
-            "totalTexels": 1785856,
-            "estVramMB": 9.5,
+            "uniqueTextures": 16,
+            "materials": 51,
+            "totalTexels": 1851392,
+            "estVramMB": 9.9,
             "byResolution": {
               "1024x512": 1,
               "128x128": 1,
               "512x512": 2,
-              "256x256": 11
+              "256x256": 12
             },
             "textures": [
               {
@@ -3001,6 +3032,14 @@
                 ]
               },
               {
+                "w": 256,
+                "h": 256,
+                "texels": 65536,
+                "slots": [
+                  "map"
+                ]
+              },
+              {
                 "w": 128,
                 "h": 128,
                 "texels": 16384,
@@ -3011,25 +3050,25 @@
             ]
           },
           "sustained": {
-            "calls": 148,
-            "tris": 115042
+            "calls": 149,
+            "tris": 115882
           },
           "inclTransients": {
-            "calls": 149,
-            "tris": 115042
+            "calls": 150,
+            "tris": 115882
           },
-          "shadowPassEstimate": 213,
+          "shadowPassEstimate": 214,
           "shadowTrisEstimate": 90120,
           "equipmentReserveCalls": 32,
           "streakReserveCalls": 17,
           "remoteFigureCalls": 21,
-          "grandWorstCase": 218,
+          "grandWorstCase": 219,
           "vegetation": {
             "group": "biome-mars",
             "trees": null,
             "bushes": null,
-            "groupTris": 21990,
-            "groupCalls": 14,
+            "groupTris": 22830,
+            "groupCalls": 15,
             "instancedSets": [
               {
                 "geo": "SphereGeometry",
@@ -3041,6 +3080,20 @@
                 "count": 40,
                 "trisEach": 140,
                 "tris": 5600,
+                "flat": false,
+                "textured": true,
+                "instanceColor": true
+              },
+              {
+                "geo": "SphereGeometry",
+                "params": {
+                  "heightSegments": 8,
+                  "widthSegments": 10,
+                  "radius": 1
+                },
+                "count": 6,
+                "trisEach": 140,
+                "tris": 840,
                 "flat": false,
                 "textured": true,
                 "instanceColor": true
@@ -4036,7 +4089,7 @@
           "matchBooted": true,
           "snapshotsReceived": 2780
         },
-        "msPerTickAvg": 0.082,
+        "msPerTickAvg": 0.075,
         "windowMsPerTick": null,
         "maxWave": 2,
         "maxAliveBots": 6,
@@ -4053,7 +4106,7 @@
           "matchBooted": true,
           "snapshotsReceived": 12972
         },
-        "msPerTickAvg": 0.092,
+        "msPerTickAvg": 0.093,
         "windowMsPerTick": null,
         "maxWave": 2,
         "maxAliveBots": 6,
@@ -4090,8 +4143,8 @@
       "anisotropySetAnywhere": true
     },
     "capabilities": {
-      "packageVersion": "0.7.1",
-      "losProfileUsPerRay": 8.64,
+      "packageVersion": "0.7.3",
+      "losProfileUsPerRay": 7.23,
       "loadoutCombinations": 174522600,
       "camoCount": 9,
       "mapRegistry": {
@@ -4132,10 +4185,10 @@
     "FLAT SURFACE STRIKE (LAYOUT snow (pre-wiring projection)): largest in-scope untextured static mesh ≈ 33924.8 m² (BoxGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 12 tris of flat colour",
     "FLAT SURFACE STRIKE (LAYOUT mars (pre-wiring projection)): largest in-scope untextured static mesh ≈ 33924.8 m² (BoxGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 12 tris of flat colour",
     "SOLDIER BAR (§2.4): bot costs 8 calls > 7 — Update 4 must hold ≤7 calls per bot while smoothing the kit read",
-    "version is 0.7.1, V7 target is 0.7.0 (Coordinator's bump)",
-    "tree is DIRTY at measurement time — numbers describe the working tree, not HEAD (7a59294)"
+    "version is 0.7.3, V7 target is 0.7.0 (Coordinator's bump)",
+    "tree is DIRTY at measurement time — numbers describe the working tree, not HEAD (69a1132)"
   ],
-  "head": "7a59294",
+  "head": "69a1132",
   "treeClean": false,
   "bars": {
     "drawCallsPerMap": 165,
