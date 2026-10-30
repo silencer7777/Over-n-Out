@@ -208,7 +208,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.7.4') fail(`M6 package.json version → ${pkg.version} (expected '0.7.4')`); else ok("M6 package.json version === '0.7.4'");   // V7.4 bump (round 2 vehicle feel)
+  if (pkg.version !== '0.7.5') fail(`M6 package.json version → ${pkg.version} (expected '0.7.5')`); else ok("M6 package.json version === '0.7.5'");   // V7.5 bump (round 2 online vehicles)
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -790,11 +790,15 @@ try {
   else fail('VH6 vehicle wiring incomplete');
   // VH7 (R2-4 polish): engine audio loop, speed FOV, minimap
   // vehicle squares, controls listing — the feel layer.
+  // V7.5 named re-pin: the minimap loop now draws through the
+  // shared mapVehicles projection (solo fleet + online
+  // snapshot fleet), so the witness follows the projection.
   const vehAudio = readFileSync(join(ROOT, 'js/audio.js'), 'utf8');
   if (vehAudio.includes('startEngine()') && vehAudio.includes('setEngine(speedK, load)') && vehAudio.includes('stopEngine()')
-    && vehMain.includes('sfx.setEngine') && vehMain.includes('targetFov') && vehMain.includes('worldToMap(v.state.pos.x')
+    && vehMain.includes('sfx.setEngine') && vehMain.includes('targetFov') && vehMain.includes('worldToMap(v.x, v.z, S)')
+    && vehMain.includes('session.vehicleView()')
     && vehIndex.includes('Enter / exit vehicle'))
-    ok('VH7 vehicle feel: procedural engine loop + speed FOV bloom + minimap vehicle squares + controls listing');
+    ok('VH7 vehicle feel: procedural engine loop + speed FOV bloom + minimap vehicle squares (solo + online) + controls listing');
   else fail('VH7 vehicle feel layer incomplete');
 } catch (e) { fail('VH vehicle checks: ' + e.message); }
 
@@ -877,6 +881,187 @@ try {
     ok('DG4 solo dog gunfire wiring: pack meshes tagged, friendly packs excluded from targets, dogRef resolution in shoot()');
   else fail('DG4 solo dog wiring incomplete');
 } catch (e) { fail('DG dog-gunfire checks: ' + e.message); }
+
+// 1z3) Online vehicles (V7 Round 2, R2-5) — the R2-1 solo
+// vehicles adopted by the sim on the shared physics: protocol
+// edge, proximity/occupancy/wreck validation, driving steps +
+// collision, armor split math, run-over credit, exit
+// placement, snapshot carriage, death freeing the vehicle.
+// DG-style integration: assertions on outcomes, seeds fixed.
+try {
+  const SIM = await import('../net/sim.js');
+  const PROTO = await import('../net/protocol.js');
+  const mkInput = (over = {}) => ({
+    t: 'input', seq: 1,
+    keys: { forward: false, back: false, left: false, right: false, sprint: false, jump: false },
+    yaw: 0, pitch: 0, fire: false, reload: false, weapon: 1, ...over,
+  });
+  const tapInteract = (m, p, ev) => {
+    p.input = mkInput({ interact: true });
+    SIM.stepMatch(m, 1 / 30, ev);
+    p.input = mkInput({});
+    SIM.stepMatch(m, 1 / 30, ev); // the release must register — the next tap is a fresh edge
+  };
+  // OV0: protocol — interact is optional + strictly boolean.
+  {
+    const base = { t: 'input', seq: 0, keys: { forward: true, back: false, left: false, right: false, sprint: false, jump: false }, yaw: 0, pitch: 0, fire: false, reload: false, weapon: 1 };
+    if (PROTO.validateInput(base).ok !== true) fail('OV0 validateInput rejected a sample without interact');
+    else if (PROTO.validateInput({ ...base, interact: true }).ok !== true) fail('OV0 validateInput rejected interact: true');
+    else if (PROTO.validateInput({ ...base, interact: 'yes' }).ok !== false) fail("OV0 validateInput accepted interact: 'yes'");
+    else if (PROTO.validateInput({ ...base, interact: 1 }).ok !== false) fail('OV0 validateInput accepted interact: 1');
+    else ok('OV0 protocol: interact edge is optional + strictly boolean (R2-5)');
+  }
+  // OV1: enter requires proximity; an occupied vehicle refuses
+  // a second driver.
+  {
+    const m = SIM.createMatch(101, { modeId: 'waves', mapId: 'compound' });
+    const p = SIM.addSimPlayer(m, 'p1', 'Tester');
+    const p2 = SIM.addSimPlayer(m, 'p2', 'Second');
+    const ev = [];
+    tapInteract(m, p, ev); // at spawn (0,34): 5.7 m from the quad — too far
+    if (p.vehicleId) fail('OV1 enter succeeded from spawn distance');
+    else {
+      p.pos.x = -4; p.pos.y = 0; p.pos.z = 31; // 1 m from the quad pad
+      tapInteract(m, p, ev);
+      const veh = m.vehicles.find(v => v.id === 'v1');
+      const entered = p.vehicleId === 'v1' && veh.driverId === 'p1'
+        && ev.some(e => e.kind === 'veh_enter' && e.player === 'p1')
+        && p.pos.x === veh.pos.x && p.pos.z === veh.pos.z;
+      p2.pos.x = -4; p2.pos.y = 0; p2.pos.z = 31;
+      tapInteract(m, p2, ev);
+      if (entered && !p2.vehicleId) ok('OV1 enter: proximity-gated, veh_enter fires, rider rides at the vehicle pose; occupied vehicle refuses a second driver');
+      else fail(`OV1 → entered ${entered}, p.vehicleId ${p.vehicleId}, p2.vehicleId ${p2.vehicleId}`);
+    }
+  }
+  // OV2: a disabled wreck rejects entry.
+  {
+    const m = SIM.createMatch(102, { modeId: 'waves', mapId: 'compound' });
+    const p = SIM.addSimPlayer(m, 'p1', 'Tester');
+    const quad = m.vehicles.find(v => v.id === 'v1');
+    quad.hp = 0; quad.disabled = true;
+    p.pos.x = -4; p.pos.y = 0; p.pos.z = 31;
+    const ev = [];
+    tapInteract(m, p, ev);
+    if (!p.vehicleId && !quad.driverId) ok('OV2 enter: a disabled wreck is cover, not a ride');
+    else fail(`OV2 → p.vehicleId ${p.vehicleId}, driverId ${quad.driverId}`);
+  }
+  // OV3: driving steps the shared physics and collides — the
+  // quad accelerates, the rider tracks the vehicle pose, and
+  // the map bounds stop it with hull-scarring impacts.
+  {
+    const m = SIM.createMatch(103, { modeId: 'waves', mapId: 'compound' });
+    const p = SIM.addSimPlayer(m, 'p1', 'Tester');
+    const ev = [];
+    p.pos.x = -4; p.pos.y = 0; p.pos.z = 31;
+    tapInteract(m, p, ev);
+    const veh = m.vehicles.find(v => v.id === 'v1');
+    let peak = 0;
+    for (let i = 0; i < 300; i++) {
+      p.input = mkInput({ keys: { forward: true, back: false, left: false, right: false, sprint: false, jump: false } });
+      SIM.stepMatch(m, 1 / 30, ev);
+      if (Math.abs(veh.speed) > peak) peak = Math.abs(veh.speed);
+    }
+    const rides = p.pos.x === veh.pos.x && p.pos.z === veh.pos.z && p.yaw === veh.heading;
+    if (peak > 8 && veh.pos.z >= -61.21 && veh.hp < veh.spec.hp && rides)
+      ok(`OV3 drive: quad peaked at ${peak.toFixed(1)} m/s, bounds stopped it (z ${veh.pos.z.toFixed(1)}), impacts scarred the hull (${veh.spec.hp} → ${veh.hp.toFixed(0)}), rider glued to the pose`);
+    else fail(`OV3 → peak ${peak.toFixed(1)}, z ${veh.pos.z.toFixed(2)}, hp ${veh.hp}, rides ${rides}`);
+  }
+  // OV4: armor split — a dog bite on a truck driver lands
+  // 55% on the hull / 45% on the player, exactly; and the
+  // driver's death frees the vehicle.
+  {
+    const m = SIM.createMatch(104, { modeId: 'waves', mapId: 'compound' });
+    const p = SIM.addSimPlayer(m, 'p1', 'Tester');
+    const ev = [];
+    p.pos.x = -12; p.pos.y = 0; p.pos.z = 31; // 1 m from the truck pad
+    tapInteract(m, p, ev);
+    const truck = m.vehicles.find(v => v.id === 'v2');
+    if (p.vehicleId !== 'v2') fail('OV4 setup: driver did not get the truck');
+    else {
+      m.dogs.push({ id: 'dxV', owner: 'x', team: 'kestrel', pos: { x: -12, y: 0, z: 29 }, yaw: 0, hp: 60, biteT: 0, phase: 0, until: 9999 });
+      for (let i = 0; i < 10; i++) { p.input = mkInput({}); SIM.stepMatch(m, 1 / 30, ev); }
+      const splitOk = Math.abs(truck.hp - 409) < 0.01 && Math.abs(p.hp - 91) < 0.01;
+      p.hp = 5; // the next bite (9 to the player) is lethal
+      for (let i = 0; i < 60 && p.alive; i++) { p.input = mkInput({}); SIM.stepMatch(m, 1 / 30, ev); }
+      const freed = !p.alive && p.vehicleId === null && truck.driverId === null;
+      if (splitOk && freed) ok('OV4 armor split: one 20-dmg bite = 11 hull + 9 player in the truck (0.55 share); driver death frees the vehicle');
+      else fail(`OV4 → truck hp ${truck.hp}, p hp ${p.hp}, splitOk ${splitOk}, freed ${freed} (alive ${p.alive}, veh ${p.vehicleId}, driver ${truck.driverId})`);
+    }
+  }
+  // OV5: run-over — a driven quad kills a kestrel bot in its
+  // path and the kill credits the driver via 'vehicle'.
+  {
+    const m = SIM.createMatch(105, { modeId: 'tdm', mapId: 'compound' });
+    const p = SIM.addSimPlayer(m, 'p1', 'Tester');
+    p.hp = 100000;
+    const ev = [];
+    for (let i = 0; i < 30 && !m.bots.length; i++) SIM.stepMatch(m, 1 / 30, ev);
+    const bot = m.bots.find(b => b.team === 'kestrel');
+    for (const b of m.bots) { if (b !== bot) { b.pos.x = -70; b.pos.z = -70; } }
+    p.pos.x = -4; p.pos.y = 0; p.pos.z = 31;
+    tapInteract(m, p, ev);
+    bot.pos.x = -4; bot.pos.y = 0; bot.pos.z = 22; bot.hp = 30;
+    let killEv = null;
+    for (let i = 0; i < 180 && !killEv; i++) {
+      // Drive AT the bot: it strafes like a player, so steer
+      // onto its bearing with the left/right keys each tick.
+      const veh = m.vehicles.find(v => v.id === 'v1');
+      const dx = bot.pos.x - veh.pos.x, dz = bot.pos.z - veh.pos.z;
+      let err = Math.atan2(-dx, -dz) - veh.heading;
+      while (err > Math.PI) err -= Math.PI * 2;
+      while (err < -Math.PI) err += Math.PI * 2;
+      const steer = Math.max(-1, Math.min(1, -err * 2));
+      p.input = mkInput({ keys: { forward: true, back: false, left: steer < -0.15, right: steer > 0.15, sprint: false, jump: false } });
+      const before = ev.length;
+      SIM.stepMatch(m, 1 / 30, ev);
+      for (let j = before; j < ev.length; j++) {
+        if (ev[j].kind === 'kill' && ev[j].via === 'vehicle' && ev[j].by === 'p1') killEv = ev[j];
+      }
+    }
+    if (killEv && bot.dead) ok('OV5 run-over: driven quad kills the bot in its path; kill event via \'vehicle\' credits the driver');
+    else fail(`OV5 → killEv ${JSON.stringify(killEv)}, bot dead ${bot.dead}, bot hp ${bot.hp}`);
+  }
+  // OV6: exit places the player clear of the vehicle.
+  {
+    const m = SIM.createMatch(106, { modeId: 'waves', mapId: 'compound' });
+    const p = SIM.addSimPlayer(m, 'p1', 'Tester');
+    const ev = [];
+    p.pos.x = -4; p.pos.y = 0; p.pos.z = 31;
+    tapInteract(m, p, ev);
+    const veh = m.vehicles.find(v => v.id === 'v1');
+    tapInteract(m, p, ev); // second edge = exit
+    const d = Math.hypot(p.pos.x - veh.pos.x, p.pos.z - veh.pos.z);
+    const exited = p.vehicleId === null && veh.driverId === null
+      && ev.some(e => e.kind === 'veh_exit' && e.player === 'p1') && d >= veh.spec.radius + 0.5;
+    if (exited) ok(`OV6 exit: veh_exit fires and the player steps out clear (${d.toFixed(1)} m from the hull)`);
+    else fail(`OV6 → veh ${p.vehicleId}, driver ${veh.driverId}, dist ${d.toFixed(2)}`);
+  }
+  // OV7: snapshot carriage — vehicles ride with driver ids,
+  // and the driver's players[] entry names the vehicle.
+  {
+    const m = SIM.createMatch(107, { modeId: 'waves', mapId: 'compound' });
+    const p = SIM.addSimPlayer(m, 'p1', 'Tester');
+    const ev = [];
+    p.pos.x = -4; p.pos.y = 0; p.pos.z = 31;
+    tapInteract(m, p, ev);
+    const snap = SIM.buildSnapshot(m, 'p1');
+    const row = (snap.vehicles || []).find(r => r[0] === 'v1');
+    const truckRow = (snap.vehicles || []).find(r => r[0] === 'v2');
+    const me = (snap.players || []).find(r => r.id === 'p1');
+    if (row && row[1] === 'quad' && row[9] === 'p1' && truckRow && truckRow[9] === null && me && me.veh === 'v1')
+      ok('OV7 snapshot: snap.vehicles carries [id, spec, pose, heading, speed, hp, disabled, driverId]; players[] names the driven vehicle');
+    else fail(`OV7 → row ${JSON.stringify(row)}, truck ${JSON.stringify(truckRow)}, me.veh ${me && me.veh}`);
+  }
+  // OV8: client wiring pins — sample carriage, KeyE/touch
+  // edges, session vehicle sync + own-vehicle prediction.
+  const ovMain = readFileSync(join(ROOT, 'js/main.js'), 'utf8');
+  const ovOnline = readFileSync(join(ROOT, 'js/online.js'), 'utf8');
+  if (ovMain.includes('edgeInteract') && ovMain.includes("e.code === 'KeyE' && state === 'online'")
+    && ovMain.includes('interact: edgeInteract') && ovMain.includes('stepOnlineVehicles') && ovMain.includes('setOwnVehicle')
+    && ovOnline.includes('_syncVehicles') && ovOnline.includes('createVehicleActor') && ovOnline.includes('vehicleView'))
+    ok('OV8 client wiring: interact rides buildOnlineSample, KeyE + USE set the edge online, session syncs vehicle actors, own vehicle is predicted');
+  else fail('OV8 client wiring incomplete');
+} catch (e) { fail('OV online-vehicle checks: ' + e.message); }
 
 // 2) Boot server + fetch routes
 const PORT = 8199;
