@@ -34,7 +34,7 @@
 // the LoopbackTransport; GameServer feeds it validated inputs and
 // drains its events.
 
-import { WEAPON_ORDER, getWeapon } from '../js/weapons.js';
+import { WEAPON_ORDER, getWeapon, coneOffset } from '../js/weapons.js';
 import { getMode } from '../js/modes.js';
 import { THROWABLES, effectiveWeapon, getPerk } from '../js/loadouts.js';
 import { XP_VALUES } from '../js/progression.js';
@@ -835,17 +835,28 @@ function shootSim(match, p, events) {
   p.bloom = Math.min(1, p.bloom + 0.16 * weapon.bloomRate);
   const hSpeed = Math.hypot(p.vel.x, p.vel.z);
   const aiming = !!(p.input && p.input.aim);
-  const baseSpread = aiming && typeof weapon.spreadAds === 'number' ? weapon.spreadAds : weapon.spread;
-  const spread = (baseSpread + p.bloom * 0.028 + (hSpeed > 6 ? 0.004 : 0)) * STANCE[p.stance].spread; // U6-10: crouch 0.85×, prone 0.65×
+  // V7 UNIFIED SPREAD (mirrors js/main.js shoot() exactly):
+  // (base + bloom + move penalty) × ADS total × stance.
+  // weapon.spreadAds is the TOTAL aimed MULTIPLIER (base adsMult
+  // × attachments) — pre-V7 this line read it as an absolute
+  // spread in radians, so aiming a class primary online scattered
+  // shots across ~1 rad. The move penalty never applies while
+  // aiming (solo parity).
+  const movePenalty = aiming ? 0 : (hSpeed > 6 ? 0.004 : 0);
+  // Non-primary weapons fire the BASE row (no spreadAds field):
+  // fall back to the row's own adsMult so they tighten correctly.
+  const adsTotal = weapon.spreadAds ?? weapon.adsMult ?? 1;
+  const spread = (weapon.spread + p.bloom * 0.028 + movePenalty) * (aiming ? adsTotal : 1) * STANCE[p.stance].spread; // U6-10: crouch 0.85×, prone 0.65×
   const ox = p.pos.x, oy = p.pos.y + EYE, oz = p.pos.z;
   const cp = Math.cos(p.pitch);
   const bx = -Math.sin(p.yaw) * cp, by = Math.sin(p.pitch), bz = -Math.cos(p.yaw) * cp;
   let hitAny = false;
 
   for (let pellet = 0; pellet < weapon.pellets; pellet++) {
-    let dx = bx + (match.rng() - 0.5) * 2 * spread;
-    let dy = by + (match.rng() - 0.5) * 2 * spread;
-    let dz = bz + (match.rng() - 0.5) * 2 * spread;
+    const [cox, coy, coz] = coneOffset(match.rng, spread);   // V7: center-weighted cone (shared with the client)
+    let dx = bx + cox;
+    let dy = by + coy;
+    let dz = bz + coz;
     const dl = Math.hypot(dx, dy, dz) || 1;
     dx /= dl; dy /= dl; dz /= dl;
 
