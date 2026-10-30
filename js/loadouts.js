@@ -59,13 +59,13 @@ export const ATTACHMENTS = [
     mods: { mag: 0.85, reload: 0.80 } },
   { id: 'longbarrel', name: 'LONG BARREL', slot: 'barrel', weapons: ['ar', 'dmr', 'shotgun'],
     benefit: 'Falloff range ×1.25, spread ×0.90', tradeoff: 'Fire interval ×1.05 — heavier swing',
-    mods: { falloffEnd: 1.25, spread: 0.90, interval: 1.05 } },
+    mods: { falloffEnd: 1.25, spread: 0.90, interval: 1.05, velocity: 1.04 } },
   { id: 'shortbarrel', name: 'SHORT BARREL', slot: 'barrel', weapons: ['ar', 'smg', 'pistol'],
     benefit: 'Fire interval ×0.92 — snappier', tradeoff: 'Hip spread ×1.15, falloff range ×0.80',
-    mods: { interval: 0.92, spread: 1.15, falloffEnd: 0.80 } },
+    mods: { interval: 0.92, spread: 1.15, falloffEnd: 0.80, velocity: 0.94 } },
   { id: 'suppressor', name: 'SUPPRESSOR', slot: 'barrel', weapons: 'all',
     benefit: 'Far damage holds up (falloff floor ×1.15), quieter report, minimal muzzle flash', tradeoff: 'Falloff range ×0.92',
-    mods: { falloffMin: 1.15, falloffEnd: 0.92 }, stealth: true },
+    mods: { falloffMin: 1.15, falloffEnd: 0.92, velocity: 0.97 }, stealth: true },
   { id: 'stock', name: 'TACTICAL STOCK', slot: 'stock', weapons: ['ar', 'smg', 'dmr'],
     benefit: 'Aim movement ×1.15, recoil ×0.92', tradeoff: 'Hip spread ×1.10',
     mods: { moveAds: 1.15, recoil: 0.92, spread: 1.10 } },
@@ -103,7 +103,11 @@ export function attachmentsFor(weaponId, slot) {
 //              optic is fitted: DMR 5 = its built-in glass,
 //              everything else 1.15 = iron sights — U7-01: every
 //              gun aims through SOMETHING from level 1)
-//   spreadAds  spread multiplier while aiming
+//   spreadAds  V7 SEMANTICS: the TOTAL aimed-spread multiplier =
+//              the weapon's base adsMult (iron-sight tightening)
+//              times every attachment spreadAds multiplier. Both
+//              runtimes consume it as a multiplier on the hip cone
+//              — never as an absolute spread (the pre-V7 sim bug).
 //   moveAds    movement-speed multiplier while aiming
 //   hasLaser   render the beam
 //   mag        already rounded to a whole round count
@@ -122,10 +126,19 @@ export function effectiveWeapon(weapon, attachmentIds = []) {
     if (m.reload) w.reload = +(w.reload * m.reload).toFixed(3);
     if (m.interval) w.interval = +(w.interval * m.interval).toFixed(4);
     if (m.spread) w.spread = +(w.spread * m.spread).toFixed(5);
-    if (m.recoil) w.recoil = +(w.recoil * m.recoil).toFixed(4);
+    if (m.recoil) {
+      w.recoil = +(w.recoil * m.recoil).toFixed(4);
+      // V7: the recoil PATTERN follows the same mods — a foregrip
+      // that cuts scalar recoil also flattens climb and wander.
+      if (w.recoilV) w.recoilV = +(w.recoilV * m.recoil).toFixed(4);
+      if (w.recoilH) w.recoilH = +(w.recoilH * m.recoil).toFixed(4);
+    }
     if (m.bloomRate) w.bloomRate = +(w.bloomRate * m.bloomRate).toFixed(3);
     if (m.falloffEnd) w.falloffEnd = Math.round(w.falloffEnd * m.falloffEnd);
     if (m.falloffMin) w.falloffMin = Math.min(1, +(w.falloffMin * m.falloffMin).toFixed(3));
+    if (m.velocity) w.velocity = Math.round((w.velocity || 0) * m.velocity);
+    if (m.recoilV) w.recoilV = +(w.recoilV * m.recoilV).toFixed(4);
+    if (m.recoilH) w.recoilH = +(w.recoilH * m.recoilH).toFixed(4);
     if (m.spreadAds) spreadAds *= m.spreadAds;
     if (m.moveAds) moveAds *= m.moveAds;
     if (m.adsZoom) { adsZoom = m.adsZoom; if (att.slot === 'optic') opticFitted = true; }
@@ -139,11 +152,57 @@ export function effectiveWeapon(weapon, attachmentIds = []) {
   // baselines, so a bare gun never gains a hidden accuracy buff.
   if (!opticFitted) adsZoom = weapon.id === 'dmr' ? 5 : 1.15;
   w.adsZoom = adsZoom;
-  w.spreadAds = +spreadAds.toFixed(3);
+  // V7: spreadAds is the TOTAL aimed multiplier — base iron-sight
+  // tightening (weapon.adsMult) composed with the attachments'.
+  // A bare gun aimed down its irons is now genuinely steadier
+  // than hip fire in both runtimes (pre-V7: solo gained nothing
+  // without an optic; the sim read the multiplier as radians).
+  w.spreadAds = +(((weapon.adsMult ?? 1) * spreadAds)).toFixed(4);
+  w.attSpreadAds = +spreadAds.toFixed(3);   // attachments-only product (spec sheet / debugging)
   w.moveAds = +moveAds.toFixed(3);
   w.hasLaser = hasLaser;
   w.attachments = applied;
   return w;
+}
+
+// ----------------------------------------------------------------
+// V7 SPEC SHEET — measured numbers for one build, computed from
+// the effective row (never hand-entered). The gunsmith renders
+// these; equipping an attachment and re-computing is how a player
+// SEES accuracy go up. Ratings are 0–100 display scales with
+// fixed, documented anchors:
+//   DAMAGE    total per-trigger damage (damage × pellets) / 100
+//   FIRE RATE RPM / 950
+//   ACCURACY  100 − (ADS° × 55 + hip° × 8) — ADS accuracy rules
+//   RANGE     effective range (falloff end) / 140 m
+//   CONTROL   105 − recoil × 1400 − bloomRate × 12
+// ----------------------------------------------------------------
+const RAD2DEG = 57.29578;
+const clampRating = (v) => Math.max(2, Math.min(100, Math.round(v)));
+
+export function specSheet(weapon, attachmentIds = []) {
+  const w = effectiveWeapon(weapon, attachmentIds);
+  const rpm = Math.round(60 / w.interval);
+  const hipDeg = +(w.spread * RAD2DEG).toFixed(2);
+  const adsDeg = +(w.spread * w.spreadAds * RAD2DEG).toFixed(3);
+  return {
+    id: w.id, name: w.name, eff: w,
+    damage: w.damage, pellets: w.pellets,
+    damageTotal: w.damage * w.pellets,
+    rpm, dps: Math.round((w.damage * w.pellets) / w.interval),
+    hipDeg, adsDeg,
+    range: w.falloffEnd, rangeFull: w.falloffStart, falloffMin: w.falloffMin,
+    velocity: w.velocity || 0,
+    mag: w.mag, reload: w.reload,
+    recoil: w.recoil, adsZoom: w.adsZoom, moveAds: w.moveAds,
+    ratings: {
+      damage: clampRating(w.damage * w.pellets),   // rating points = per-trigger damage, capped
+      fireRate: clampRating(rpm / 950 * 100),
+      accuracy: clampRating(100 - (adsDeg * 55 + hipDeg * 8)),
+      range: clampRating(w.falloffEnd / 140 * 100),
+      control: clampRating(105 - w.recoil * 1400 - w.bloomRate * 12),
+    },
+  };
 }
 
 // ----------------------------------------------------------------
