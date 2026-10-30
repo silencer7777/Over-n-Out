@@ -118,3 +118,67 @@ docs/sessions/v7-round2-report.md.
   binary) — visual proof = live build stamps + the concrete
   in-game checklist in the report (where to stand, what to
   look at), stated honestly rather than faked.
+
+## R2-5 DESIGN (deferred — written 04:10 PT, Coordinator)
+
+Online vehicles were NOT attempted in round 2: the recon
+below priced the full build at 2.5–3.5 h against ~2.75 h of
+safe window, and the round's law is that nothing half-wired
+ships. The design is complete and ready for a future build:
+
+- PROTOCOL: one optional edge on the input sample —
+  `interact` (strictly boolean when present), following the
+  lethal/tactical/place precedent in net/protocol.js
+  validateInput. No version bump (same as the streak edge).
+- SIM: match.vehicles spawned at createMatch from
+  VEHICLE_PADS (probed clear against every worlddata
+  allColliders() superset, so clear in the sim's
+  SOLIDS+EXTRA subset too). stepVehicles(match, dt, events)
+  runs after stepDogs in stepMatch's order. Env adapter:
+  { colliders: match.world.colliders, bounds:
+  match.world.bounds, groundHeightAt:
+  match.world.groundHeightAt, collide: (pos, r, c, b, fy) =>
+  collide(pos, r, fy, match.world) } — the sim's collide has
+  the (pos, radius, feetY, world) signature (sim.js:209).
+  js/vehicles.js stepVehicle drops in unchanged — that is
+  why the physics was built THREE-free with an injected env.
+- ENTER/EXIT: stepPlayer consumes input.interact as an edge
+  (prevInteract): not driving → nearest non-disabled vehicle
+  within 3.5 m becomes p.vehicleId (event veh_enter);
+  driving → exit at the first clear side offset via the sim
+  collide (event veh_exit). Death/respawn clears vehicleId.
+  While p.vehicleId: stepPlayer's movement block is replaced
+  by stepping the vehicle from keys (throttle fwd−back,
+  steer right−left); p.pos = vehicle pos, p.yaw = heading;
+  firing, throws, place, and streak edges are server-ignored
+  (mirror the solo lockout).
+- COMBAT: damagePlayerSim applies the armor split at entry
+  (dmg × armorShare to the hull via damageVehicle, rest to
+  the player; veh_down event at disable). Run-over in
+  stepVehicles: driven vehicles with |speed| > 3.5 damage
+  enemy BOTS in radius (damageBot + kill event via
+  'vehicle') — players are all team 'you' in the current
+  mode set, so player-vs-player run-over does not arise.
+  Dogs biting a driver flow through damagePlayerSim and
+  split automatically.
+- SNAPSHOT: snap.vehicles (only while any exist):
+  [id, specId, r1 x/y/z, heading, r1 speed, hp, disabled,
+  driverId|null]; players[] entries gain veh: vehicleId.
+- CLIENT: online.js upserts vehicle actors from
+  snap.vehicles (createVehicleActor, interpolation like
+  puppets). For the DRIVER's own vehicle: local prediction —
+  step the shared state with the local env each frame in
+  main.js's online branch, correct toward the server pose
+  with the existing rule (snap > 3 m, blend 0.25 > 0.3 m);
+  camera/HUD reuse the solo stepDrive presentation (engine
+  audio + FOV + #vehicle-hud fed from the local state).
+  Interact input: KeyE / touch USE set an edgeInteract flag
+  in state 'online', carried by buildOnlineSample.
+- TESTS BEFORE PUSH: protocol pin (interact optional
+  boolean); DG-style sim tests (enter requires proximity +
+  rejects a disabled wreck; drive steps + collides; armor
+  split math through damagePlayerSim; run-over kills a bot
+  and credits the driver; exit places the player clear);
+  soak + ws-soak unchanged-green; smoke source pins for the
+  client wiring. Estimated: sim+protocol ~1 h, client ~1 h,
+  tests/debugging ~1 h.
