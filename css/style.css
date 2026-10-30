@@ -91,6 +91,17 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0b0f14; font-
 .att-select option { background:#0b0f14; color:#d9e8db; }
 .att-select:disabled { opacity:.38; cursor:not-allowed; }
 #gear-line { margin-top:10px; font-size:11px; letter-spacing:2px; color:#9fd8a8; }
+/* V7 GUNSMITH SPEC PANEL — measured bars + numbers + deltas */
+#spec-panel { margin-top:12px; max-width:560px; }
+.spec-row { display:flex; align-items:center; gap:8px; font-size:10px; letter-spacing:2px; color:#9fd8a8; margin-top:5px; }
+.spec-lab { width:88px; text-align:left; flex:none; }
+.spec-bar { flex:1; height:8px; background:rgba(255,255,255,.10); border:1px solid rgba(182,255,176,.35); border-radius:3px; overflow:hidden; }
+.spec-fill { height:100%; background:#7dd069; }
+.spec-val { width:118px; text-align:right; color:#d9e8db; flex:none; }
+.spec-delta { width:46px; flex:none; font-size:10px; }
+.spec-delta.up { color:#8dff7a; }
+.spec-delta.down { color:#ff8d7a; }
+#spec-nums { margin-top:8px; font-size:10px; letter-spacing:1px; color:#cfe6d2; text-align:left; }
 #online-panel { margin-top:20px; display:flex; flex-direction:column; align-items:center; gap:8px; }
 .online-row { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; }
 #online-panel input { pointer-events:auto; background:rgba(255,255,255,.06); border:1px solid rgba(182,255,176,.35); color:#d9e8db; padding:8px 10px; font-size:12px; letter-spacing:1px; border-radius:4px; }
