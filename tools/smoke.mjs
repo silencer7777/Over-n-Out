@@ -208,7 +208,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.6.0-dev') fail(`M6 package.json version → ${pkg.version} (expected '0.6.0-dev')`); else ok("M6 package.json version === '0.6.0-dev'");
+  if (pkg.version !== '0.7.0') fail(`M6 package.json version → ${pkg.version} (expected '0.7.0')`); else ok("M6 package.json version === '0.7.0'");   // V7 bump (was 0.6.0-dev through the V6 line)
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -479,8 +479,8 @@ try {
   // +12), fuel-depot tanks +3).
   if (wd.SOLIDS.length === 178) ok('T1 worlddata SOLIDS === 178 (mirrors world.js solids)');
   else fail(`T1 worlddata SOLIDS → ${wd.SOLIDS.length} (expected 178 — mirror world.js!)`);
-  if (wd.EXTRA_COLLIDERS.length === 37) ok('T2 worlddata EXTRA_COLLIDERS === 37 (3 trees + 20 big bushes + 5 barrels + 3 wrecks + 3 drums + 3 depot tanks)');
-  else fail(`T2 worlddata EXTRA_COLLIDERS → ${wd.EXTRA_COLLIDERS.length} (expected 37)`);
+  if (wd.EXTRA_COLLIDERS.length === 43) ok('T2 worlddata EXTRA_COLLIDERS === 43 (3 trees + 26 big bushes + 5 barrels + 3 wrecks + 3 drums + 3 depot tanks)');   // V7: +6 ring bushes II
+  else fail(`T2 worlddata EXTRA_COLLIDERS → ${wd.EXTRA_COLLIDERS.length} (expected 43)`);
   if (wd.SPAWN_POINTS.length === 12) ok('T3 worlddata SPAWN_POINTS === 12');
   else fail(`T3 worlddata SPAWN_POINTS → ${wd.SPAWN_POINTS.length} (expected 12)`);
   if (wd.BARRELS.length === 5) ok('T4 worlddata BARRELS === 5');
@@ -840,7 +840,7 @@ try {
   }
 
   // M8: served HTML includes version tag
-  if (!home.includes('v0.6')) fail("M8 served HTML missing 'v0.6'"); else ok("M8 served HTML includes 'v0.6'");
+  if (!home.includes('v0.7')) fail("M8 served HTML missing 'v0.7'"); else ok("M8 served HTML includes 'v0.7'");   // V7 re-pin (was 'v0.6' through the V6 line)
 
   // M9: served HTML contains V3 UI ids (story / objective / briefing / settings / biome)
   for (const idAttr of ['id="story-text"', 'id="objective"', 'id="briefing"', 'id="context-line"', 'id="sens-slider"', 'id="biome-select"']) {
