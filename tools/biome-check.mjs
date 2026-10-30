@@ -89,6 +89,8 @@ else fail('B0 mars registry status → ' + BIOMES.find(b => b.id === 'mars')?.st
     } else fail(`B14 forest mast POI → ${JSON.stringify(g.userData.mastPoi)} meshes=${mastMeshes}`);
     if (bushColliderCount > 0) ok(`B5 forest bush gameplay live: ${bushColliderCount} blocking bushes`);
     else fail('B5 forest bush gameplay: 0 blocking bushes (expected > 0)');
+    if (g.userData.r2Bushes === 6) ok('B21 forest R2-3 supplement: +6 blocking bushes planted (own stream, pads clear)');
+    else fail(`B21 forest R2-3 supplement → r2Bushes=${g.userData.r2Bushes}`);
     const treeCenters = addedColliders.slice(0, treeCount).map(centerOf);
     assertClear(treeCenters, 'B6 forest trunk');
     let minSep = Infinity;
@@ -119,6 +121,8 @@ else fail('B0 mars registry status → ' + BIOMES.find(b => b.id === 'mars')?.st
       && g.userData.domeMeshCount === 4 && g.userData.iceDiscs === 5) {
       ok('B15 snow full build present: blanket overlay + buried dome POI (4 meshes) + 5 ice discs');
     } else fail(`B15 snow full build → overlay=${g.userData.snowOverlay} dome=${JSON.stringify(g.userData.domePoi)} meshes=${g.userData.domeMeshCount} ice=${g.userData.iceDiscs}`);
+    if (g.userData.r2Drifts === 6) ok('B22 snow R2-3 supplement: +6 collider drifts planted (own stream, pads clear)');
+    else fail(`B22 snow R2-3 supplement → r2Drifts=${g.userData.r2Drifts}`);
     assertClear(addedColliders.map(centerOf), 'B11 snow drift collider');
     clearBiome(ctx, g);
     if (ctx.colliders.length === 0 && ctx.scene.added.length === 0) ok('B12 clearBiome(snow) restores exactly');
@@ -140,6 +144,8 @@ else fail('B0 mars registry status → ' + BIOMES.find(b => b.id === 'mars')?.st
       && g.userData.spirePoi?.x === 50 && g.userData.spirePoi?.z === -52 && g.userData.spireMeshCount === 6) {
       ok('B17 mars POIs present: regolith blanket + crater (9 rim rocks) + 3 mesas + uplink spire (6 meshes)');
     } else fail(`B17 mars POIs → overlay=${g.userData.regolithOverlay} crater=${JSON.stringify(g.userData.craterPoi)}/${g.userData.craterRocks} mesas=${g.userData.mesaCount} spire=${JSON.stringify(g.userData.spirePoi)}/${g.userData.spireMeshCount}`);
+    if (g.userData.r2Rocks === 6) ok('B23 mars R2-3 supplement: +6 collider rocks planted (own stream, pads clear)');
+    else fail(`B23 mars R2-3 supplement → r2Rocks=${g.userData.r2Rocks}`);
     if (typeof g.userData.dressingApplied === 'boolean') {
       ok(`B18 mars sky/fog dressing guarded (applied=${g.userData.dressingApplied} in headless context — must be false here)`);
       if (g.userData.dressingApplied !== false) fail('B18 mars dressing applied in a headless context — guards are wrong');
