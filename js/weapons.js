@@ -24,6 +24,13 @@
 //   falloff*    Full damage out to falloffStart meters, lerping down to
 //               falloffMin (a multiplier) at falloffEnd and beyond.
 //   recoil      Camera kick strength handed to player.kick() per shot.
+//   adsMult     V7: base ADS spread multiplier (iron sights) — the
+//               fraction of the hip cone that remains when aiming
+//               before attachment multipliers stack on top.
+//   velocity    V7: muzzle velocity in m/s. The spec-sheet number;
+//               tracers render at this speed class.
+//   recoilV/H   V7: recoil pattern — vertical climb per shot and
+//               the max horizontal wander per shot (radians).
 //   sound       Short descriptor of the weapon's report character.
 //               Documentary only — audio synthesis lives elsewhere, and
 //               bots use it as cadence character reference.
@@ -47,6 +54,10 @@ export const WEAPONS = [
     falloffEnd: 90,
     falloffMin: 0.55,
     recoil: 0.021,
+    adsMult: 0.32,
+    velocity: 880,
+    recoilV: 0.021,
+    recoilH: 0.0035,
     tint: 0x2f7a3d,
     tracerColor: 0xffe08a,
     sound: 'crack',
@@ -70,6 +81,10 @@ export const WEAPONS = [
     falloffEnd: 45,
     falloffMin: 0.40,
     recoil: 0.013,
+    adsMult: 0.45,
+    velocity: 420,
+    recoilV: 0.012,
+    recoilH: 0.005,
     tint: 0xd97b29,
     tracerColor: 0xffc46b,
     sound: 'rattle',
@@ -94,6 +109,10 @@ export const WEAPONS = [
     falloffEnd: 24,
     falloffMin: 0.25,
     recoil: 0.05,
+    adsMult: 0.70,
+    velocity: 390,
+    recoilV: 0.052,
+    recoilH: 0.007,
     tint: 0xa03d2a,
     tracerColor: 0xff9a5c,
     sound: 'boom',
@@ -118,6 +137,10 @@ export const WEAPONS = [
     falloffEnd: 140,
     falloffMin: 0.80,
     recoil: 0.045,
+    adsMult: 0.12,
+    velocity: 960,
+    recoilV: 0.046,
+    recoilH: 0.0025,
     tint: 0x3d6ea5,
     tracerColor: 0x9ad1ff,
     sound: 'thunder',
@@ -141,6 +164,10 @@ export const WEAPONS = [
     falloffEnd: 55,
     falloffMin: 0.50,
     recoil: 0.016,
+    adsMult: 0.38,
+    velocity: 375,
+    recoilV: 0.015,
+    recoilH: 0.0035,
     tint: 0x8a8f96,
     tracerColor: 0xfff2b0,
     sound: 'pop',
@@ -155,4 +182,19 @@ export const WEAPON_ORDER = ['ar', 'smg', 'shotgun', 'dmr', 'pistol'];
 // id degrades to the reference weapon instead of crashing a shooter.
 export function getWeapon(id) {
   return WEAPONS.find((w) => w.id === id) || WEAPONS[0];
+}
+
+// V7 CONE: center-weighted spread offsets, shared by the solo
+// client (Math.random) and the authoritative sim (match.rng) so
+// both runtimes shoot the SAME physics. Each axis is the sum of
+// two uniform draws -> a triangular distribution on
+// [-spread, +spread]: shots cluster on the point of aim and thin
+// toward the cone edge, instead of the pre-V7 per-axis cube that
+// filled a square and overweighted the corners.
+export function coneOffset(rng, spread) {
+  return [
+    (rng() + rng() - 1) * spread,
+    (rng() + rng() - 1) * spread,
+    (rng() + rng() - 1) * spread,
+  ];
 }
