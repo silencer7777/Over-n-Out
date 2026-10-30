@@ -327,6 +327,9 @@ function attachmentParts(weaponId, attachmentIds, forBot) {
   if (has('grip') && A.under) {
     P(L, box(0.040, 0.105, 0.045), 'polymer', A.under[0], A.under[1] - 0.055, A.under[2] + 0.02, 0.35); // foregrip
   }
+  if (has('angledgrip') && A.under) {
+    P(L, box(0.038, 0.088, 0.042), 'polymer', A.under[0], A.under[1] - 0.048, A.under[2] + 0.015, 0.85); // V7: angled grip — steeper rake than the foregrip
+  }
   if (has('extmag') && A.magBottom) {
     P(L, box(0.048, 0.13, 0.068), 'metal', A.magBottom[0], A.magBottom[1] - 0.055, A.magBottom[2] + 0.012, 0.10); // extended magazine
   }
@@ -336,6 +339,13 @@ function attachmentParts(weaponId, attachmentIds, forBot) {
   if (!forBot) {
     if (has('suppressor') && A.muzzle) {
       P(L, cylZ(0.030, 0.15), 'steel', A.muzzle[0], A.muzzle[1], A.muzzle[2] - 0.045);      // suppressor can
+    }
+    if (has('compensator') && A.muzzle) {
+      P(L, box(0.052, 0.046, 0.078), 'steel', A.muzzle[0], A.muzzle[1], A.muzzle[2] - 0.008);   // V7: compensator block
+      P(L, cylY(0.008, 0.014), 'metal', A.muzzle[0], A.muzzle[1] + 0.028, A.muzzle[2] - 0.018); // V7: compensator top port
+    }
+    if (has('cqbstock') && A.stock) {
+      P(L, box(0.056, 0.060, 0.092), 'polymer', A.stock[0], A.stock[1] - 0.005, A.stock[2] + 0.030); // V7: CQB stock pad (compact)
     }
     if (has('longbarrel') && A.barrelBase) {
       P(L, cylZ(0.017, 0.15), 'steel', A.barrelBase[0], A.barrelBase[1], A.barrelBase[2] - 0.10); // barrel extension
