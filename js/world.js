@@ -1236,6 +1236,11 @@ export function buildWorld(scene) {
       // U6-11 ring bushes
       [58, -40, 1.5], [-58, 40, 1.6], [40, 58, 1.45], [-58, -44, 1.5],
       [70, 10, 1.35], [-70, -10, 1.45],
+      // V7 ring bushes II — the gaps in the U6-11 ring, same
+      // discipline (all >= 1.1 m, all block, colliders mirrored
+      // in worlddata.js EXTRA_COLLIDERS).
+      [48, -58, 1.5], [-48, 58, 1.45], [62, 34, 1.55], [-62, -34, 1.5],
+      [24, 66, 1.4], [-24, -66, 1.5],
     ];
     // V6: two overlapping smooth masses per bush in the SAME
     // InstancedMesh — organic clumps, zero extra draw calls.
