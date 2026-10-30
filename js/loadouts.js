@@ -224,7 +224,7 @@ export function getPerk(id) {
 // DEFINITIONS (thresholds, effects) live in js/streaks.js;
 // this list is the id vocabulary only, and smoke asserts the
 // two never drift (Board 005 Addendum 3).
-export const STREAK_IDS = ['uav', 'cuav', 'package', 'sentry', 'lightning', 'precision']; // U12: lightning joins the ladder
+export const STREAK_IDS = ['uav', 'cuav', 'package', 'sentry', 'lightning', 'dogs', 'precision']; // U12: lightning joins the ladder; U15: dogs
 
 // Camo (V5 customization) — cosmetic identity only; the sim
 // attaches no stats (Havoc §7: cosmetics never enter the stats
