@@ -593,3 +593,33 @@ bot lives + concurrent-bot ceiling, never a bare "100").
 - Full first battery (owner-authorized unattended run, Oct 25):
   `docs/sessions/rig-first-battery-report.md` + dated outputs in
   `rig/reports/`. Rig commits are local `v6(rig):`; nothing pushed.
+
+- **Update 14 LANDED + PUSHED LIVE** (Oct 29, commits
+  `d29c8b3` spec + `79c185d` code + this landing): queue head
+  — **meta systems phase 2** (Laurel). **Tier packages:**
+  FIELD PACK 150 MC / RANGER PACK 450 MC / COMMAND PACK
+  900 MC. **Special offers:** MEDIC KIT 250 / ACE KIT 350 /
+  FLARE KIT 550 MC, one **featured per day** (pure date
+  rotation) at 30% off (floor(price × 0.7)); packages never
+  discounted. Every item grants one of **6 shop emblems**
+  (cosmetic only — no XP, camos, or power; in-game currency
+  only, no real-money ever). **Profile owned block:**
+  sanitized (known ids, deduped, cap 6); a shop emblem worn
+  without owning its item resets to default on load;
+  pre-U14 profiles migrate losslessly (smoke PG10). **SUPPLY
+  shop UI** in the SERVICE RECORD panel (package/offer
+  pickers, featured line, shop emblems in the emblem
+  picker). **Economy hardening:** owned check precedes any
+  charge (no re-buy), discount is a pure date function,
+  wallet cannot overdraw. Badges 8 → 10 (OUTFITTER,
+  QUARTERMASTER). Build witness 14 (mobile-check T7 **named
+  re-pin**; T10 badge-count **named re-pin** 8→10; new
+  T11 ×36, smoke PG10). Perf **Δ0 everywhere** (calls
+  134/147/146/148, forest 281,526 tris, shadow 199/200) —
+  data + DOM only. All five gates green on tree + snapshot;
+  live byte-verified (6 key files exact; Pages flipped
+  ~7 min after push). Report:
+  `docs/sessions/v6-update-14-report.md`. **The count is
+  now 14.** Still open: Stage 2 signed sessions (hardening
+  not certified complete). Queue head: attack dogs (AI),
+  movement follow-ups.
