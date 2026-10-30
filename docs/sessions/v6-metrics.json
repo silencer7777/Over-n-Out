@@ -1,12 +1,12 @@
 {
   "tool": "v6-metrics",
-  "generatedAt": "2026-10-30T07:40:00.420Z",
+  "generatedAt": "2026-10-30T08:56:19.524Z",
   "sections": {
     "gates": {
       "smoke": {
-        "passed": false,
-        "checks": 310,
-        "error": "✗ T2 worlddata EXTRA_COLLIDERS → 43 (expected 37)\n"
+        "passed": true,
+        "checks": 320,
+        "tail": " | SMOKE PASSED"
       },
       "reachability": {
         "passed": true,
@@ -25,8 +25,8 @@
       },
       "soak": {
         "passed": true,
-        "losUsPerRay": 7.24,
-        "simMsPerTick": 0.054
+        "losUsPerRay": 8.64,
+        "simMsPerTick": 0.057
       },
       "perMapReachability": {
         "maps": {
@@ -4036,7 +4036,7 @@
           "matchBooted": true,
           "snapshotsReceived": 2780
         },
-        "msPerTickAvg": 0.098,
+        "msPerTickAvg": 0.082,
         "windowMsPerTick": null,
         "maxWave": 2,
         "maxAliveBots": 6,
@@ -4053,7 +4053,7 @@
           "matchBooted": true,
           "snapshotsReceived": 12972
         },
-        "msPerTickAvg": 0.084,
+        "msPerTickAvg": 0.092,
         "windowMsPerTick": null,
         "maxWave": 2,
         "maxAliveBots": 6,
@@ -4090,8 +4090,8 @@
       "anisotropySetAnywhere": true
     },
     "capabilities": {
-      "packageVersion": "0.6.0-dev",
-      "losProfileUsPerRay": 7.24,
+      "packageVersion": "0.7.1",
+      "losProfileUsPerRay": 8.64,
       "loadoutCombinations": 174522600,
       "camoCount": 9,
       "mapRegistry": {
@@ -4132,9 +4132,10 @@
     "FLAT SURFACE STRIKE (LAYOUT snow (pre-wiring projection)): largest in-scope untextured static mesh ≈ 33924.8 m² (BoxGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 12 tris of flat colour",
     "FLAT SURFACE STRIKE (LAYOUT mars (pre-wiring projection)): largest in-scope untextured static mesh ≈ 33924.8 m² (BoxGeometry) exceeds the §2.5 strike (25 m², binds at Update 5) — 12 tris of flat colour",
     "SOLDIER BAR (§2.4): bot costs 8 calls > 7 — Update 4 must hold ≤7 calls per bot while smoothing the kit read",
-    "tree is DIRTY at measurement time — numbers describe the working tree, not HEAD (f1d016e)"
+    "version is 0.7.1, V7 target is 0.7.0 (Coordinator's bump)",
+    "tree is DIRTY at measurement time — numbers describe the working tree, not HEAD (7a59294)"
   ],
-  "head": "f1d016e",
+  "head": "7a59294",
   "treeClean": false,
   "bars": {
     "drawCallsPerMap": 165,
