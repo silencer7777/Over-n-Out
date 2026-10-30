@@ -652,3 +652,31 @@ bot lives + concurrent-bot ceiling, never a bare "100").
   now 15.** Still open: Stage 2 signed sessions (hardening
   not certified complete). Queue head: movement-feel
   follow-ups, dog gunfire hit-volumes.
+- **VERSION 7 LANDED + PUSHED LIVE** (Oct 30, ~00:50 PT —
+  six hours ahead of Brett's 07:00 deadline; his explicit V7
+  call of Oct 30 00:32 PDT supersedes the V6 20-update floor
+  and the V6-only release policy; the V6 line closes at 15
+  updates + the Watch's dogs-protocol fix d2d27c1, which rode
+  this push). Spec: `docs/sessions/v7-spec.md`; report +
+  scorecard: `docs/sessions/v7-report.md`. Contents:
+  ballistics core (per-weapon spec model — adsMult / velocity
+  / recoilV / recoilH; unified spread formula in solo + sim,
+  fixing the sim's ADS-reads-multiplier-as-radians bug and
+  solo's no-tightening-without-an-optic gap; center-weighted
+  cone shared by both runtimes; recoil pattern), gunsmith
+  measured spec panel with per-change deltas (specSheet),
+  last three invisible attachments modeled (compensator,
+  angled grip, CQB stock — merged, +0 calls), Compound ring
+  bushes II (+6, colliders mirrored), roster FINAL at 88
+  seats + Watch, two team-upgrade cycles (training log).
+  Version 0.7.0, witness BUILD V7. All five gates green on
+  the git-archive snapshot; push via gh_push_contents
+  (205/205 files byte-identical on re-push audit); Pages
+  build 1326551169 "built"; live byte-verified (index
+  13,741 B, main.js 143,087 B, world.js 87,440 B, weapons.js,
+  loadouts.js — sha256-exact vs the gated snapshot).
+  **The 06:00 scheduled build slot stands down: the V7 tree
+  is landed and clean; no V6 U16 is to be started.** Still
+  open (unchanged, not regressions): Stage 2 signed
+  sessions; dogs direct-gunfire hit volumes (deferred from
+  V7 per spec); movement-feel locomotion slice.
