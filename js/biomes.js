@@ -725,6 +725,61 @@ function buildForest(ctx) {
     group.userData.thicketCount = thicket.length;
   }
 
+  // --- R2-3 UNDERBRUSH SUPPLEMENT (V7 Round 2, Fern) --------
+  // Six more blocking bushes, planted the V6-supplement way:
+  // own rng stream after every shipped scatter, so no shipped
+  // placement can re-roll. Same clearances as the main scatter
+  // (>= 1.8 m bush-to-bush, >= 2.0 m from trunks) plus the
+  // thicket walls, the mast clearing, and the R2-1 vehicle
+  // pads. Own InstancedMesh with castShadow OFF — the shadow
+  // budget (199/200) has no room; the main bush mesh still
+  // casts. Every supplement bush is >= 1.3 m, so every one
+  // takes the blocking-bush collider.
+  {
+    const r2Rng = makeRng(FOREST_SEED + 31337);
+    const r2Bushes = [];
+    for (let tries = 0; r2Bushes.length < 6 && tries < 6 * 160; tries++) {
+      const band = BANDS[tries % BANDS.length];
+      const x = band.x0 + r2Rng() * (band.x1 - band.x0);
+      const z = band.z0 + r2Rng() * (band.z1 - band.z0);
+      if (!isClear(x, z, 0.4)) continue;
+      let ok = true;
+      for (const t of trees) if (Math.hypot(x - t.x, z - t.z) < 2.0) { ok = false; break; }
+      if (ok) for (const b of bushes) if (Math.hypot(x - b.x, z - b.z) < 1.8) { ok = false; break; }
+      if (ok) for (const b of r2Bushes) if (Math.hypot(x - b.x, z - b.z) < 1.8) { ok = false; break; }
+      if (ok && Math.abs(x + 20) < 2.4 && z > -38 && z < 30) ok = false;   // thicket wall A
+      if (ok && Math.abs(x - 24) < 2.4 && z > -30 && z < 38) ok = false;   // thicket wall B
+      if (ok && Math.hypot(x + 16, z - 56) < 8) ok = false;                // mast clearing
+      if (ok && (Math.hypot(x + 4, z - 30) < 3.5 || Math.hypot(x + 12, z - 30) < 3.5)) ok = false; // R2-1 vehicle pads
+      if (!ok) continue;
+      r2Bushes.push({ x, z, size: 1.3 + r2Rng() * 0.6 });
+    }
+    const r2IM = new THREE.InstancedMesh(displacedSphere(1, 7.7, 0.34, 10, 8), foliageMat, r2Bushes.length * 2);
+    r2IM.castShadow = false; r2IM.receiveShadow = true; r2IM.frustumCulled = false;
+    r2Bushes.forEach((b, i) => {
+      dummy.rotation.set(0, r2Rng() * Math.PI * 2, 0);
+      dummy.position.set(b.x, b.size * 0.34, b.z);
+      dummy.scale.set(b.size, b.size * 0.72, b.size * (0.85 + r2Rng() * 0.3));
+      dummy.updateMatrix(); r2IM.setMatrixAt(i * 2, dummy.matrix);
+      r2IM.setColorAt(i * 2, deepGreen.clone().lerp(tipGreen, r2Rng() * 0.55));
+      const oa = r2Rng() * Math.PI * 2, os = b.size * (0.5 + r2Rng() * 0.2);
+      dummy.rotation.set(0, r2Rng() * Math.PI * 2, 0);
+      dummy.position.set(b.x + Math.cos(oa) * b.size * 0.45, os * 0.36, b.z + Math.sin(oa) * b.size * 0.45);
+      dummy.scale.set(os, os * 0.7, os * (0.85 + r2Rng() * 0.3));
+      dummy.updateMatrix(); r2IM.setMatrixAt(i * 2 + 1, dummy.matrix);
+      r2IM.setColorAt(i * 2 + 1, deepGreen.clone().lerp(tipGreen, 0.15 + r2Rng() * 0.5));
+      const collider = new THREE.Box3(
+        new THREE.Vector3(b.x - b.size * 0.75, 0, b.z - b.size * 0.75),
+        new THREE.Vector3(b.x + b.size * 0.75, b.size * 0.72, b.z + b.size * 0.75));
+      addedColliders.push(collider); ctx.colliders.push(collider);
+    });
+    if (r2IM.instanceColor) r2IM.instanceColor.needsUpdate = true;
+    group.add(r2IM);
+    group.userData.r2Bushes = r2Bushes.length;
+    group.userData.bushCount = bushes.length + r2Bushes.length;
+    group.userData.bushColliderCount = bushColliders + r2Bushes.length;
+  }
+
   // --- Forest floor (V6 Update 4, Atlas — terrain) -----------
   // The forest's missing blanket: snow and Mars have worn a
   // full ground overlay since V4; the forest still showed the
@@ -891,6 +946,52 @@ function buildSnow(ctx) {
   });
   if (rockIM.instanceColor) rockIM.instanceColor.needsUpdate = true;
   group.add(rockIM);
+
+  // --- R2-3 SNOW-LOADED DRIFT SUPPLEMENT (V7 Round 2, Drift) -
+  // Six more drifts, all sized >= 1.8 m so every one carries
+  // the drift collider — the snow map's blocking-bush analog,
+  // grown the V6-supplement way (own stream, shipped scatter
+  // untouched, same separations, vehicle pads kept clear).
+  // Own InstancedMesh, castShadow OFF (shadow budget).
+  {
+    const r2Rng = makeRng(SNOW_SEED + 31337);
+    const r2Drifts = [];
+    for (let tries = 0; r2Drifts.length < 6 && tries < 6 * 160; tries++) {
+      const band = BANDS[tries % BANDS.length];
+      const x = band.x0 + r2Rng() * (band.x1 - band.x0);
+      const z = band.z0 + r2Rng() * (band.z1 - band.z0);
+      if (!isClear(x, z, 0.5)) continue;
+      let ok = true;
+      for (const d of drifts) if (Math.hypot(x - d.x, z - d.z) < 2.6) { ok = false; break; }
+      if (ok) for (const r of rocks) if (Math.hypot(x - r.x, z - r.z) < 1.5) { ok = false; break; }
+      if (ok) for (const d of r2Drifts) if (Math.hypot(x - d.x, z - d.z) < 2.6) { ok = false; break; }
+      if (ok && (Math.hypot(x + 4, z - 30) < 3.5 || Math.hypot(x + 12, z - 30) < 3.5)) ok = false; // R2-1 vehicle pads
+      if (!ok) continue;
+      r2Drifts.push({ x, z, size: 1.8 + r2Rng() * 0.4, rot: r2Rng() * Math.PI * 2 });
+    }
+    const r2IM = new THREE.InstancedMesh(
+      displacedSphere(1, 11.3, 0.16, 10, 8),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, map: makeSnowTextureLocal() }),
+      r2Drifts.length
+    );
+    r2IM.castShadow = false; r2IM.receiveShadow = true; r2IM.frustumCulled = false;
+    r2Drifts.forEach((d, i) => {
+      dummy.rotation.set(0, d.rot, 0);
+      dummy.position.set(d.x, d.size * 0.10, d.z);
+      dummy.scale.set(d.size, d.size * 0.36, d.size * (0.85 + r2Rng() * 0.3));
+      dummy.updateMatrix(); r2IM.setMatrixAt(i, dummy.matrix);
+      r2IM.setColorAt(i, snowWhite.clone().lerp(snowShade, r2Rng() * 0.6));
+      const collider = new THREE.Box3(
+        new THREE.Vector3(d.x - d.size * 0.8, 0, d.z - d.size * 0.8),
+        new THREE.Vector3(d.x + d.size * 0.8, d.size * 0.36, d.z + d.size * 0.8));
+      addedColliders.push(collider); ctx.colliders.push(collider);
+    });
+    if (r2IM.instanceColor) r2IM.instanceColor.needsUpdate = true;
+    group.add(r2IM);
+    group.userData.r2Drifts = r2Drifts.length;
+    group.userData.driftCount = drifts.length + r2Drifts.length;
+    group.userData.driftColliderCount = driftColliders + r2Drifts.length;
+  }
 
   // --- Snow blanket (V4 FULL BUILD) — one thin disc (r 90)
   // over the whole station: the ground reads as snowpack at
@@ -1182,6 +1283,51 @@ function buildMars(ctx) {
   group.add(rockIM);
   group.userData.rockCount = rocks.length;
   group.userData.rockColliderCount = rockColliders;
+
+  // --- R2-3 RUST ROCK SUPPLEMENT (V7 Round 2, Dune) ---------
+  // Six more rust rocks, all sized >= 1.5 m so every one
+  // carries the rock collider — grown the V6-supplement way
+  // (own stream, shipped scatter untouched, marsClear + the
+  // 2.4 m rock separation, vehicle pads kept clear). Own
+  // InstancedMesh, castShadow OFF (shadow budget).
+  {
+    const r2Rng = makeRng(MARS_SEED + 31337);
+    const r2Rocks = [];
+    for (let tries = 0; r2Rocks.length < 6 && tries < 6 * 160; tries++) {
+      const band = BANDS[tries % BANDS.length];
+      const x = band.x0 + r2Rng() * (band.x1 - band.x0);
+      const z = band.z0 + r2Rng() * (band.z1 - band.z0);
+      if (!marsClear(x, z, 0.5)) continue;
+      let ok = true;
+      for (const r of rocks) if (Math.hypot(x - r.x, z - r.z) < 2.4) { ok = false; break; }
+      if (ok) for (const r of r2Rocks) if (Math.hypot(x - r.x, z - r.z) < 2.4) { ok = false; break; }
+      if (ok && (Math.hypot(x + 4, z - 30) < 3.5 || Math.hypot(x + 12, z - 30) < 3.5)) ok = false; // R2-1 vehicle pads
+      if (!ok) continue;
+      r2Rocks.push({ x, z, size: 1.5 + r2Rng() * 0.5, rot: r2Rng() * Math.PI * 2 });
+    }
+    const r2IM = new THREE.InstancedMesh(
+      displacedSphere(1, 31.3, 0.22, 10, 8),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, map: makeRegolithTextureLocal() }),
+      r2Rocks.length
+    );
+    r2IM.castShadow = false; r2IM.receiveShadow = true; r2IM.frustumCulled = false;
+    r2Rocks.forEach((r, i) => {
+      dummy.rotation.set(0, r.rot, 0);
+      dummy.position.set(r.x, r.size * 0.18, r.z);
+      dummy.scale.set(r.size, r.size * 0.75, r.size * (0.85 + r2Rng() * 0.3));
+      dummy.updateMatrix(); r2IM.setMatrixAt(i, dummy.matrix);
+      r2IM.setColorAt(i, rustLow.clone().lerp(rustHigh, r2Rng()));
+      const collider = new THREE.Box3(
+        new THREE.Vector3(r.x - r.size * 0.8, 0, r.z - r.size * 0.8),
+        new THREE.Vector3(r.x + r.size * 0.8, r.size * 0.75, r.z + r.size * 0.8));
+      addedColliders.push(collider); ctx.colliders.push(collider);
+    });
+    if (r2IM.instanceColor) r2IM.instanceColor.needsUpdate = true;
+    group.add(r2IM);
+    group.userData.r2Rocks = r2Rocks.length;
+    group.userData.rockCount = rocks.length + r2Rocks.length;
+    group.userData.rockColliderCount = rockColliders + r2Rocks.length;
+  }
 
   // Crater (SW ring) — dark bowl disc + a rim of nine rocks;
   // the three largest rim rocks carry colliders.
