@@ -26,6 +26,8 @@ export const STREAKS = [
     blurb: 'A placed auto-turret, 45 s battery. Flash does not blind it; smoke blocks it.' },
   { id: 'lightning', name: 'LIGHTNING STRIKE', cost: 1100, duration: 0, warn: 1.0, radius: 5, damage: 150,
     blurb: 'A near-instant strike on your aim point: only 1 s of warning, tighter and harder than the precision strike. Solid cover negates it. (U12 — Brett’s scorestreak expansion, phase 1.)' },
+  { id: 'dogs', name: 'ATTACK DOGS', cost: 1200, duration: 40, hp: 60,
+    blurb: 'A pack of 3 attack dogs hunts the nearest enemy for 40 s: fast, low, and they bite hard. (U15 — Brett’s scorestreak expansion, phase 2.)' },
   { id: 'precision', name: 'PRECISION STRIKE', cost: 1300, duration: 0, warn: 2.5, radius: 7, damage: 130,
     blurb: 'A strike on your aim point after a 2.5 s warning. Solid cover negates it.' },
 ];
@@ -48,6 +50,14 @@ export const PACKAGE_SPEC = {
 export const SENTRY_SPEC = {
   hp: 100, battery: 45, range: 25, deployTime: 0.7,
   aimTimeNeeded: 0.55, scanDegPerSec: 30,
+};
+// Attack dogs (U15): the pack is a timed streak entity on both
+// runtimes — the client runs this brain solo, the sim runs the
+// same numbers online (server-authoritative). One source per
+// number, shared.
+export const DOG_SPEC = {
+  count: 3, hp: 60, speed: 5.4, biteDamage: 20,
+  biteRange: 1.7, biteCooldown: 0.9, radius: 0.35, duration: 40,
 };
 
 // position on the circuit at time t (seconds since launch).
