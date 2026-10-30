@@ -208,7 +208,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.7.3') fail(`M6 package.json version → ${pkg.version} (expected '0.7.3')`); else ok("M6 package.json version === '0.7.3'");   // V7.3 bump (round 2 landscapes)
+  if (pkg.version !== '0.7.4') fail(`M6 package.json version → ${pkg.version} (expected '0.7.4')`); else ok("M6 package.json version === '0.7.4'");   // V7.4 bump (round 2 vehicle feel)
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -788,6 +788,14 @@ try {
     && vehIndex.includes('id="vehicle-hud"') && vehTouch.includes('pressInteract'))
     ok('VH6 vehicle wiring: physics import, spawn hook, armor split, KeyE, drive step, shadow-free actor, HUD, touch USE');
   else fail('VH6 vehicle wiring incomplete');
+  // VH7 (R2-4 polish): engine audio loop, speed FOV, minimap
+  // vehicle squares, controls listing — the feel layer.
+  const vehAudio = readFileSync(join(ROOT, 'js/audio.js'), 'utf8');
+  if (vehAudio.includes('startEngine()') && vehAudio.includes('setEngine(speedK, load)') && vehAudio.includes('stopEngine()')
+    && vehMain.includes('sfx.setEngine') && vehMain.includes('targetFov') && vehMain.includes('worldToMap(v.state.pos.x')
+    && vehIndex.includes('Enter / exit vehicle'))
+    ok('VH7 vehicle feel: procedural engine loop + speed FOV bloom + minimap vehicle squares + controls listing');
+  else fail('VH7 vehicle feel layer incomplete');
 } catch (e) { fail('VH vehicle checks: ' + e.message); }
 
 // 1z2) Dogs under fire (V7 Round 2, R2-2) — direct sim
