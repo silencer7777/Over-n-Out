@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildWorld } from './world.js';
+import { buildWorld, collide } from './world.js';
 import { Player } from './player.js';
 import { Bot } from './bots.js';
 import { Sfx } from './audio.js';
@@ -28,9 +28,9 @@ import { applyLightingProfile } from './lighting.js';
 // Atlas's world actors. Solo wires them here; online runs the
 // same tables in Vega's sim.
 import { EQUIPMENT, losSmokeState, smokeDensity, claymoreDamage, tripDamage, segmentsDistanceXZ, SPAWN_EXCLUSION } from './equipment-data.js';
-import { createStreakState, feedStreak, streakFeedFor, streakReady, nextReadyStreak, activateStreak, expireStreaks, getStreak, dronePositionAt, UAV_SPEC, CUAV_SPEC, PACKAGE_SPEC, SENTRY_SPEC } from './streaks.js';
+import { createStreakState, feedStreak, streakFeedFor, streakReady, nextReadyStreak, activateStreak, expireStreaks, getStreak, dronePositionAt, UAV_SPEC, CUAV_SPEC, PACKAGE_SPEC, SENTRY_SPEC, DOG_SPEC } from './streaks.js';
 import { spawnSmoke } from './smokevisual.js';
-import { buildEquipmentMesh, createUAVActor, createSentryActor, createCarePackage, createStrikeVisuals } from './equipment.js';
+import { buildEquipmentMesh, createUAVActor, createSentryActor, createCarePackage, createStrikeVisuals, createDogActor } from './equipment.js';
 
 // ---------------- setup ----------------
 const canvas = document.getElementById('game');
@@ -166,7 +166,7 @@ function goLandscape() {
 // hardening law) forbids it, and the lint outranks the
 // convenience. The stamp + versioned asset URLs are the
 // shipped witness; see the U9 report.
-const BUILD_NO = 14;
+const BUILD_NO = 15;
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -2678,6 +2678,7 @@ let uavFlight = null, cuavFlight = null;   // { startedAt, phase, baseY }
 let pingIndex = 0, pingT = 0;
 const uavMarkers = [];                // { mesh, until }
 let packageDrop = null;               // { actor, x, z, groundY, landed, claimT }
+const dogPack = [];                   // U15: live attack dogs { actor, hp, biteT, phase }
 let strikeKit = null, precisionCall = null;   // { x, z, at }
 let placing = null;                   // { kind, ghost, valid }
 const streakHudEl = $('streak-hud');
@@ -2735,6 +2736,7 @@ function resetV5Match() {
   if (cuavActor) { scene.remove(cuavActor.group); cuavActor = null; }
   uavFlight = null; cuavFlight = null;
   if (packageDrop) { scene.remove(packageDrop.actor.group); packageDrop = null; }
+  clearDogPack();
   if (strikeKit) { scene.remove(strikeKit.jet); scene.remove(strikeKit.marker); strikeKit = null; }
   precisionCall = null;
   if (placing) { scene.remove(placing.ghost); placing = null; }
@@ -2893,6 +2895,8 @@ function launchStreak(id) {
     packageDrop = { actor, x, z, groundY: gy, landed: false, claimT: 0 };
   } else if (id === 'sentry') {
     startPlacement('sentry');
+  } else if (id === 'dogs') {
+    spawnDogPack();
   } else if (id === 'precision' || id === 'lightning') {
     // U12-02: lightning rides the precision path with its own
     // def (warn 1.0 s, radius 5, damage 150 — faster, tighter,
@@ -2919,6 +2923,82 @@ function callStreak() {
   const s = nextReadyStreak(streakState);
   if (!s) return;
   if (activateStreak(streakState, s.id, v5Time)) { launchStreak(s.id); updateStreakHud(); }
+}
+// ---- attack dogs (U15) ----
+// Solo pack brain: the same numbers the sim runs online
+// (js/streaks.js DOG_SPEC). Dogs seek the nearest living
+// hostile bot, move collider-true (collide + groundHeightAt —
+// no wall clipping, no leaving the bounds), bite on cooldown,
+// and heel to the player when nothing hostile lives.
+function spawnDogPack() {
+  clearDogPack();
+  for (let i = 0; i < DOG_SPEC.count; i++) {
+    const actor = createDogActor();
+    const a = (i / DOG_SPEC.count) * Math.PI * 2;
+    const x = player.position.x + Math.cos(a) * 1.6, z = player.position.z + Math.sin(a) * 1.6;
+    actor.group.position.set(x, world.groundHeightAt(x, z, player.position.y), z);
+    scene.add(actor.group);
+    dogPack.push({ actor, hp: DOG_SPEC.hp, biteT: 0, phase: i * 2.1 });
+  }
+  showCallout('ATTACK DOGS RELEASED');
+}
+function clearDogPack() {
+  for (const d of dogPack) scene.remove(d.actor.group);
+  dogPack.length = 0;
+}
+function damageDog(dog, dmg) {
+  dog.hp -= dmg;
+  if (dog.hp > 0) return;
+  scene.remove(dog.actor.group);
+  const i = dogPack.indexOf(dog);
+  if (i >= 0) dogPack.splice(i, 1);
+}
+function stepDogPack(dt) {
+  if (!dogPack.length) return;
+  for (const dog of [...dogPack]) {
+    const pos = dog.actor.group.position;
+    dog.biteT -= dt;
+    // Target: nearest living hostile bot; else heel point.
+    let tgt = null, bestD = Infinity;
+    for (const b of bots) {
+      if (b.dead || b.team === 'friendly') continue;
+      const d = Math.hypot(b.root.position.x - pos.x, b.root.position.z - pos.z);
+      if (d < bestD) { bestD = d; tgt = b; }
+    }
+    let tx, tz, arrive;
+    if (tgt) { tx = tgt.root.position.x; tz = tgt.root.position.z; arrive = DOG_SPEC.biteRange; }
+    else {
+      const a = dog.phase;
+      tx = player.position.x + Math.cos(a) * 2.2; tz = player.position.z + Math.sin(a) * 2.2;
+      arrive = 0.4;
+    }
+    const dx = tx - pos.x, dz = tz - pos.z;
+    const dist = Math.hypot(dx, dz);
+    let move = 0;
+    if (dist > arrive) {
+      const step = Math.min(DOG_SPEC.speed * dt, dist - arrive * 0.6);
+      pos.x += (dx / dist) * step; pos.z += (dz / dist) * step;
+      move = 1;
+      dog.actor.group.rotation.y = Math.atan2(-(dx / dist), -(dz / dist));
+    } else if (tgt) {
+      dog.actor.group.rotation.y = Math.atan2(-(dx / (dist || 1)), -(dz / (dist || 1)));
+      if (dog.biteT <= 0) {
+        dog.biteT = DOG_SPEC.biteCooldown;
+        dog.actor.lunge();
+        if (tgt.damage(DOG_SPEC.biteDamage, false)) onBotKilled(tgt);
+      }
+    }
+    // Separation: pack-mates don't stack on one point.
+    for (const other of dogPack) {
+      if (other === dog) continue;
+      const op = other.actor.group.position;
+      const sx = pos.x - op.x, sz = pos.z - op.z, sd = Math.hypot(sx, sz);
+      if (sd > 0.001 && sd < 0.8) { pos.x += (sx / sd) * (0.8 - sd) * 0.5; pos.z += (sz / sd) * (0.8 - sd) * 0.5; }
+    }
+    collide(pos, DOG_SPEC.radius, world.colliders, world.bounds, pos.y);
+    pos.y = world.groundHeightAt(pos.x, pos.z, pos.y);
+    dog.actor.update(dt, move);
+  }
 }
 function uavPing() {
   pingIndex++;
@@ -2957,6 +3037,12 @@ function precisionBlast(x, z, streakId = 'precision') {
   const pd = Math.hypot(player.position.x - x, player.position.z - z);
   if (pd <= spec.radius && exposed(player.position.x, player.position.y + 1, player.position.z)) {
     damagePlayer(spec.damage * 0.45 * (1 - (pd / spec.radius) * 0.6), new THREE.Vector3(x, 0, z), 'explosive');
+  }
+  // U15: strike blasts hurt dogs too (their blast-damage path).
+  for (const dog of [...dogPack]) {
+    const dp = dog.actor.group.position;
+    const dd = Math.hypot(dp.x - x, dp.z - z);
+    if (dd <= spec.radius) damageDog(dog, spec.damage * (1 - (dd / spec.radius) * 0.6));
   }
 }
 
@@ -3058,11 +3144,13 @@ function updateV5Systems(dt) {
     if (m.bot && !m.bot.dead) { m.mesh.position.copy(m.bot.root.position); m.mesh.position.y += 2.35; }
     if (v5Time >= m.until) { scene.remove(m.mesh); uavMarkers.splice(i, 1); }
   }
+  stepDogPack(dt);
   if (streakState) {
     const ended = expireStreaks(streakState, v5Time);
     for (const e of ended) {
       if (e.id === 'uav' && uavActor) { uavActor.hide(); scene.remove(uavActor.group); uavActor = null; uavFlight = null; }
       if (e.id === 'cuav' && cuavActor) { cuavActor.hide(); scene.remove(cuavActor.group); cuavActor = null; cuavFlight = null; }
+      if (e.id === 'dogs') clearDogPack();
     }
     if (ended.length) updateStreakHud();
   }
