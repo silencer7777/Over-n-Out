@@ -17,6 +17,8 @@
 import * as THREE from 'three';
 import { mergeColoredParts } from './geo.js';
 import { getWeapon } from './weapons.js';
+import { createVehicleActor } from './equipment.js'; // R2-5: online vehicle actors
+import { VEHICLE_SPEC } from './vehicles.js';
 
 // --- puppet figures ------------------------------------------------
 // One merged mesh per remote entity (1 draw call), in the soldier
@@ -71,6 +73,15 @@ export class OnlineSession {
     this.mode = 'waves';
     this.latest = null;            // last snapshot
     this.puppets = new Map();      // entity id -> { mesh, tx,ty,tz, tyaw, friendly }
+    // R2-5: vehicle actors synced from snap.vehicles —
+    // id -> { actor, specId, display, tx,ty,tz, theading, driverId }.
+    // The DRIVER's own vehicle is exempt from interpolation:
+    // main.js predicts it locally and feeds the pose in through
+    // setOwnVehicle() every frame.
+    this.vehicleActors = new Map();
+    this.ownVehicleId = null;
+    this.ownVehicleState = null;
+    this.groundHeightAt = null;    // set by main.js (actor terrain pitch/roll)
     this.seq = 0;
     this._inputAcc = 0;
     this._pingTimer = 0;
@@ -139,7 +150,7 @@ export class OnlineSession {
           if (!settled) { settled = true; clearTimeout(timeout); reject(new Error(msg.message || 'server refused the join')); }
           return;
         }
-        if (msg.t === 'snapshot') { this.latest = msg; this._syncPuppets(msg); return; }
+        if (msg.t === 'snapshot') { this.latest = msg; this._syncPuppets(msg); this._syncVehicles(msg); return; }
         if (msg.t === 'event') { this._onEvent(msg); return; }
         // U6-14/U6-15: chat lines and voice signaling ride the
         // same socket (protocol extension) — routed to hooks.
@@ -210,6 +221,70 @@ export class OnlineSession {
     pup.mesh.visible = ent.alive !== false && !ent.dead;
   }
 
+  // R2-5: vehicles from the snapshot — rows of [id, specId,
+  // x, y, z, heading, speed, hp, disabled, driverId]. Actors
+  // are the R2-1 createVehicleActor models (castShadow FALSE —
+  // the 199/200 budget is untouched); motion interpolates like
+  // the puppets.
+  _syncVehicles(snap) {
+    const seen = new Set();
+    for (const row of snap.vehicles || []) {
+      const [id, specId, x, y, z, heading, speed, hp, disabled, driverId] = row;
+      seen.add(id);
+      let va = this.vehicleActors.get(id);
+      if (!va || va.specId !== specId) {
+        if (va) this._removeVehicleActor(va);
+        const actor = createVehicleActor(specId, (gx, gz, gy) => this.groundHeightAt ? this.groundHeightAt(gx, gz, gy) : (gy || 0));
+        actor.group.position.set(x, y, z);
+        this.scene.add(actor.group);
+        va = {
+          id, specId, actor, driverId: null,
+          display: {
+            spec: VEHICLE_SPEC[specId] || VEHICLE_SPEC.quad,
+            pos: { x, y, z }, heading, speed, hp, disabled: !!disabled,
+          },
+          tx: x, ty: y, tz: z, theading: heading,
+        };
+        this.vehicleActors.set(id, va);
+      }
+      va.tx = x; va.ty = y; va.tz = z; va.theading = heading;
+      va.driverId = driverId || null;
+      va.display.speed = speed;
+      va.display.hp = hp;
+      va.display.disabled = !!disabled;
+    }
+    for (const [id, va] of this.vehicleActors) {
+      if (!seen.has(id)) {
+        this._removeVehicleActor(va);
+        this.vehicleActors.delete(id);
+      }
+    }
+  }
+
+  _removeVehicleActor(va) {
+    this.scene.remove(va.actor.group);
+    va.actor.group.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) o.material.dispose();
+    });
+  }
+
+  // R2-5: main.js feeds the locally predicted state of the
+  // vehicle THIS player drives (null when on foot). update()
+  // renders that vehicle from the prediction instead of the
+  // snapshot interpolation.
+  setOwnVehicle(id, state) {
+    this.ownVehicleId = id || null;
+    this.ownVehicleState = state || null;
+  }
+
+  // R2-5: read-only view for the minimap / prompts —
+  // [{ id, driverId, state }] where state is the display state
+  // the actor is rendering.
+  vehicleView() {
+    return [...this.vehicleActors.values()].map(va => ({ id: va.id, driverId: va.driverId, state: va.display }));
+  }
+
   // Called by main each frame while online: advance interpolation
   // and return the server's record of THIS player (for position
   // correction + HUD), or null before the first snapshot.
@@ -224,6 +299,26 @@ export class OnlineSession {
       while (dy > Math.PI) dy -= Math.PI * 2;
       while (dy < -Math.PI) dy += Math.PI * 2;
       m.rotation.y += dy * k;
+    }
+    // R2-5: vehicle actors — interpolated toward the snapshot
+    // pose, except the driver's own, which renders from the
+    // local prediction main.js feeds in.
+    for (const va of this.vehicleActors.values()) {
+      const d = va.display;
+      if (va.id === this.ownVehicleId && this.ownVehicleState) {
+        const s = this.ownVehicleState;
+        d.pos.x = s.pos.x; d.pos.y = s.pos.y; d.pos.z = s.pos.z;
+        d.heading = s.heading; d.speed = s.speed; d.hp = s.hp; d.disabled = s.disabled;
+      } else {
+        d.pos.x += (va.tx - d.pos.x) * k;
+        d.pos.y += (va.ty - d.pos.y) * k;
+        d.pos.z += (va.tz - d.pos.z) * k;
+        let dy = va.theading - d.heading;
+        while (dy > Math.PI) dy -= Math.PI * 2;
+        while (dy < -Math.PI) dy += Math.PI * 2;
+        d.heading += dy * k;
+      }
+      va.actor.update(dt, d);
     }
     if (!this.latest) return null;
     return (this.latest.players || []).find(p => p.id === this.playerId) || null;
@@ -268,6 +363,11 @@ export class OnlineSession {
       pup.mesh.material.dispose();
     }
     this.puppets.clear();
+    // R2-5: vehicle actors leave with the session.
+    for (const va of this.vehicleActors.values()) this._removeVehicleActor(va);
+    this.vehicleActors.clear();
+    this.ownVehicleId = null;
+    this.ownVehicleState = null;
     this.latest = null;
   }
 }
