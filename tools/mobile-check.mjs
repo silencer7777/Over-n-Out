@@ -13,7 +13,7 @@ const eq = (a, b, m) => { if (a === b) ok(m); else fail(`${m} — got ${JSON.str
 
 function rig() {
   const input = { forward: false, back: false, left: false, right: false, sprint: false, jump: false, aim: false };
-  const calls = { look: [], setFire: [], setAim: [], reload: 0, lethal: 0, tactical: 0, streak: 0, weapon: [], pause: 0, firstTouch: 0, orient: 0 };
+  const calls = { look: [], setFire: [], setAim: [], reload: 0, lethal: 0, tactical: 0, streak: 0, weapon: [], pause: 0, firstTouch: 0, orient: 0, interact: 0 };
   const core = new TouchCore({
     look: (dx, dy) => calls.look.push([dx, dy]),
     setFire: d => calls.setFire.push(d),
@@ -24,6 +24,7 @@ function rig() {
     streak: () => calls.streak++,
     weapon: i => calls.weapon.push(i),
     pause: () => calls.pause++,
+    interact: () => calls.interact++,
     firstTouch: () => calls.firstTouch++,
     orient: () => calls.orient++,
   });
@@ -139,7 +140,7 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   const touch = readFileSync(new URL('../js/touchcontrols.js', import.meta.url), 'utf8');
-  eq(html.includes('id="build-stamp"') && html.includes('BUILD V7'), true, 'T7 menu build stamp present (cache witness)'); // V7 named re-pin: witness U15 -> V7
+  eq(html.includes('id="build-stamp"') && html.includes('BUILD V7.1'), true, 'T7 menu build stamp present (cache witness)'); // V7.1 named re-pin: witness V7 -> V7.1
   eq(html.includes('name="ono-build" content="V7"'), true, 'T7 ono-build meta present'); // V7 named re-pin: witness 15 -> V7
   eq(main.includes('__onoBuild'), true, 'T7 build number exposed for support reads');
   eq(main.includes("matchMedia('(orientation: portrait)')") && main.includes("'pageshow'"), true, 'T7 redundant iOS fit triggers present');
@@ -329,6 +330,22 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   eq(sim.includes('function spawnDogs') && sim.includes('function stepDogs') && sim.includes('snap.dogs'), true, 'T12 sim pack + snapshot wired');
   const equip = readFileSync(new URL('../js/equipment.js', import.meta.url), 'utf8');
   eq(equip.includes('export function createDogActor'), true, 'T12 createDogActor in equipment.js');
+}
+
+// T13 (V7 Round 2, R2-1): the touch USE button drives vehicle
+// enter/exit through the same TouchCore hook pattern as every
+// other action, and driving reads the standard stick axes.
+{
+  const { calls, core } = rig();
+  core.pressInteract();
+  eq(calls.interact, 1, 'T13 USE press routes to the interact hook exactly once');
+  eq(calls.firstTouch >= 1, true, 'T13 USE press notes first touch (audio unlock path)');
+  const tc = readFileSync(new URL('../js/touchcontrols.js', import.meta.url), 'utf8');
+  eq(tc.includes('tc-interact') && tc.includes('pressInteract'), true, 'T13 USE button built + core method present');
+  const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  eq(css.includes('.tc-interact') && css.includes('#vehicle-hud'), true, 'T13 USE button + vehicle HUD styled');
+  const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  eq(main.includes('interact: () =>') && main.includes('input.forward ? 1 : 0'), true, 'T13 main wires USE + drives from the stick axes');
 }
 
 if (failures) { console.error(`\nmobile-check: ${failures} failure(s)`); process.exit(1); }
