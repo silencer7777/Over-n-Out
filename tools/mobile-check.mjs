@@ -139,8 +139,8 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   const touch = readFileSync(new URL('../js/touchcontrols.js', import.meta.url), 'utf8');
-  eq(html.includes('id="build-stamp"') && html.includes('BUILD U14'), true, 'T7 menu build stamp present (cache witness)'); // U14 named re-pin: witness 13 -> 14
-  eq(html.includes('name="ono-build" content="14"'), true, 'T7 ono-build meta present'); // U14 named re-pin: witness 13 -> 14
+  eq(html.includes('id="build-stamp"') && html.includes('BUILD U15'), true, 'T7 menu build stamp present (cache witness)'); // U15 named re-pin: witness 14 -> 15
+  eq(html.includes('name="ono-build" content="15"'), true, 'T7 ono-build meta present'); // U15 named re-pin: witness 14 -> 15
   eq(main.includes('__onoBuild'), true, 'T7 build number exposed for support reads');
   eq(main.includes("matchMedia('(orientation: portrait)')") && main.includes("'pageshow'"), true, 'T7 redundant iOS fit triggers present');
   eq(touch.includes("'orientationchange'"), true, 'T7 touch layer re-feeds viewport on orientationchange');
@@ -293,6 +293,42 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   eq(html.includes('id="shop-line"') && html.includes('id="package-pickers"') && html.includes('id="offer-line"') && html.includes('id="offer-pickers"'), true, 'T11 shop markup present');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   eq(main.includes('purchaseItem(profile.meta') && main.includes('featuredOfferId('), true, 'T11 shop purchase + featured rotation wired in main');
+}
+
+// T12: U15 — attack dogs (scorestreak AI actor class). Pure
+// pins on the shared DOG_SPEC + streak state machine, plus
+// source pins for the solo brain and the sim pack.
+{
+  const streaks = await import('../js/streaks.js');
+  const loadouts = await import('../js/loadouts.js');
+  eq(streaks.getStreak('dogs').name, 'ATTACK DOGS', 'T12 dogs streak exists');
+  eq(streaks.getStreak('dogs').cost, 1200, 'T12 dogs cost 1200 (between lightning and precision)');
+  eq(streaks.getStreak('dogs').duration, 40, 'T12 dogs last 40 s');
+  eq(streaks.DOG_SPEC.count, 3, 'T12 pack of 3 dogs');
+  eq(streaks.DOG_SPEC.hp, 60, 'T12 dog hp 60');
+  eq(streaks.DOG_SPEC.biteDamage, 20, 'T12 bite damage 20');
+  eq(streaks.DOG_SPEC.biteRange, 1.7, 'T12 bite range 1.7 m');
+  eq(streaks.DOG_SPEC.biteCooldown, 0.9, 'T12 bite cooldown 0.9 s');
+  eq(streaks.DOG_SPEC.duration, streaks.getStreak('dogs').duration, 'T12 DOG_SPEC duration matches the streak def');
+  eq(loadouts.STREAK_IDS.includes('dogs'), true, 'T12 dogs in the loadout vocabulary');
+  // State machine: not ready below cost, ready at cost, one
+  // active pack at a time, expiry frees the slot.
+  const st = streaks.createStreakState(['uav', 'dogs', 'precision']);
+  streaks.feedStreak(st, 1199);
+  eq(streaks.streakReady(st, 'dogs'), false, 'T12 dogs not ready at 1199');
+  streaks.feedStreak(st, 1);
+  eq(streaks.streakReady(st, 'dogs'), true, 'T12 dogs ready at 1200');
+  const act = streaks.activateStreak(st, 'dogs', 10);
+  eq(!!act && st.score === 0, true, 'T12 activation spends the cost');
+  eq(streaks.streakReady(st, 'dogs'), false, 'T12 no second pack while one is active (duplication guard)');
+  eq(streaks.expireStreaks(st, 10 + 40).length, 1, 'T12 pack expires at duration end');
+  const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  eq(main.includes('function spawnDogPack') && main.includes('function stepDogPack') && main.includes('DOG_SPEC.biteDamage'), true, 'T12 solo pack brain wired in main');
+  eq(main.includes('createDogActor'), true, 'T12 dog actor wired in main');
+  const sim = readFileSync(new URL('../net/sim.js', import.meta.url), 'utf8');
+  eq(sim.includes('function spawnDogs') && sim.includes('function stepDogs') && sim.includes('snap.dogs'), true, 'T12 sim pack + snapshot wired');
+  const equip = readFileSync(new URL('../js/equipment.js', import.meta.url), 'utf8');
+  eq(equip.includes('export function createDogActor'), true, 'T12 createDogActor in equipment.js');
 }
 
 if (failures) { console.error(`\nmobile-check: ${failures} failure(s)`); process.exit(1); }
