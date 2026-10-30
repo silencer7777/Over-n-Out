@@ -677,7 +677,7 @@ if (FAST) {
 {
   const caps = {};
   caps.packageVersion = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
-  if (caps.packageVersion !== '0.6.0-dev') warn(`version is ${caps.packageVersion}, V6 target is 0.6.0-dev (Coordinator's bump)`);
+  if (caps.packageVersion !== '0.7.0') warn(`version is ${caps.packageVersion}, V7 target is 0.7.0 (Coordinator's bump)`);
   caps.losProfileUsPerRay = out.sections.gates?.soak?.losUsPerRay ?? null; // soak S9; LOS code lives in js/bots.js + net/sim.js (no standalone module)
   const lo = await import('../js/loadouts.js');
   caps.loadoutCombinations = lo.countLoadoutCombinations();
