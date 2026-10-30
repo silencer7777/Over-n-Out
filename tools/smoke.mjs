@@ -208,7 +208,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.7.0') fail(`M6 package.json version → ${pkg.version} (expected '0.7.0')`); else ok("M6 package.json version === '0.7.0'");   // V7 bump (was 0.6.0-dev through the V6 line)
+  if (pkg.version !== '0.7.1') fail(`M6 package.json version → ${pkg.version} (expected '0.7.1')`); else ok("M6 package.json version === '0.7.1'");   // V7.1 bump (round 2 vehicles)
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -720,6 +720,75 @@ try {
   if (S.TRANSMISSION_COUNT === 3 && S.transmissionLine(1) === S.transmissionLine(1)) ok('ST2 story: 3 transmissions, deterministic');
   else fail('ST2 transmissions broken');
 } catch (e) { fail('ST story v4 checks: ' + e.message); }
+
+// 1z) Vehicles (V7 Round 2, R2-1) — real import of the
+// THREE-free physics module + pad clearance in all four maps'
+// OWN data + wiring pins (actors live in equipment.js, which
+// imports three and cannot be plain-node imported — the
+// gunmodels precedent).
+try {
+  const V = await import('../js/vehicles.js');
+  const Q = V.VEHICLE_SPEC.quad, T = V.VEHICLE_SPEC.truck;
+  if (V.VEHICLE_IDS.length === 2 && Q.maxSpeed > T.maxSpeed && Q.accel > T.accel && Q.turnRate > T.turnRate
+    && T.hp > Q.hp && T.armorShare > Q.armorShare && T.runoverDamage > Q.runoverDamage
+    && V.VEHICLE_PADS.length === 2 && V.VEHICLE_PADS[0].spec !== V.VEHICLE_PADS[1].spec)
+    ok('VH1 vehicle spec: quad is the fast/exposed one, truck the slow/armored one; 2 pads, distinct types');
+  else fail(`VH1 vehicle spec drifted: ${JSON.stringify(V.VEHICLE_SPEC)} / pads ${JSON.stringify(V.VEHICLE_PADS)}`);
+  const freeEnv = { colliders: [], bounds: 80, groundHeightAt: () => 0, collide: () => {} };
+  const st = V.createVehicleState('quad', 0, 30, 0);
+  for (let i = 0; i < 10; i++) V.stepVehicle(st, { throttle: 0, steer: 1 }, 1 / 60, freeEnv);
+  const parkedTurn = st.heading === 0;
+  for (let i = 0; i < 90; i++) V.stepVehicle(st, { throttle: 1, steer: 0 }, 1 / 60, freeEnv);
+  const drove = st.speed > 12 && st.pos.z < 24;
+  for (let i = 0; i < 600; i++) V.stepVehicle(st, { throttle: 1, steer: 0 }, 1 / 60, freeEnv);
+  if (parkedTurn && drove && st.speed <= Q.maxSpeed + 1e-9)
+    ok(`VH2 vehicle physics: no steering authority parked; full throttle reaches ${st.speed.toFixed(1)} m/s (clamped at spec max) and travels forward`);
+  else fail(`VH2 physics → parkedTurn ${parkedTurn}, drove ${drove}, speed ${st.speed}`);
+  const rst = V.createVehicleState('truck', 0, 30, 0);
+  for (let i = 0; i < 90; i++) V.stepVehicle(rst, { throttle: -1, steer: 0 }, 1 / 60, freeEnv);
+  const revOk = rst.speed < 0 && rst.speed >= -T.reverseSpeed - 1e-9;
+  const dmgOk = V.damageVehicle(rst, 60) === false && rst.hp === T.hp - 60
+    && V.damageVehicle(rst, 9999) === true && rst.disabled === true;
+  const spdBefore = rst.speed;
+  V.stepVehicle(rst, { throttle: 1, steer: 0 }, 1 / 60, freeEnv);
+  if (revOk && dmgOk && Math.abs(rst.speed) <= Math.abs(spdBefore))
+    ok('VH3 vehicle reverse clamps at spec; hull damage disables exactly at 0 and a wreck takes no throttle');
+  else fail(`VH3 → rev ${rst.speed}, dmgOk ${dmgOk}`);
+  const wallEnv = { colliders: [], bounds: 80, groundHeightAt: () => 0, collide: (pos) => { if (pos.z < 29.8) pos.z = 29.8; } };
+  const wst = V.createVehicleState('quad', 0, 30, 0);
+  wst.speed = 12;
+  const imp = V.stepVehicle(wst, {}, 0.05, wallEnv);
+  // (drag trims 12 -> ~11.68 before the wall; expectations are
+  // computed from the reported impact, not the entry speed.)
+  if (imp.impact > 11 && Math.abs(wst.hp - (Q.hp - (imp.impact - 4) * 5)) < 0.01 && Math.abs(wst.speed - imp.impact * 0.25) < 1e-9)
+    ok(`VH4 vehicle impact: a hard wall stop reports the impact speed (${imp.impact.toFixed(1)} m/s), costs hull, and scrubs 75% of speed`);
+  else fail(`VH4 impact → ${JSON.stringify(imp)}, hp ${wst.hp}, speed ${wst.speed}`);
+  const mapMods = [];
+  for (const f of ['worlddata.js', 'worlddata-forest.js', 'worlddata-snow.js', 'worlddata-mars.js']) mapMods.push(await import('../js/' + f));
+  let padsClear = true, padWhy = '';
+  for (const m of mapMods) {
+    for (const pad of V.VEHICLE_PADS) {
+      if (m.groundHeightAt(pad.x, pad.z, 0) !== 0) { padsClear = false; padWhy = `ground!=0 at ${pad.x},${pad.z}`; }
+      const r = V.VEHICLE_SPEC[pad.spec].radius + 0.1;
+      for (const c of m.allColliders()) {
+        if (c.max[1] <= 0.3) continue;
+        if (pad.x > c.min[0] - r && pad.x < c.max[0] + r && pad.z > c.min[2] - r && pad.z < c.max[2] + r) { padsClear = false; padWhy = `collider overlap at ${pad.x},${pad.z}`; }
+      }
+    }
+  }
+  if (padsClear) ok('VH5 spawn pads sit on flat ground, clear of colliders, in all four maps');
+  else fail('VH5 pads not clear: ' + padWhy);
+  const vehMain = readFileSync(join(ROOT, 'js/main.js'), 'utf8');
+  const vehEquip = readFileSync(join(ROOT, 'js/equipment.js'), 'utf8');
+  const vehIndex = readFileSync(join(ROOT, 'index.html'), 'utf8');
+  const vehTouch = readFileSync(join(ROOT, 'js/touchcontrols.js'), 'utf8');
+  if (vehMain.includes("from './vehicles.js'") && vehMain.includes('spawnVehicles()') && vehMain.includes('stepVehicle')
+    && vehMain.includes('armorShare') && vehMain.includes("e.code === 'KeyE'") && vehMain.includes('stepDrive(dt)')
+    && vehEquip.includes('createVehicleActor') && vehEquip.includes('body.castShadow = false')
+    && vehIndex.includes('id="vehicle-hud"') && vehTouch.includes('pressInteract'))
+    ok('VH6 vehicle wiring: physics import, spawn hook, armor split, KeyE, drive step, shadow-free actor, HUD, touch USE');
+  else fail('VH6 vehicle wiring incomplete');
+} catch (e) { fail('VH vehicle checks: ' + e.message); }
 
 // 2) Boot server + fetch routes
 const PORT = 8199;
