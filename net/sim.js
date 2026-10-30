@@ -48,6 +48,7 @@ import {
 } from '../js/streaks.js';
 import { MAP_IDS, getMapData, TEAM_SPAWNS, ASSAULT_ATTACKER_SPAWNS } from '../js/maps.js';
 import { STANCE, createStanceState, stepStance } from '../js/stance.js';
+import { VEHICLE_PADS, createVehicleState, stepVehicle, damageVehicle } from '../js/vehicles.js'; // R2-5: online vehicles ride the shared physics
 
 export const EYE = 1.66;
 
@@ -337,6 +338,8 @@ export function createMatch(seed = 1, { modeId = 'waves', mapId = DEFAULT_MAP_ID
     sentries: [],                // placed sentry guns (streak entities)
     dogs: [],                    // U15: attack-dog pack entities (streak)
     nextDogNum: 1,
+    vehicles: [],                // R2-5: drivable vehicles (shared js/vehicles.js physics)
+    vehicleEnv: null,            // R2-5: env adapter for stepVehicle over this match's world
     packages: [],                // care-package crates (falling / landed)
     strikes: [],                 // scheduled precision strikes {x,z,at,by}
     packs: [],                   // scavenger ammo packs on the ground
@@ -349,6 +352,23 @@ export function createMatch(seed = 1, { modeId = 'waves', mapId = DEFAULT_MAP_ID
   };
   match.droneBaseY = world.groundHeightAt(0, 0, 30);
   match.mode = initModeState(match);
+  // R2-5: vehicles spawn on the R2-1 pads (probed clear against
+  // every worlddata allColliders superset, so clear in this
+  // sim's SOLIDS+EXTRA subset too). The env adapter bridges
+  // vehicles.js's (pos, r, colliders, bounds, feetY) collide
+  // call onto the sim's (pos, radius, feetY, world).
+  match.vehicles = VEHICLE_PADS.map((pad, i) => {
+    const st = createVehicleState(pad.spec, pad.x, pad.z, pad.heading);
+    st.id = 'v' + (i + 1);
+    st.driverId = null;
+    st.pos.y = world.groundHeightAt(pad.x, pad.z, 0);
+    return st;
+  });
+  match.vehicleEnv = {
+    colliders: world.colliders, bounds: world.bounds,
+    groundHeightAt: world.groundHeightAt,
+    collide: (pos, r, c, b, fy) => collide(pos, r, fy, world),
+  };
   return match;
 }
 
@@ -396,6 +416,7 @@ export function addSimPlayer(match, id, name, cls = null) {
     channelAcc: 0,
     prevLethal: false, prevTactical: false, prevPlace: null,
     prevUav: false, prevStreak: null,
+    vehicleId: null, prevInteract: false, // R2-5: driven vehicle + interact edge memory
     // U6-10: stance (shared machine, js/stance.js). Sim players
     // have no slide, so slideStarted/Ended are always false here.
     stance: 'stand', stanceState: createStanceState(),
@@ -607,6 +628,22 @@ function damageBot(match, bot, amount, isHead, events = null, byId = null) {
 // layer.
 function damagePlayerSim(match, p, dmg, events, opts = {}) {
   if (!p.alive || match.state !== 'playing') return;
+  // R2-5: a driver takes fire THROUGH the vehicle first — the
+  // hull absorbs its armor share of every hit (solo
+  // damagePlayer parity: quad 0.25 / truck 0.55), the rest
+  // reaches the player. A wreck stops absorbing. Disabling the
+  // vehicle under its driver is a veh_down event.
+  if (p.vehicleId) {
+    const veh = match.vehicles.find(v => v.id === p.vehicleId);
+    if (veh && !veh.disabled && veh.driverId === p.id) {
+      const hull = dmg * veh.spec.armorShare;
+      if (hull > 0 && damageVehicle(veh, hull)) {
+        events.push({ kind: 'veh_down', vehicle: veh.id, by: opts.byId || null });
+      }
+      dmg -= hull;
+      if (dmg <= 0) return;
+    }
+  }
   if (opts.explosive && playerHasPerk(p, 'flak')) {
     const perk = getPerk('flak');
     if (perk && typeof perk.explosiveMult === 'number') dmg *= perk.explosiveMult;
@@ -615,6 +652,7 @@ function damagePlayerSim(match, p, dmg, events, opts = {}) {
   if (p.hp <= 0) {
     p.hp = 0;
     p.alive = false;
+    clearDriver(match, p); // R2-5: death frees the vehicle
     events.push({ kind: 'player_down', player: p.id });
     if (match.modeId === 'waves' && [...match.players.values()].every(pl => !pl.alive)) {
       match.state = 'over';
@@ -676,6 +714,84 @@ function explodeBarrelSim(match, barrel, events, byId = 'explosion') {
 }
 
 // ----------------------------------------------------------------
+// R2-5: online vehicles — enter / exit / run-over over the
+// shared js/vehicles.js physics. The sim owns every decision:
+// the input sample carries only an interact edge + drive keys.
+// ----------------------------------------------------------------
+function clearDriver(match, p) {
+  if (!p.vehicleId) return;
+  const veh = match.vehicles.find(v => v.id === p.vehicleId);
+  if (veh && veh.driverId === p.id) veh.driverId = null;
+  p.vehicleId = null;
+}
+
+function tryEnterVehicleSim(match, p, events) {
+  let best = null, bestD = 3.5;
+  for (const v of match.vehicles) {
+    if (v.disabled || v.driverId) continue; // a wreck is cover, not a ride; one driver per vehicle
+    const d = Math.hypot(v.pos.x - p.pos.x, v.pos.z - p.pos.z);
+    if (d < bestD && Math.abs(v.pos.y - p.pos.y) < 3) { bestD = d; best = v; }
+  }
+  if (!best) return;
+  best.driverId = p.id;
+  p.vehicleId = best.id;
+  p.pos.x = best.pos.x; p.pos.y = best.pos.y; p.pos.z = best.pos.z;
+  p.vel.x = 0; p.vel.y = 0; p.vel.z = 0;
+  events.push({ kind: 'veh_enter', player: p.id, vehicle: best.id });
+}
+
+function exitVehicleSim(match, p, events) {
+  const veh = match.vehicles.find(v => v.id === p.vehicleId);
+  clearDriver(match, p);
+  if (veh) {
+    // Step out at the first clear side/rear offset (solo parity).
+    const fx = -Math.sin(veh.heading), fz = -Math.cos(veh.heading);
+    const rx = -fz, rz = fx;
+    for (const [ox, oz] of [[rx, rz], [-rx, -rz], [-fx, -fz]]) {
+      const cand = {
+        x: veh.pos.x + ox * (veh.spec.radius + 1.1), y: veh.pos.y,
+        z: veh.pos.z + oz * (veh.spec.radius + 1.1),
+      };
+      const bx = cand.x, bz = cand.z;
+      collide(cand, p.radius, veh.pos.y, match.world);
+      if (Math.hypot(cand.x - bx, cand.z - bz) < 0.25) {
+        p.pos.x = cand.x; p.pos.z = cand.z;
+        p.pos.y = match.world.groundHeightAt(cand.x, cand.z, veh.pos.y);
+        break;
+      }
+    }
+  }
+  p.vel.x = 0; p.vel.y = 0; p.vel.z = 0;
+  events.push({ kind: 'veh_exit', player: p.id, vehicle: veh ? veh.id : null });
+}
+
+// Run-over: a DRIVEN vehicle at speed damages enemy bots in
+// its radius (solo parity numbers: speed-scaled damage, 0.6 s
+// per-target immunity, momentum cost). Kill credit flows
+// through damageBot's ledger + the kill event, like any other.
+function stepVehicles(match, dt, events) {
+  if (!match.vehicles.length) return;
+  for (const veh of match.vehicles) {
+    if (veh.disabled || !veh.driverId || Math.abs(veh.speed) <= 3.5) continue;
+    const driver = match.players.get(veh.driverId);
+    if (!driver) continue;
+    for (const b of match.bots) {
+      if (b.dead || b.team === driver.team) continue;
+      const d = Math.hypot(b.pos.x - veh.pos.x, b.pos.z - veh.pos.z);
+      if (d > veh.spec.radius + 0.55) continue;
+      if ((veh.runover.get(b.id) || 0) > match.time) continue;
+      veh.runover.set(b.id, match.time + 0.6);
+      const dmg = veh.spec.runoverDamage * Math.min(1, Math.abs(veh.speed) / veh.spec.maxSpeed + 0.35);
+      if (damageBot(match, b, dmg, false, events, veh.driverId)) {
+        if (b.team === 'kestrel') match.kills++;
+        events.push({ kind: 'kill', by: veh.driverId, target: b.id, via: 'vehicle' });
+      }
+      veh.speed *= 0.92; // bodies cost momentum (solo parity)
+    }
+  }
+}
+
+// ----------------------------------------------------------------
 // Player stepping — Player.update()'s physics half, ported.
 // ----------------------------------------------------------------
 function stepPlayer(match, p, dt, events) {
@@ -683,6 +799,42 @@ function stepPlayer(match, p, dt, events) {
   const keys = input.keys;
   p.yaw = input.yaw;
   p.pitch = input.pitch;
+
+  // --- R2-5 vehicle interact: the sample's interact boolean
+  // is an edge (E / USE press), derived here like the gear
+  // edges below — the sim owns proximity / occupancy / wreck
+  // validation; the sample claims nothing.
+  const interactEdge = !!input.interact && !p.prevInteract;
+  p.prevInteract = !!input.interact;
+  if (interactEdge) {
+    if (p.vehicleId) exitVehicleSim(match, p, events);
+    else tryEnterVehicleSim(match, p, events);
+  }
+  // While driving, the vehicle steps INSTEAD of the walker
+  // (solo parity): the shared physics moves the vehicle from
+  // the drive keys, the player rides at its pose facing its
+  // heading, and firing / throws / place / streak edges are
+  // ignored — the prev* mirrors keep a held key from firing
+  // on the exit frame.
+  if (p.vehicleId) {
+    const veh = match.vehicles.find(v => v.id === p.vehicleId);
+    if (!veh || veh.driverId !== p.id) {
+      p.vehicleId = null;
+    } else {
+      stepVehicle(veh, {
+        throttle: (keys.forward ? 1 : 0) - (keys.back ? 1 : 0),
+        steer: (keys.right ? 1 : 0) - (keys.left ? 1 : 0),
+      }, dt, match.vehicleEnv);
+      p.pos.x = veh.pos.x; p.pos.y = veh.pos.y; p.pos.z = veh.pos.z;
+      p.vel.x = 0; p.vel.y = 0; p.vel.z = 0;
+      p.yaw = veh.heading;
+      p.onGround = true;
+      p.prevLethal = !!input.lethal; p.prevTactical = !!input.tactical;
+      p.prevPlace = input.place || null; p.prevStreak = input.streak || null;
+      p.prevUav = !!input.uav; p.prevFire = !!input.fire; p.prevJump = !!keys.jump;
+      return;
+    }
+  }
 
   const f = (keys.forward ? 1 : 0) - (keys.back ? 1 : 0);
   const s = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
@@ -2123,6 +2275,7 @@ function respawnPlayerSim(match, p) {
   }
   p.alive = true;
   p.hp = 100;
+  clearDriver(match, p); // R2-5: respawn never inherits a vehicle
   p.pos = { x, y: match.world.groundHeightAt(x, z, 0), z };
   p.vel = { x: 0, y: 0, z: 0 };
   p.reloading = 0;
@@ -2438,6 +2591,7 @@ export function stepMatch(match, dt, events) {
   stepEquipment(match, dt, events);
   stepSentries(match, dt, events);
   stepDogs(match, dt, events);
+  stepVehicles(match, dt, events); // R2-5: run-over over the driven vehicles
   stepPackages(match, dt, events);
   stepStrikes(match, events);
   stepDrones(match, events);
@@ -2499,6 +2653,7 @@ export function buildSnapshot(match, forPlayerId) {
       yaw: +p.yaw.toFixed(3), pitch: +p.pitch.toFixed(3),
       hp: Math.max(0, Math.ceil(p.hp)), weapon: p.weaponId, alive: p.alive,
       firing: !!(p.input && p.input.fire),
+      veh: p.vehicleId || null, // R2-5: driven vehicle id, if any
     })),
     bots: match.bots.map(b => ({
       id: b.id, team: b.team, pos: [r2(b.pos.x), r2(b.pos.y), r2(b.pos.z)],
@@ -2535,6 +2690,15 @@ export function buildSnapshot(match, forPlayerId) {
   if (match.dogs.length) {
     snap.dogs = match.dogs.map(d => [
       d.id, r1(d.pos.x), r1(d.pos.y), r1(d.pos.z), +d.yaw.toFixed(2), Math.max(0, Math.ceil(d.hp)),
+    ]);
+  }
+  // R2-5: vehicle carriage — [id, spec, x, y, z, heading,
+  // speed, hp, disabled, driverId]. Present while any exist.
+  if (match.vehicles.length) {
+    snap.vehicles = match.vehicles.map(v => [
+      v.id, v.spec.id, r1(v.pos.x), r1(v.pos.y), r1(v.pos.z),
+      +v.heading.toFixed(2), r1(v.speed), Math.max(0, Math.ceil(v.hp)),
+      v.disabled ? 1 : 0, v.driverId || null,
     ]);
   }
   // Drone carriage (Addendum 2): the airframe is world state —
