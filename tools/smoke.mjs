@@ -208,7 +208,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.7.1') fail(`M6 package.json version → ${pkg.version} (expected '0.7.1')`); else ok("M6 package.json version === '0.7.1'");   // V7.1 bump (round 2 vehicles)
+  if (pkg.version !== '0.7.2') fail(`M6 package.json version → ${pkg.version} (expected '0.7.2')`); else ok("M6 package.json version === '0.7.2'");   // V7.2 bump (round 2 dogs)
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -789,6 +789,86 @@ try {
     ok('VH6 vehicle wiring: physics import, spawn hook, armor split, KeyE, drive step, shadow-free actor, HUD, touch USE');
   else fail('VH6 vehicle wiring incomplete');
 } catch (e) { fail('VH vehicle checks: ' + e.message); }
+
+// 1z2) Dogs under fire (V7 Round 2, R2-2) — direct sim
+// integration: player gunfire kills an enemy dog (friendly
+// pack member in the same field untouched), a sentry engages
+// a dog target, and a kestrel bot whose only nearby enemy is
+// a dog targets and hits it. All seeds fixed; assertions are
+// on outcomes the prototypes measured, not on internals.
+try {
+  const SIM = await import('../net/sim.js');
+  const ST2 = await import('../js/streaks.js');
+  const mkDog = (id, team, x, z) => ({ id, owner: 'x', team, pos: { x, y: 0, z }, yaw: 0, hp: ST2.DOG_SPEC.hp, biteT: 0, phase: 0, until: 9999 });
+  // DG1: player gunfire vs enemy dog (+ friendly-fire guard)
+  {
+    const m = SIM.createMatch(42, { modeId: 'waves', mapId: 'compound' });
+    const p = SIM.addSimPlayer(m, 'p1', 'Tester');
+    p.pos.x = 0; p.pos.y = 0; p.pos.z = 34;
+    const foe = mkDog('dx1', 'kestrel', 0, 30), pal = mkDog('dx2', 'you', 3, 30);
+    m.dogs.push(foe, pal);
+    const ev = [];
+    let hitDog = false, downDog = false;
+    for (let i = 0; i < 90 && !downDog; i++) {
+      p.input = { keys: {}, yaw: 0, pitch: -0.33, aim: false, fire: true, weapon: 1 };
+      const before = ev.length;
+      SIM.stepMatch(m, 1 / 30, ev);
+      for (let j = before; j < ev.length; j++) {
+        if (ev[j].kind === 'hit' && ev[j].target === 'dx1') hitDog = true;
+        if (ev[j].kind === 'dog_down' && ev[j].id === 'dx1') downDog = true;
+      }
+    }
+    if (hitDog && downDog && !m.dogs.includes(foe) && pal.hp === ST2.DOG_SPEC.hp)
+      ok('DG1 sim gunfire: enemy dog takes hits and goes down (dog_down); the friendly dog in the same field is never a target');
+    else fail(`DG1 → hit ${hitDog}, down ${downDog}, foe hp ${foe.hp}, pal hp ${pal.hp}`);
+  }
+  // DG2: sentry acquires + damages a dog (x=8 lane — the x=0
+  // spawn lane's barrier blocks the sentry's LOS by design).
+  {
+    const m = SIM.createMatch(7, { modeId: 'waves', mapId: 'compound' });
+    const p = SIM.addSimPlayer(m, 'p1', 'Tester');
+    p.pos.x = 8; p.pos.y = 0; p.pos.z = 34; p.hp = 100000;
+    const s = { id: 'sx1', owner: 'p1', team: 'you', x: 8, y: 0, z: 26, yaw: 0, hp: 100, until: 9999, targetId: null, visibleTime: 0, losLostT: 0, burstLeft: 0, burstShotIndex: 0, shotTimer: 0, burstCooldown: 0.5 };
+    m.sentries.push(s);
+    const foe = mkDog('dx1', 'kestrel', 8, 30);
+    m.dogs.push(foe);
+    const ev = [];
+    for (let i = 0; i < 300; i++) {
+      p.input = { keys: {}, yaw: 0, pitch: 0, aim: false, fire: false, weapon: 1 };
+      SIM.stepMatch(m, 1 / 30, ev);
+    }
+    if (s.targetId === 'dx1' && foe.hp < ST2.DOG_SPEC.hp)
+      ok(`DG2 sentry vs dog: the sentry acquires the dog and wears it down (${ST2.DOG_SPEC.hp} → ${foe.hp.toFixed(0)} hp)`);
+    else fail(`DG2 → target ${s.targetId}, foe hp ${foe.hp}`);
+  }
+  // DG3: kestrel bot target selection includes enemy dogs.
+  {
+    const m = SIM.createMatch(11, { modeId: 'tdm', mapId: 'compound' });
+    const p = SIM.addSimPlayer(m, 'p1', 'Tester');
+    const ev = [];
+    for (let i = 0; i < 30 && !m.bots.length; i++) SIM.stepMatch(m, 1 / 30, ev);
+    const bot = m.bots.find(b => b.team === 'kestrel');
+    p.pos.x = 70; p.pos.z = -70; p.hp = 100000;
+    for (const b of m.bots) { if (b !== bot) { b.pos.x = -70; b.pos.z = -70; } }
+    bot.pos.x = 0; bot.pos.y = 0; bot.pos.z = 30; bot.hp = 100000;
+    const dog = mkDog('dx9', 'you', 2, 30);
+    m.dogs.push(dog);
+    for (let i = 0; i < 300; i++) {
+      p.input = { keys: {}, yaw: 0, pitch: 0, aim: false, fire: false, weapon: 1 };
+      SIM.stepMatch(m, 1 / 30, ev);
+    }
+    if (bot.targetId === 'dx9' && dog.hp < ST2.DOG_SPEC.hp)
+      ok(`DG3 bot vs dog: a kestrel bot whose nearest enemy is a dog targets it and lands fire (${ST2.DOG_SPEC.hp} → ${dog.hp.toFixed(0)} hp)`);
+    else fail(`DG3 → target ${bot.targetId}, dog hp ${dog.hp}`);
+  }
+  // DG4: solo wiring pins (hostile-dog targets + dogRef
+  // resolution; solo fields friendly packs only today).
+  const dgMain = readFileSync(join(ROOT, 'js/main.js'), 'utf8');
+  if (dgMain.includes('userData.dogRef = entry') && dgMain.includes("d.team === 'friendly') continue")
+    && dgMain.includes('hit.object.userData.dogRef') && dgMain.includes("team: 'friendly'"))
+    ok('DG4 solo dog gunfire wiring: pack meshes tagged, friendly packs excluded from targets, dogRef resolution in shoot()');
+  else fail('DG4 solo dog wiring incomplete');
+} catch (e) { fail('DG dog-gunfire checks: ' + e.message); }
 
 // 2) Boot server + fetch routes
 const PORT = 8199;
