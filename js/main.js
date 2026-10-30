@@ -169,7 +169,7 @@ function goLandscape() {
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
 // version tag — Brett reads "BUILD V7.2" in the menu footer.
-const BUILD_NO = 'V7.4';
+const BUILD_NO = 'V7.5';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -1692,6 +1692,7 @@ document.querySelectorAll('.wpn').forEach(btn => {
 const KEYMAP = { KeyW: 'forward', KeyS: 'back', KeyA: 'left', KeyD: 'right', ShiftLeft: 'sprint', ShiftRight: 'sprint', Space: 'jump' };
 // Online input edges (consumed by the 30 Hz sample builder).
 let edgeReload = false, edgeThrowL = false, edgeThrowT = false;
+let edgeInteract = false; // R2-5: E / USE edge for online vehicles (rides buildOnlineSample)
 addEventListener('keydown', e => {
   // U6-14: the mini chat owns the keyboard while it's open
   // (its own listener handles Enter/Escape and stops the rest).
@@ -1716,6 +1717,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyT' && state === 'playing' && !driving) { if (placing) cancelPlacement(); else throwGear(deployedClass().tactical); }
   if (e.code === 'KeyX' && state === 'playing' && !driving) callStreak();
   if (e.code === 'KeyE' && state === 'playing') tryInteract(); // R2-1: enter / exit vehicle
+  if (e.code === 'KeyE' && state === 'online') edgeInteract = true; // R2-5: same key, server-side vehicle
   if (e.code === 'KeyG' && state === 'online') edgeThrowL = true;
   if (e.code === 'KeyT' && state === 'online') edgeThrowT = true;
   if ((state === 'playing' || state === 'online') && e.code.startsWith('Digit')) {
@@ -1784,7 +1786,7 @@ if (TOUCH_MODE) {
         else if (state === 'online') edgeThrowT = true;
       },
       streak: () => { if (state === 'playing' && !driving) callStreak(); },
-      interact: () => { if (state === 'playing') tryInteract(); }, // R2-1: USE button
+      interact: () => { if (state === 'playing') tryInteract(); else if (state === 'online') edgeInteract = true; }, // R2-1: USE button; R2-5: online edge
       stance: () => { pendingStanceTap = true; }, // U6-10
       weapon: i => {
         if ((state === 'playing' || state === 'online') && i >= 0 && i < WEAPON_ORDER.length) switchWeapon(WEAPON_ORDER[i]);
@@ -2065,7 +2067,7 @@ function buildOnlineSample(seq) {
   // U6-14: while the chat input is open the player is typing,
   // not fighting — samples go out neutral.
   if (chatOpen) {
-    edgeReload = false; edgeThrowL = false; edgeThrowT = false;
+    edgeReload = false; edgeThrowL = false; edgeThrowT = false; edgeInteract = false;
     return {
       t: 'input', seq,
       keys: { forward: false, back: false, left: false, right: false, sprint: false, jump: false },
@@ -2073,7 +2075,7 @@ function buildOnlineSample(seq) {
       fire: false, reload: false,
       weapon: WEAPON_ORDER.indexOf(currentId) + 1,
       aim: false, throwLethal: false, throwTactical: false,
-      stance: false, prone: false,
+      stance: false, prone: false, interact: false,
     };
   }
   const sample = {
@@ -2084,8 +2086,9 @@ function buildOnlineSample(seq) {
     weapon: WEAPON_ORDER.indexOf(currentId) + 1,
     aim: input.aim, throwLethal: edgeThrowL, throwTactical: edgeThrowT,
     stance: !!input.stance, prone: !!input.prone, // U6-10 (held states; the sim derives taps/holds)
+    interact: edgeInteract, // R2-5 (edge; the sim derives enter/exit from it)
   };
-  edgeReload = false; edgeThrowL = false; edgeThrowT = false;
+  edgeReload = false; edgeThrowL = false; edgeThrowT = false; edgeInteract = false;
   return sample;
 }
 
@@ -2162,6 +2165,7 @@ async function joinOnline() {
     // U6-15: voice signaling relay -> the mesh.
     onSignal: msg => { voice?.handleSignal(msg.from, msg.kind, msg.data); },
   });
+  session.groundHeightAt = (x, z, y) => world.groundHeightAt(x, z, y); // R2-5: vehicle actor terrain pitch/roll
   joiningOnline = true;
   setOnlineStatus('Connecting…');
   try {
@@ -2192,6 +2196,13 @@ async function joinOnline() {
 }
 
 function leaveOnline(msg) {
+  if (onlineDrive) { // R2-5: leave the driver's seat cleanly
+    onlineDrive = null;
+    if (sfx.stopEngine) sfx.stopEngine();
+    player.gun.visible = true;
+    if (vehicleHudEl) vehicleHudEl.classList.add('hidden');
+    setVehiclePrompt('');
+  }
   stopComms(); // U6-14/15: tear the voice mesh + chat box down with the session
   if (session) { session.close(); session = null; }
   if (state === 'online') state = 'menu';
@@ -2292,11 +2303,16 @@ function drawMinimap(dt) {
   }
   // R2-4: vehicles as steel-blue squares (the driven one gets
   // a white outline) — Brett can find his ride at a glance.
-  for (const v of vehicles) {
-    const { px, py } = worldToMap(v.state.pos.x, v.state.pos.z, S);
-    ctx.fillStyle = v.state.disabled ? 'rgba(120,120,120,0.8)' : 'rgba(140,200,255,0.9)';
+  // R2-5: online, the squares come from the session's snapshot
+  // vehicles instead of the solo fleet.
+  const mapVehicles = state === 'online' && session
+    ? session.vehicleView().map(v => ({ x: v.state.pos.x, z: v.state.pos.z, disabled: v.state.disabled, mine: v.driverId === session.playerId }))
+    : vehicles.map(v => ({ x: v.state.pos.x, z: v.state.pos.z, disabled: v.state.disabled, mine: driving === v.state }));
+  for (const v of mapVehicles) {
+    const { px, py } = worldToMap(v.x, v.z, S);
+    ctx.fillStyle = v.disabled ? 'rgba(120,120,120,0.8)' : 'rgba(140,200,255,0.9)';
     ctx.fillRect(px - 3, py - 3, 6, 6);
-    if (driving === v.state) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.4; ctx.strokeRect(px - 4.5, py - 4.5, 9, 9); }
+    if (v.mine) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.4; ctx.strokeRect(px - 4.5, py - 4.5, 9, 9); }
   }
   // Living bots: friendly cyan always; hostile red ONLY when
   // that enemy has fired within the reveal window (U12-01 —
@@ -2482,7 +2498,9 @@ function tick() {
   }
 
   if (state === 'online' && session) {
-    player.update(dt, input);
+    // R2-5: while driving online, the local walker stands
+    // down — the predicted vehicle owns the rig (below).
+    player.update(dt, onlineDrive ? DOWN_INPUT : input);
     session.pumpInput(dt, buildOnlineSample);
     voiceRosterAcc += dt; // U6-15: keep the voice mesh rostered (~2 Hz is plenty)
     if (voiceRosterAcc > 0.5) { voiceRosterAcc = 0; syncVoiceRoster(); }
@@ -2525,6 +2543,7 @@ function tick() {
             : []);
       }
     }
+    stepOnlineVehicles(dt, me); // R2-5: own-vehicle prediction + prompts
     for (const t of tracers) {
       if (t.life <= 0) continue;
       t.life -= dt;
@@ -2944,9 +2963,8 @@ function stepDrive(dt) {
 }
 
 let vehicleHudText = '';
-function updateVehicleHud(force) {
-  if (!vehicleHudEl || !driving) return;
-  const st = driving;
+function updateVehicleHud(force, st = driving) {
+  if (!vehicleHudEl || !st) return;
   const t = `${st.spec.name} · ${Math.round(Math.abs(st.speed) * 3.6)} KM/H · HULL ${Math.max(0, Math.ceil(st.hp / st.spec.hp * 100))}%${st.disabled ? ' · DISABLED' : ''}`;
   if (force || t !== vehicleHudText) { vehicleHudText = t; vehicleHudEl.textContent = t; }
 }
@@ -2977,6 +2995,104 @@ function stepVehiclesAmbient(dt) {
     if (d < bestD) { bestD = d; best = v; }
   }
   setVehiclePrompt(best ? `${TOUCH_MODE ? 'USE' : 'E'} — ENTER ${best.state.spec.name}${best.state.disabled ? ' (DISABLED)' : ''}` : '');
+}
+
+// ---- online vehicles (V7 Round 2, R2-5) ----
+// The server owns the vehicle; the DRIVER predicts it locally
+// with the shared physics (the same stepVehicle + env the
+// solo game uses) and corrects toward the snapshot pose with
+// the standing player rule (snap beyond 3 m, blend 0.25
+// beyond 0.3 m). Camera / HUD / engine reuse the solo drive
+// presentation, fed from the predicted state. Every other
+// vehicle is the session's interpolated actor (online.js).
+let onlineDrive = null; // { id, state } — predicted own vehicle
+
+function stepOnlineVehicles(dt, meEntry) {
+  const vehId = meEntry && meEntry.alive ? (meEntry.veh || null) : null;
+  const rows = (session && session.latest && session.latest.vehicles) || [];
+  const row = vehId ? rows.find(r => r[0] === vehId) : null;
+
+  // Enter transition: the snapshot says I drive now.
+  if (vehId && row && (!onlineDrive || onlineDrive.id !== vehId)) {
+    const st = createVehicleState(row[1], row[2], row[4], row[5]);
+    st.pos.y = row[3]; st.speed = row[6]; st.hp = row[7]; st.disabled = !!row[8];
+    onlineDrive = { id: vehId, state: st };
+    session.setOwnVehicle(vehId, st);
+    player.gun.visible = false;
+    if (sfx.startEngine) sfx.startEngine(); // R2-4 engine loop
+    player.vel.set(0, 0, 0);
+    if (vehicleHudEl) vehicleHudEl.classList.remove('hidden');
+    updateVehicleHud(true, st);
+    setVehiclePrompt('');
+    if (contextLineEl) {
+      contextLineEl.textContent = `${st.spec.name} — ${TOUCH_MODE ? 'STICK drives · USE exits' : 'W A S D drives · E exits'}`;
+      contextLineEl.style.opacity = 1;
+      setTimeout(() => contextLineEl.style.opacity = 0, 2400);
+    }
+  }
+  // Exit transition: the snapshot says I'm on foot again (my
+  // E press landed, I died, or the match moved on).
+  if (!vehId && onlineDrive) {
+    session.setOwnVehicle(null, null);
+    onlineDrive = null;
+    if (sfx.stopEngine) sfx.stopEngine();
+    player.gun.visible = true;
+    if (vehicleHudEl) vehicleHudEl.classList.add('hidden');
+  }
+  if (!onlineDrive) {
+    // On foot: offer the enter prompt for the nearest vehicle
+    // (the solo stepVehiclesAmbient language).
+    if (state === 'online' && M.respawnT <= 0) {
+      let best = null, bestD = 3.0;
+      for (const v of session.vehicleView()) {
+        const d = Math.hypot(v.state.pos.x - player.position.x, v.state.pos.z - player.position.z);
+        if (d < bestD) { bestD = d; best = v; }
+      }
+      setVehiclePrompt(best ? `${TOUCH_MODE ? 'USE' : 'E'} — ENTER ${best.state.spec.name}${best.state.disabled ? ' (DISABLED)' : ''}` : '');
+    }
+    return;
+  }
+  // Predict: correct toward the server pose with the standing
+  // rule, then step the shared physics on the local env.
+  const st = onlineDrive.state;
+  if (row) {
+    st.hp = row[7]; st.disabled = !!row[8];
+    const dx = row[2] - st.pos.x, dy = row[3] - st.pos.y, dz = row[4] - st.pos.z;
+    const d2 = dx * dx + dy * dy + dz * dz;
+    if (d2 > 9) { st.pos.x = row[2]; st.pos.y = row[3]; st.pos.z = row[4]; st.heading = row[5]; st.speed = row[6]; }
+    else if (d2 > 0.09) {
+      st.pos.x += dx * 0.25; st.pos.y += dy * 0.25; st.pos.z += dz * 0.25;
+      let dh = row[5] - st.heading;
+      while (dh > Math.PI) dh -= Math.PI * 2;
+      while (dh < -Math.PI) dh += Math.PI * 2;
+      st.heading += dh * 0.25;
+    }
+  }
+  const res = stepVehicle(st, {
+    throttle: (input.forward ? 1 : 0) - (input.back ? 1 : 0),
+    steer: (input.right ? 1 : 0) - (input.left ? 1 : 0),
+  }, dt, VEHICLE_ENV);
+  // Presentation — the solo stepDrive language, minus the
+  // local run-over (the server owns kills; its kill events
+  // feed the hitmarker through the session hooks).
+  player.rig.position.set(st.pos.x, st.pos.y, st.pos.z);
+  player.yaw = st.heading; player.targetYaw = st.heading; player.yawTarget = st.heading;
+  player.pitch += (player.targetPitch - player.pitch) * Math.min(1, dt * 18);
+  player.rig.rotation.y = st.heading;
+  camera.rotation.set(player.pitch, 0, 0);
+  if (res.impact > 0) {
+    driveShake = Math.min(0.14, res.impact * 0.009);
+    if (res.impact > 8) sfx.hurt();
+  }
+  driveShake = Math.max(0, driveShake - dt * 0.5);
+  camera.position.y = st.spec.seatHeight + (driveShake > 0 ? (Math.random() - 0.5) * driveShake : 0);
+  const speedK = Math.min(1, Math.abs(st.speed) / st.spec.maxSpeed);
+  const targetFov = player.baseFov + 7 * speedK;
+  camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 5);
+  camera.updateProjectionMatrix();
+  if (sfx.setEngine) sfx.setEngine(speedK, Math.abs((input.forward ? 1 : 0) - (input.back ? 1 : 0)));
+  player.aiming = false;
+  updateVehicleHud(false, st);
 }
 
 const dogPack = [];                   // U15: live attack dogs { actor, hp, biteT, phase }
