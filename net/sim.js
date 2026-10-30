@@ -43,7 +43,7 @@ import {
   losSmokeState, claymoreCone, claymoreDamage, tripDamage, segmentsDistanceXZ,
 } from '../js/equipment-data.js';
 import {
-  getStreak, UAV_SPEC, CUAV_SPEC, PACKAGE_SPEC, SENTRY_SPEC,
+  getStreak, UAV_SPEC, CUAV_SPEC, PACKAGE_SPEC, SENTRY_SPEC, DOG_SPEC,
   dronePositionAt, createStreakState, feedStreak, streakFeedFor, activateStreak,
 } from '../js/streaks.js';
 import { MAP_IDS, getMapData, TEAM_SPAWNS, ASSAULT_ATTACKER_SPAWNS } from '../js/maps.js';
@@ -335,6 +335,8 @@ export function createMatch(seed = 1, { modeId = 'waves', mapId = DEFAULT_MAP_ID
     nextEquipNum: 1,
     uavs: [],                    // flying scorestreak drones, UAV + CUAV (Directive 11)
     sentries: [],                // placed sentry guns (streak entities)
+    dogs: [],                    // U15: attack-dog pack entities (streak)
+    nextDogNum: 1,
     packages: [],                // care-package crates (falling / landed)
     strikes: [],                 // scheduled precision strikes {x,z,at,by}
     packs: [],                   // scavenger ammo packs on the ground
@@ -1039,6 +1041,10 @@ function blastEntities(match, x, z, radius, maxDamage, byId, events) {
       damageDrone(match, u, DRONE_BLAST_DAMAGE, events, byId);
     }
   }
+  for (const d of [...match.dogs]) {
+    const dd = Math.hypot(d.pos.x - x, d.pos.z - z);
+    if (dd <= radius) damageDogSim(match, d, maxDamage * (1 - (dd / radius) * 0.6), events, byId);
+  }
 }
 
 function resolveProjectile(match, pr, events) {
@@ -1545,6 +1551,91 @@ function stepSentries(match, dt, events) {
   }
 }
 
+// Attack dogs (U15): a timed pack entity, server-authoritative
+// like every streak. Spawn is validated in callStreak; movement
+// runs the sim's own collide + ground height (no clipping, no
+// out-of-bounds); bites are the fixed DOG_SPEC table value and
+// kills credit the owner through the normal kill-event feed.
+function spawnDogs(match, p, events) {
+  for (let i = 0; i < DOG_SPEC.count; i++) {
+    const a = (i / DOG_SPEC.count) * Math.PI * 2;
+    const x = p.pos.x + Math.cos(a) * 1.6, z = p.pos.z + Math.sin(a) * 1.6;
+    match.dogs.push({
+      id: 'd' + match.nextDogNum++, owner: p.id, team: p.team,
+      pos: { x, y: match.world.groundHeightAt(x, z, p.pos.y), z },
+      yaw: 0, hp: DOG_SPEC.hp, biteT: 0, phase: i * 2.1,
+      until: match.time + DOG_SPEC.duration,
+    });
+  }
+  events.push({ kind: 'dogs_launch', by: p.id });
+}
+
+function damageDogSim(match, dog, dmg, events, byId = null) {
+  if (!match.dogs.includes(dog)) return;
+  dog.hp -= dmg;
+  if (dog.hp > 0) return;
+  match.dogs = match.dogs.filter(x => x !== dog);
+  events.push({ kind: 'dog_down', id: dog.id, by: byId });
+}
+
+function stepDogs(match, dt, events) {
+  if (!match.dogs.length) return;
+  for (const dog of [...match.dogs]) {
+    if (match.time >= dog.until) {
+      match.dogs = match.dogs.filter(x => x !== dog);
+      events.push({ kind: 'dog_gone', id: dog.id });
+      continue;
+    }
+    dog.biteT -= dt;
+    // Target: nearest living enemy — bots of the other team,
+    // then players of the other team; else heel to the owner.
+    let tgt = null, bestD = Infinity, tgtIsPlayer = false;
+    for (const b of match.bots) {
+      if (b.dead || b.team === dog.team) continue;
+      const d = Math.hypot(b.pos.x - dog.pos.x, b.pos.z - dog.pos.z);
+      if (d < bestD) { bestD = d; tgt = b; tgtIsPlayer = false; }
+    }
+    for (const p of match.players.values()) {
+      if (!p.alive || p.team === dog.team) continue;
+      const d = Math.hypot(p.pos.x - dog.pos.x, p.pos.z - dog.pos.z);
+      if (d < bestD) { bestD = d; tgt = p; tgtIsPlayer = true; }
+    }
+    let tx, tz, arrive;
+    if (tgt) { tx = tgt.pos.x; tz = tgt.pos.z; arrive = DOG_SPEC.biteRange; }
+    else {
+      const owner = match.players.get(dog.owner);
+      if (!owner) continue;
+      tx = owner.pos.x + Math.cos(dog.phase) * 2.2; tz = owner.pos.z + Math.sin(dog.phase) * 2.2;
+      arrive = 0.4;
+    }
+    const dx = tx - dog.pos.x, dz = tz - dog.pos.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist > arrive) {
+      const step = Math.min(DOG_SPEC.speed * dt, dist - arrive * 0.6);
+      dog.pos.x += (dx / dist) * step; dog.pos.z += (dz / dist) * step;
+      dog.yaw = Math.atan2(-(dx / dist), -(dz / dist));
+    } else if (tgt) {
+      dog.yaw = Math.atan2(-(dx / (dist || 1)), -(dz / (dist || 1)));
+      if (dog.biteT <= 0) {
+        dog.biteT = DOG_SPEC.biteCooldown;
+        if (tgtIsPlayer) {
+          damagePlayerSim(match, tgt, DOG_SPEC.biteDamage, events, {});
+        } else if (damageBot(match, tgt, DOG_SPEC.biteDamage, false, events, dog.owner)) {
+          if (tgt.team === 'kestrel') match.kills++;
+          events.push({ kind: 'kill', by: dog.owner, target: tgt.id, via: 'dogs' });
+        }
+      }
+    }
+    for (const other of match.dogs) {
+      if (other === dog) continue;
+      const sx = dog.pos.x - other.pos.x, sz = dog.pos.z - other.pos.z, sd = Math.hypot(sx, sz);
+      if (sd > 0.001 && sd < 0.8) { dog.pos.x += (sx / sd) * (0.8 - sd) * 0.5; dog.pos.z += (sz / sd) * (0.8 - sd) * 0.5; }
+    }
+    collide(dog.pos, DOG_SPEC.radius, dog.pos.y, match.world);
+    dog.pos.y = match.world.groundHeightAt(dog.pos.x, dog.pos.z, dog.pos.y);
+  }
+}
+
 // Precision Strike (Havoc §4e): warning, then a blast that only
 // hurts the sky-exposed — a vertical raycast decides, per map.
 function stepStrikes(match, events) {
@@ -1591,6 +1682,7 @@ function callStreak(match, p, id, input, events) {
   if (p.streakGift === id) {
     if ((id === 'uav' || id === 'cuav') && match.uavs.some(u => u.owner === p.id && u.kind === id)) return;
     if (id === 'sentry' && match.sentries.some(s => s.owner === p.id)) return;
+    if (id === 'dogs' && match.dogs.some(d => d.owner === p.id)) return;
     p.streakGift = null;
     if (def.duration > 0) p.streak.active.push({ id, startedAt: match.time, endsAt: match.time + def.duration });
   } else if (!activateStreak(p.streak, id, match.time)) {
@@ -1602,6 +1694,8 @@ function callStreak(match, p, id, input, events) {
     dropPackage(match, p, events);
   } else if (id === 'sentry') {
     placeSentry(match, p, events);
+  } else if (id === 'dogs') { // U15: pack spawn, server-validated above
+    spawnDogs(match, p, events);
   } else if (id === 'precision' || id === 'lightning') { // U12: lightning schedules through the same server-authoritative strike path
     let tx = input && typeof input.streakX === 'number' && Number.isFinite(input.streakX) ? input.streakX : null;
     let tz = input && typeof input.streakZ === 'number' && Number.isFinite(input.streakZ) ? input.streakZ : null;
@@ -2297,6 +2391,7 @@ export function stepMatch(match, dt, events) {
   match.bots = match.bots.filter(b => stepBot(match, b, dt, events));
   stepEquipment(match, dt, events);
   stepSentries(match, dt, events);
+  stepDogs(match, dt, events);
   stepPackages(match, dt, events);
   stepStrikes(match, events);
   stepDrones(match, events);
@@ -2389,6 +2484,11 @@ export function buildSnapshot(match, forPlayerId) {
   if (match.packages.length) {
     snap.packages = match.packages.map(pk => [
       pk.id, r1(pk.x), r1(pk.y), r1(pk.z), pk.state === 'falling' ? 'f' : 'l',
+    ]);
+  }
+  if (match.dogs.length) {
+    snap.dogs = match.dogs.map(d => [
+      d.id, r1(d.pos.x), r1(d.pos.y), r1(d.pos.z), +d.yaw.toFixed(2), Math.max(0, Math.ceil(d.hp)),
     ]);
   }
   // Drone carriage (Addendum 2): the airframe is world state —
