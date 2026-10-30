@@ -680,3 +680,39 @@ bot lives + concurrent-bot ceiling, never a bare "100").
   open (unchanged, not regressions): Stage 2 signed
   sessions; dogs direct-gunfire hit volumes (deferred from
   V7 per spec); movement-feel locomotion slice.
+
+## V7.1 — Round 2 slice 1: DRIVABLE VEHICLES (Oct 30, ~02:35 PT)
+
+Brett's round-2 headline order. **v0.7.1, BUILD V7.1, live
+byte-verified** (index + all nine slice files sha256-exact
+vs the gated snapshot; Pages serves BUILD V7.1).
+
+- NEW js/vehicles.js (THREE-free spec + physics, streaks.js
+  pattern): RUNNER QUAD (220 hp, 17.5 m/s, armor share 0.25)
+  + PATROL TRUCK (420 hp, 13.5 m/s, armor 0.55, run-over 110).
+  Speed-sensitive steering that tightens at the top end,
+  brake-then-reverse, impact hull damage, disabled wrecks.
+- Pads (−4, 30) + (−12, 30) probed clear in ALL FOUR maps'
+  data (VH5 re-proves every smoke run — the first quad pick
+  (5, 30) sat inside a snow-drift collider; caught by test).
+- Actors in equipment.js createVehicleActor: ONE merged mesh
+  per vehicle, castShadow FALSE (budget stays 199/200),
+  terrain pitch/roll + accel squat. +2 draw calls in-match,
+  ~+1k tris; per-map sustained calls unchanged (134/147).
+- Integration (main.js): E / touch USE (T13) enter-exit;
+  driving steps INSTEAD of player.update (firing, streaks,
+  gear locked); the rider rig rides the vehicle so bots
+  engage it and damagePlayer splits fire by armor share;
+  run-over kills credit through bot.damage + onBotKilled;
+  #vehicle-hud speed/hull readout; spawn/clear ride
+  beginMatchSpawns/resetV5Match; death force-exits.
+- Tests: smoke VH1–VH6 (real physics: parked no-turn,
+  throttle clamp, reverse clamp, impact math, pad clearance
+  ×4 maps, wiring) + mobile T13. All five gates green on
+  tree AND snapshot; spec-audit clean. Push note: the
+  contents push returned one HTTP 409 at the very end;
+  post-push audit showed every file byte-exact on remote +
+  Pages — no partial state.
+- Solo only by design this slice: online vehicles are R2-5
+  (stretch) through the sim's existing patterns, or they
+  don't ship — never a parallel trust path.
