@@ -1,0 +1,40 @@
+TEST CRAFT evidence — Fri Oct 30, 2026 training session
+Retained per Coach grading deduction (numbers must live in-tree).
+
+== VM2 agg harness (synthetic, run from /tmp, assertions listed) ==
+Harness: read rig/vm2-balance/run.mjs, extract agg() verbatim, eval in
+isolation; assert run.mjs source contains byAssaultMap / channelMaxPeak /
+channelMaxMean / "B3. Assault by map" / "instrument-limited"; feed
+synthetic + historical rows.
+
+source shape: byAssaultMap + B3 + footnote present
+synthetic byMap: {"compound":{"n":2,"channelMaxPeak":0,"channelMaxMean":0},"forest":{"n":0,"channelMaxPeak":null,"channelMaxMean":null},"snow":{"n":0,"channelMaxPeak":null,"channelMaxMean":null},"mars":{"n":2,"channelMaxPeak":100,"channelMaxMean":80.1}}
+agg(mars): {"n":2,"wins":1,"losses":1,"caps":0,"winRate":0.5,"kills":4,"deaths":2,"avgSimSeconds":100,"channelMaxPeak":100,"channelMaxMean":80.1}
+agg(hist assault, pre-fix rows): {"n":32,"wins":5,"losses":27,"caps":0,"winRate":0.16,"kills":1161,"deaths":52,"avgSimSeconds":331,"channelMaxPeak":null,"channelMaxMean":null}
+VM2 AGG TEST PASSED
+
+== Live botmatches on HEAD 4c9f53d (current driver emits channelMax) ==
+mars assault seed 11:
+{"modeId":"assault","mapId":"mars","seed":11,"ticks":4724,"simSeconds":157.5,"wallMs":524,"peakBots":10,"botDeaths":20,"botsAliveEnd":10,"botLives":30,"waveClears":0,"modeEnd":{"result":"win","scoreYou":0,"scoreThem":0},"finalScore":{"scoreYou":0,"scoreThem":0,"channel":100,"channelMax":100},"players":[{"id":"profile","profile":"mobile","weapon":"ar","kills":12,"deaths":2}],"state":"over","endedByCap":false}
+compound assault seed 11:
+{"modeId":"assault","mapId":"compound","seed":11,"ticks":10800,"simSeconds":360,"wallMs":1197,"peakBots":8,"botDeaths":74,"botsAliveEnd":8,"botLives":82,"waveClears":0,"modeEnd":{"result":"lose","scoreYou":0,"scoreThem":0},"finalScore":{"scoreYou":0,"scoreThem":0,"channel":0,"channelMax":0},"players":[{"id":"profile","profile":"mobile","weapon":"ar","kills":53,"deaths":1}],"state":"over","endedByCap":false}
+
+== Smoke, post-drill (Lead) ==
+SMOKE EXIT:0 — 335 check lines (✓-glyph count)
+✓ N15 validateHello rejects control characters in name (\n/NUL/DEL); spaced names pass
+SMOKE PASSED
+
+== Negative test (Lead): net/protocol.js control-char branch disabled ==
+NEG SMOKE EXIT:1
+✗ N15 validateHello accepted a name containing a newline
+SMOKE FAILED (1)
+protocol.js then restored via git checkout; git status verified clean
+for that file (diff scope = the two drill files + training records).
+
+== Manual validator probe (Lead, pre-drill) ==
+normal {"ok":true,"errors":[]}
+spaced {"ok":true,"errors":[]}
+newline {"ok":false,"errors":["name must not contain control characters"]}
+nul {"ok":false,"errors":["name must not contain control characters"]}
+del {"ok":false,"errors":["name must not contain control characters"]}
+tab {"ok":false,"errors":["name must not contain control characters"]}
