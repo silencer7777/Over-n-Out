@@ -133,6 +133,13 @@ export function validateHello(msg) {
   }
   if (typeof msg.name !== 'string' || msg.name.length < 1 || msg.name.length > 24) {
     errors.push('name must be a string of 1-24 characters');
+  } else if (/[\u0000-\u001f\u007f]/.test(msg.name)) {
+    // Watch fix: chat text is control-stripped server-side before relay
+    // (net/server.js), but the display name was stored and relayed raw.
+    // Names render as text everywhere, so this is display-spoof hygiene,
+    // not XSS — reject control characters at the shape gate like any
+    // other malformed field.
+    errors.push('name must not contain control characters');
   }
   const roomOk =
     msg.room === null || (typeof msg.room === 'string' && msg.room.length === 4);
