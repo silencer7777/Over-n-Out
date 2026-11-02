@@ -98,7 +98,16 @@ function agg(rows) {
   const kills = rows.reduce((a, r) => a + (r.players?.[0]?.kills ?? 0), 0);
   const deaths = rows.reduce((a, r) => a + (r.players?.[0]?.deaths ?? 0), 0);
   const secs = rows.reduce((a, r) => a + (r.simSeconds ?? 0), 0);
-  return { n, wins, losses, caps, winRate: n ? +(wins / n).toFixed(2) : null, kills, deaths, avgSimSeconds: n ? +(secs / n).toFixed(0) : null };
+  // channelMax (training adoption, Oct 30, 2026 — ASSAULT-DIAGNOSTIC
+  // §9 item 1): the driver's per-match PEAK channel, landed Wed
+  // Oct 28. Rows recorded before that fix (or non-assault rows)
+  // carry no channelMax and are simply excluded; when no row in
+  // the group carries one, both fields stay null rather than
+  // reading as a measured 0.
+  const cms = rows.map(r => r.finalScore?.channelMax).filter(v => typeof v === 'number');
+  const channelMaxPeak = cms.length ? +Math.max(...cms).toFixed(1) : null;
+  const channelMaxMean = cms.length ? +(cms.reduce((a, v) => a + v, 0) / cms.length).toFixed(1) : null;
+  return { n, wins, losses, caps, winRate: n ? +(wins / n).toFixed(2) : null, kills, deaths, avgSimSeconds: n ? +(secs / n).toFixed(0) : null, channelMaxPeak, channelMaxMean };
 }
 const byProfile = {};
 for (const prof of PROFILES) {
@@ -107,6 +116,12 @@ for (const prof of PROFILES) {
 }
 const byMode = {};
 for (const mode of MODES) byMode[mode] = agg(matches.filter(m => m.modeId === mode));
+// Assault is reported PER MAP, never only pooled (ASSAULT-DIAGNOSTIC
+// §9 item 1; Lesson 21): the pooled rate mixes ground-ring maps with
+// elevated-ring maps the bot driver cannot climb to, so the pooled
+// number measures the instrument, not the mode.
+const byAssaultMap = {};
+for (const map of MAPS) byAssaultMap[map] = agg(matches.filter(m => m.modeId === 'assault' && m.mapId === map));
 
 const probeMd = probeRows.map(r => {
   const b = BASELINE[r.weapon] || {};
@@ -119,6 +134,8 @@ const profMd = Object.entries(byProfile).map(([k, a]) =>
   `| ${k} | ${a.n} | ${a.wins} | ${a.losses} | ${a.caps} | ${a.winRate} | ${a.kills} | ${a.deaths} | ${a.avgSimSeconds}s |`).join('\n');
 const modeMd = Object.entries(byMode).map(([k, a]) =>
   `| ${k} | ${a.n} | ${a.wins} | ${a.losses} | ${a.caps} | ${a.winRate} | ${a.avgSimSeconds}s |`).join('\n');
+const assaultMapMd = Object.entries(byAssaultMap).map(([k, a]) =>
+  `| ${k} | ${a.n} | ${a.wins} | ${a.losses} | ${a.caps} | ${a.winRate} | ${a.channelMaxPeak ?? '—'} | ${a.channelMaxMean ?? '—'} | ${a.avgSimSeconds}s |`).join('\n');
 
 const md = `# VM2 Balance — ${dateStr()}
 
@@ -144,6 +161,18 @@ ${profMd}
 |---|---|---|---|---|---|---|
 ${modeMd}
 
+> **Assault pooled rate is instrument-limited — do not headline it.**
+> It pools ground-ring maps with elevated-ring maps the bot driver
+> cannot climb to (ASSAULT-DIAGNOSTIC, Oct 28, 2026: compound
+> channelMax 0 in 8/8). Report assault per map from B3, with
+> channelMax, until diagnostic unblock U1 lands.
+
+## B3. Assault by map (per-map rows, channelMax = peak channel %)
+
+| Map | Matches | W | L | Capped | Win rate | channelMax peak | channelMax mean | Avg match |
+|---|---|---|---|---|---|---|---|---|
+${assaultMapMd}
+
 > Method honesty: each profile is run equally by construction, so there
 > is no organic "pick rate" to measure headlessly — the per-weapon
 > signals are TTK (A) and win rate / K-D (B). Elevated objectives
@@ -153,7 +182,7 @@ ${modeMd}
 `;
 const { mdPath } = writeReport(`vm2-balance-${short}`, md, {
   vm: 'vm2-balance', commit: sha, subject, baseline: BASELINE, probeRows, probeRawTail,
-  byProfile, byMode, matches, harnessFailed,
+  byProfile, byMode, byAssaultMap, matches, harnessFailed,
 });
 console.log(`report: ${mdPath}`);
 console.log(harnessFailed ? 'VM2 HARNESS FAILED' : 'VM2 DONE');
