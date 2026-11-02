@@ -381,6 +381,27 @@ if (MSG && typeof validateHello === 'function' && typeof validateInput === 'func
     else if (badKind.ok || badSdp.ok || badTo.ok) fail('N14 validateSignal accepted a bad kind / oversize sdp / empty target');
     else ok('N14 validateSignal: kind enum + per-kind payload caps, strict');
   } catch (e) { fail('N14 validateSignal threw: ' + e.message); }
+
+  // N15 (Watch fix, Oct 30 — pinned by training TEST CRAFT the same
+  // day): validateHello rejects control characters in the display
+  // name. Chat text was already control-stripped server-side before
+  // relay, but the name was stored and relayed raw — a name carrying
+  // \n / NUL / DEL could spoof chat/log display lines (rendering is
+  // textContent-only, so this is display-spoof hygiene, not XSS).
+  // The Watch verified this by hand at fix time (commit 4c9f53d);
+  // this check is its regression pin. Ordinary spaced names must
+  // still pass — space (0x20) is not a control character.
+  try {
+    const nl = validateHello({ t: 'hello', protocol: 1, name: 'A\nB', room: null });
+    const nul = validateHello({ t: 'hello', protocol: 1, name: 'A\0B', room: null });
+    const del = validateHello({ t: 'hello', protocol: 1, name: 'A\x7fB', room: null });
+    const spaced = validateHello({ t: 'hello', protocol: 1, name: 'A B', room: null });
+    if (nl.ok !== false) fail('N15 validateHello accepted a name containing a newline');
+    else if (nul.ok !== false) fail('N15 validateHello accepted a name containing NUL');
+    else if (del.ok !== false) fail('N15 validateHello accepted a name containing DEL');
+    else if (spaced.ok !== true) fail(`N15 validateHello rejected an ordinary spaced name → ${JSON.stringify(spaced)}`);
+    else ok('N15 validateHello rejects control characters in name (\\n/NUL/DEL); spaced names pass');
+  } catch (e) { fail('N15 validateHello control-character checks threw: ' + e.message); }
 }
 
 // 1f) Gun models (V3 Phase 2 workstream 1) — source contract.
