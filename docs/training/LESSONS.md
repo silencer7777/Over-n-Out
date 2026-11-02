@@ -7,7 +7,8 @@ with a source commit/report. No lesson without evidence.
 ## Prune rules (future Sundays are mechanical)
 
 - **Superseded by owner lock:** any pre-V6 lighting-tuning lesson is deleted,
-  replaced by Lesson 1.
+  replaced by Lesson 1. (The lock itself was lifted Oct 28, 2026 — Lesson 1
+  now carries the U7 baseline, corrected Nov 1, 2026.)
 - **Superseded by measurement:** any weapon-strength lesson based on pre-V6-3
   TTK is stale until Havoc accepts/rejects the new movement feel and VM2
   re-baselines.
@@ -22,13 +23,21 @@ with a source commit/report. No lesson without evidence.
 
 ## A. Owner law / scope
 
-1. **Lighting is locked, not a tuning knob.** Brett's verdict is "perfect";
-   prove it untouched by hash/exposure/shadow in every graphics landing
-   (sha `a40a3f79c85670a6`, exposure 1.10, shadow 4096). Vivid/weather work
-   happens on surfaces only. (Ledger; V6-3 Atlas report, `2029d96`)
-2. **Playtest feedback outranks the ledger table.** Ledger slots 6+ are
-   deliberately under-specified; re-sequence each cycle from Brett. Applies
-   to V6 Updates 3–20 planning. (`docs/sessions/v6-update-ledger.md`)
+1. **Lighting was locked — Brett lifted the lock Oct 28, 2026; U7 is the
+   new baseline.** The pre-U7 lock (sha `a40a3f79c85670a6`, exposure 1.10,
+   shadow 4096) is superseded, corrected here Nov 1, 2026. Current tree:
+   `js/lighting.js` sha `38cded1a06271631`, exposure per-profile (compound
+   1.10, forest 1.08, snow 1.08, mars 1.06), shadowExtent 86 on all
+   profiles, normalBias 0.35 (`js/main.js:69`), shadow map still 4096.
+   Lighting moves only on Brett's order, never as free tuning, and every
+   profile must still clear the never-too-dark floor (SHADOW_FLOOR 0.36,
+   judged by the smoke L-suite). The v6-metrics LIGHTING TOUCHED warning
+   fires against the stale V6 baseline — expected, not a regression.
+   (U7 spec `96d7723`; U7-04 `2808fd3`/`ad081ab`; Training, Nov 1, 2026)
+2. **Playtest feedback outranks the ledger table.** Ledger slots are
+   deliberately under-specified; re-sequence each cycle from Brett.
+   (The V6-spine scope bound expired when V7 superseded it Oct 30.)
+   (`docs/sessions/v6-update-ledger.md`)
 3. **One pen per working tree.** A second writer on the same surface stands
    down with zero writes and becomes independent verifier — it prevented
    `world.js` corruption in Update 1. Applies to all parallel builders.
@@ -44,18 +53,38 @@ with a source commit/report. No lesson without evidence.
    vetoes — unnamed cost reads as a leak. (Board 006 §3.4; VM4 finding)
 6. **Identical delta across all maps = shared-base source.** +7,566 tris ×4
    proved the HQ, not per-map dressing. Read the delta pattern before
-   hunting map code. (Rig first battery, `bde7c5d`)
+   hunting map code. Second proof Oct 31, 2026: facade panels +48 tris
+   identical on all 4 maps, Δ0 calls/casters (shared buildWorld).
+   (Rig first battery, `bde7c5d`; Training, Oct 31, 2026)
 7. **Caster tris are the shadow budget, not just caster counts.** Forest
-   shadow tris can exceed static tris; Forest is the tightest map
-   (127 calls / 213,868 tris post-V6-3). Applies to Updates 5/7/10.
-   (V6 metrics; ledger)
+   remains the tightest map. Snapshot corrected Nov 1, 2026 (v6-metrics,
+   HEAD `9e746f6`, Lead-measured): Forest sustained 148 calls / 285,774
+   tris, static 65 calls / 226,510 tris, 38 casters, shadow-pass est.
+   211 calls / 250,088 tris — headroom is 148 vs the 165-call veto and
+   285,774 vs 300k tris. Name the instrument (static vs sustained);
+   the post-V6-3 figures (127 / 213,868) are retired. (Training,
+   Nov 1, 2026)
+30. **A lit window must read from both faces.** HQ's exterior panes
+    glowed in the GW/GC buckets while their interior faces stayed
+    bare wallMat at the same x/y — the rooms read windowless from
+    inside. Interior panels ride the same merged glass buckets
+    (+0 calls, no casters — glass never casts), bucket-matched to
+    the exterior pane; dark (GD) panes get none, because dark glass
+    spills no light. State panel arithmetic exactly: a comment's
+    numbers are claims, and a 5 mm fudge in one failed a grade.
+    (Training, Oct 31, 2026; compound +48 tris, calls/casters Δ0)
 
 ## C. Measurement honesty
 
-8. **A balance probe measures the whole system, not one table.** TTK moved
-   (AR 0.53s→0.40s, SMG 2.43s→3.37s) with zero `js/weapons.js` change since
-   V5 — V6-3 bot-movement smoothing moved the targets. Check `git log` on
-   all contributors before re-tuning weapons. (VM2, `bde7c5d`; `4a71a54`)
+8. **A balance probe measures the whole system, not one table.** Historical
+   example only (V6-3): TTK moved (AR 0.53s→0.40s, SMG 2.43s→3.37s) with
+   zero `js/weapons.js` change since V5 — bot-movement smoothing moved
+   the targets. Those numbers are NOT a current baseline: no Brett/Havoc
+   ruling on V6-3 feel is in the record, and V7 Slice A (`2c37103`)
+   changed `js/weapons.js` itself. TTK re-baseline is OPEN, pending a
+   post-V7 VM2 re-run + Havoc ruling. Check `git log` on all contributors
+   before re-tuning weapons. (VM2, `bde7c5d`; corrected Training,
+   Nov 1, 2026)
 9. **Report bot numbers honestly, never as headline counts.** The swarm is
    "~26 concurrent bots, 1,752 bot lives at P=4 on 2 cores", not "100 bots".
    Applies to all rig/swarm reporting. (Rig first battery)
@@ -63,10 +92,11 @@ with a source commit/report. No lesson without evidence.
     VM4's ">2% cost, no audit-visible gain" rule flagged the owner-ordered
     HQ on all 4 maps while calls fell −1/map. Fix the instrument; don't
     paper over the verdict. (Rig first battery, VM4 section)
-11. **Fixed ports are a collision hazard.** `tools/smoke.mjs` boots on fixed
-    port 8199; overlapping battery/guardian/builder smokes collide. Rig
-    runners wait for port-free and retry once until smoke takes a random
-    port. (Rig report, Findings-4)
+11. **Fixed ports are a collision hazard — see Lesson 27.** Smoke still
+    boots on fixed port 8199 (`tools/smoke.mjs`, PORT = 8199); a random
+    port is still OPEN. The Oct 29 mitigations (per-process temps,
+    wait-for-port-free) live in Lesson 27, not here. (Merged Training,
+    Nov 1, 2026)
 21. **Never pool a win rate across unlike objectives.** ASSAULT's pooled
     0.16 mixed two ground-ring maps with two elevated-ring maps the
     bot driver cannot climb to — the pooled number measured the
@@ -96,6 +126,15 @@ with a source commit/report. No lesson without evidence.
     path (paired deltas 1.47 / 2.20 / 3.03 s, modified faster 3/3)
     stayed honest. Applies to any timing claim on a shared box.
     (Training, Oct 29, 2026)
+29. **An absent field is not a measured zero.** Adopting
+    `channelMax` in the VM2 reporter: rows recorded before the
+    field landed aggregate to null ("not measured"), never 0 —
+    compound's channelMax 0 is a measured structural finding, the
+    opposite of missing data. Corollary: a discredited pooled
+    headline gets footnoted in the report itself, where readers
+    see it, not only in the diagnostic that discredited it.
+    (Training, Oct 30, 2026; Oct 25 historical rows reproduce
+    pooled 0.16 with null channelMax)
 
 ## D. Build discipline
 
@@ -182,6 +221,15 @@ with a source commit/report. No lesson without evidence.
     sibling's server into its kill. Any harness optimisation
     must be re-proven under concurrency, not just solo.
     (Training, Oct 29, 2026; Coach re-grade + guardian 16:07 UTC)
+28. **A hand-verified fix is unguarded until a gate pins it.**
+    The Watch's hello control-character fix (`4c9f53d`) was
+    verified by hand at fix time; nothing stopped the next
+    protocol edit from silently reopening it. The closing step
+    of any validator/security fix is a same-day gate pin with a
+    negative test: smoke N15 rejects \n/NUL/DEL names (spaced
+    names still pass), and disabling the regex makes N15 the
+    sole failure. Applies to every Watch/guardian fix that lands
+    without a check. (Training, Oct 30, 2026)
 
 ## Retired / do not carry forward (corrected Oct 25, 2026, Reviewer audit)
 
@@ -192,6 +240,9 @@ on a CONSOLIDATE day.
 
 - "Lighting is off / needs a rework" (`GRAPHICS-TEAM.md` first assignment)
   — superseded by the locked grade in Lesson 1.
+- "Lighting is locked at sha a40a3f79…, exposure 1.10, shadow 4096"
+  (Lesson 1, pre-Nov 1 form) — Brett lifted the lock Oct 28, 2026 and
+  U7-04 landed new values; Lesson 1 corrected in place Nov 1, 2026.
 - "Multiplayer is design only, no networking built" (`ROADMAP.md` Stage 4,
   `MULTIPLAYER.md` header) — networking, modes, loadouts and progression
   shipped in V3–V5.
