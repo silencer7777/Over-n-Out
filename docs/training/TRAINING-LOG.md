@@ -688,3 +688,390 @@ deterministic audit, and the perf accountants' ledgers are read
 off `tools/v6-metrics.mjs` output in the V7 report scorecard.
 
 **Commits:** `f1d016e` (roster), this log + `tools/spec-audit.mjs`.
+
+---
+
+## Fri Oct 30, 2026 — TEST CRAFT
+
+**Staff:** Training Lead (ran the session), REVIEWER (recent
+record, read-only), COACH (drill design; grading pass on the
+actual files recorded below / as addendum).
+
+**Pre-checks:** Tree clean on `main` at `4c9f53d` (V7.5 +
+today's Watch fix) before the session — full session allowed.
+Guardian 08:07 PDT Watch rotation: all-pass, SMOKE PASSED
+(334 checks), live integrity byte-identical to HEAD, plus a
+MEDIUM fix landed by the Watch itself: `validateHello` now
+rejects control characters in the display name
+(`net/protocol.js`, commit `4c9f53d`), verified by hand only.
+Baseline smoke (Lead, pre-drill): **PASSED, exit 0**.
+Backend-defense findings from the same rotation (no connection
+caps, no general message rate limit, no violation logging,
+signal size-cap mismatch, no Origin check) are build-session
+work, NOT training scope — recorded here so they are not lost;
+none was touched today.
+
+**Targets (both promised/carried into today):**
+1. Wednesday's §9 item 1 (repeated as Thursday's next-session
+   line): adopt `channelMax` in the VM2 reporter — per-map
+   assault rows, pooled assault rate removed or footnoted.
+2. Coach's same-day addition, tree-verified by the Lead: the
+   Watch's hello control-character fix shipped with NO smoke
+   coverage — N3/N4/N9/N10 test valid/bad-protocol/rich/
+   malformed-mode hellos, none touches a control character.
+   An unpinned security fix is tomorrow's silent regression.
+
+**Drill A — smoke pin N15 (`tools/smoke.mjs` only):**
+- New check **N15** after N14 (no renumbering): `validateHello`
+  must reject names containing `\n`, NUL, and DEL, and must
+  still accept an ordinary spaced name (`'A B'` — space is not
+  a control character). Header comment cites the Watch fix and
+  states the threat honestly (display-spoof hygiene;
+  textContent-only rendering means not XSS).
+- Lead's pre-drill manual probe agreed: BRETT / 'A B' ok:true;
+  `\n` / `\0` / `\x7f` / `\t` names ok:false.
+
+**Drill B — VM2 reporter adoption (`rig/vm2-balance/run.mjs`
+only; driver, botmatch, sim untouched):**
+- `agg()` gains `channelMaxPeak` / `channelMaxMean` from
+  `finalScore.channelMax`. Groups whose rows carry no such
+  field (pre-Oct-28 reports, non-assault modes) return **null**,
+  never a fabricated 0 (Lesson 29).
+- New `byAssaultMap` aggregate + **B3 section** in the report:
+  per-map assault rows with win rate and channelMax peak/mean.
+  The B2 pooled assault row now carries a footnote in the
+  report itself: instrument-limited, do not headline, report
+  per map from B3 until unblock U1 lands (Lesson 21).
+- `byAssaultMap` added to the JSON report payload alongside
+  `byProfile` / `byMode`. §9 items 2–4 (ring-start cases,
+  0-attacker control pin, trace promotion) were NOT adopted —
+  they need the rig's maintained-case work, not a reporter
+  change; they stay open for a future TEST CRAFT / rig session.
+
+**Verification (all Lead-run, tree-evidenced):**
+- Syntax: `node --check` clean on both edited files.
+- Smoke post-drill: **exit 0, SMOKE PASSED, 335 ✓ lines** —
+  exactly +1 over the guardian's 334, the delta is N15 alone.
+- **Negative test:** the protocol regex was temporarily
+  disabled → smoke exit 1, `SMOKE FAILED (1)`, sole failure
+  `✗ N15 validateHello accepted a name containing a newline`;
+  `net/protocol.js` restored via `git checkout` and verified
+  clean (diff scope is exactly the two drill files).
+- VM2 agg harness (synthetic, run from /tmp, not committed):
+  mars rows peak 100 / mean 80.1; compound measured peak **0**
+  stays distinct from an empty group's **null**; the Oct 25
+  historical report's 32 assault rows (recorded before the
+  field existed) aggregate to null channelMax **and reproduce
+  the pooled win rate 0.16 exactly** — old reports stay
+  readable and honest under the new reporter.
+- Live end-to-end (current driver on HEAD, two botmatches):
+  mars assault seed 11 — win, `channelMax 100`; compound
+  assault seed 11 — lose, `channelMax 0` (the diagnostic's
+  structural zero, now visible in the field the reporter
+  consumes). A full 96-match VM2 run was not attempted
+  in-session; the reporter change is aggregation-only and its
+  inputs were proven at both ends.
+- Perf budgets untouched; no game code, no dependencies,
+  no network calls added.
+
+**Close-out verification (Lead, personally run):**
+`node tools/smoke.mjs` → **SMOKE PASSED, exit 0** on the
+end-state tree (recorded after the final edits below).
+
+**Grade:** **PASS** (Coach grading pass on the actual files —
+independently re-ran smoke solo: exit 0, 335 ✓ lines, N15
+immediately after N14 in stable order; direct `validateHello`
+import test reproduced all four N15 behaviours; negative-test
+logic verified by reconstruction in /tmp — disabling the
+protocol branch flips `'A\nB'` to ok:true and trips N15's sole
+fail path, and `net/protocol.js` is clean in git status; VM2
+diff verified confined to `run.mjs` with null-not-0 handling).
+Three deductions, all evidence-retention, none contradicting a
+claim: (1) the guardian's 334 count has no in-tree source —
+only the 335−1 arithmetic supports it; (2) the VM2 synthetic /
+live numbers were not retained in-tree at grading time —
+**since retained** at `scratch/training-testcraft-2026-10-30/
+results.txt` (agg harness output, both botmatch JSON lines,
+smoke + negative-test lines, validator probe); (3) the Lead's
+negative-test full-smoke run was not witnessed — reconstructed
+sound by the grader, and its output lines are in the same
+retained results file.
+
+**Commits:** one local commit, `training: test craft — smoke
+N15 pins hello control-char fix; VM2 reporter per-map assault
++ channelMax (diagnostic §9.1)`. Not pushed.
+
+**New lessons:** 28 (a hand-verified fix is unguarded until a
+gate pins it), 29 (an absent field is not a measured zero).
+Next session: Sat Oct 31 — REALISM, Verity-led review per
+Sunday's focus list (HQ interiors desk review; at most one
+small in-budget fix, gates green).
+
+---
+
+## Sat Oct 31, 2026 — REALISM
+
+**Staff:** Training Lead (ran the session), REVIEWER (recent record
++ HQ/Ops desk audit, read-only), COACH (drill design; grading pass
+on the actual files + a confirmation re-grade, both read-only).
+
+**Pre-checks:** Tree clean on `main` at `ccf501b` before the
+session — full session allowed. Guardian 08:07 PDT Watch rotation:
+all-pass, SMOKE PASSED (335 checks), live integrity byte-identical
+to HEAD, no Medic assignments. Known backend-defense opens
+unchanged (conn/room caps, general rate cap, audit logging, signal
+size mismatch, Origin check, Stage 2) — build-session scope, not
+training's, and untouched today. Baseline smoke (Lead, on HEAD via
+stash compare): **PASSED, exit 0, 335 ✓ lines**. Note: the day's
+two stand-down session commits since Friday's TEST CRAFT touched
+no game code, so the realism target carried in from Sunday's
+focus list stands as planned.
+
+**Target (Sunday focus list + Friday's next-session line):**
+Verity-led desk review of the HQ interiors (Ops 3-room + HQ
+6-room/stairwell) — headless, so code/data evidence only; Brett's
+playtest verdict remains the court on whether it LOOKS right.
+Screenshots are not feasible in this environment (standing fact
+since the V7 night), so no visual claim is made or implied.
+
+**Verity desk review — what the record shows (all file:line
+verified by Reviewer, re-verified by Lead/Coach):**
+- HQ solids (`js/world.js:647–733`, mirrored `worlddata.js:152–
+  197`, SOLIDS 178 pin intact): 22.5×9 m, two floors, P1/P2
+  partitions with 1.4 m gaps, stair run + railing, door gaps in
+  the exterior walls only. Interior content is crates and nothing
+  else — a room the code comments call a bunk room has no bunks,
+  the NE "ops room" has no desk or console. By contrast the Comms
+  Shed carries a PM wall panel + GC console screen
+  (`world.js:961–962`) and the Relay Tower a GC screen (`:975`).
+- The sharpest break: the HQ facade (`world.js:913–947`) places
+  11 exterior windows in the GW/GC/GD glass buckets — the lit
+  ones glow — but there is NO interior dressing anywhere in the
+  HQ block: from inside, the wall faces at those exact x/y are
+  plain wallMat. A room reads windowless from within while its
+  windows burn outside.
+- Ops Building (centre −32,44): its partitions (Stage 1,
+  `world.js:632–635`) have NO facade dressing at all — no
+  interior door frames on the partition gaps, unlike the HQ's
+  framed exterior doors. Recorded as a NEW finding / future
+  REALISM candidate; not today's fix (one unit per session).
+- Deferred with reasons: stair handrail (Coach candidate 2 —
+  sloped-rail geometry cannot be honestly verified headless);
+  PM panel + screens console wall in the NE ops room (Coach
+  candidate 1 — larger unit; the window panels below answer the
+  more basic break first and the panel pattern remains available
+  to a future session); partition door frames (candidate 3).
+
+**The one improvement that landed (`js/world.js` facade block
+only, +14 lines):** four interior window-light panels,
+`BoxGeometry(0.94, 0.84, 0.05)` — the shipped pane size — pushed
+into the EXISTING glass buckets at the interior faces of four
+lit HQ windows, bucket matched to the exterior pane:
+GW (−19, 1.70, 46.34) ground south / bunk room; GW (−11, 1.70,
+37.66) ground north / NE ops room; GC (−19, 4.825, 46.34) upper
+south / overwatch west; GW (−17, 4.825, 37.66) upper north /
+stairwell light. Placement arithmetic: south inner face z 46.35,
+panel spans 46.315–46.365 (15 mm embed, 35 mm proud); north
+mirrored at 37.66 vs face 37.65; upper centres 4.825 = slab top
+3.125 + the exterior panes' 1.70 centre height. One Lead
+refinement on the Reviewer's set, recorded openly: its fourth
+pane (−11 upper north) backs a GD DARK exterior pane, so it was
+swapped for −17 upper north (exterior GW) — no lit panel backs
+dark glass, and GD panes get none (Lesson 30). Visual only:
+merged into the existing GW/GC meshes, which never cast
+(`world.js` glass creation sets receiveShadow only) — no new
+mesh, material, collider, or worlddata entry.
+
+**Metrics before/after (§3.4 offset named, Lesson 5):**
+- v6-metrics on HEAD: compound sustained 134 calls / 93,052
+  tris, static 51 / 33,788, casters 30, shadow pass 189 calls /
+  77,598 tris. After: **134 calls (Δ0) / 93,100 tris (+48 =
+  4 panes × 12 tris, exactly)**, static 51 (Δ0) / 33,836 (+48),
+  casters 30 (Δ0), shadow Δ0. Forest/snow/mars each +48 tris,
+  +0 calls, casters Δ0 (the facade block rides the shared
+  buildWorld). Offset: merging into the existing glass buckets
+  avoided +4 meshes / +4 draw calls; headroom after — compound
+  sustained 134 vs the 165 veto, 93,100 tris vs 300k, zero new
+  shadow casters against the binding budget. `v6-metrics.json`
+  writer side-effect restored on every run. The harness's
+  pre-existing warnings (lighting hash vs the stale V6 baseline,
+  sun-disc flat strike, soldier bar, version note) are unchanged
+  and were not touched — the lighting-hash item is already
+  queued for Sunday's CONSOLIDATE lesson correction.
+- Smoke stdout before vs after: **byte-identical** (335 ✓,
+  PASSED both) — verified by stash-compare and again on the
+  final tree.
+
+**Grading history (honest):** Coach's first grading pass ruled
+**NEEDS WORK** on one blocking defect — C2–C8 all PASS with
+metrics independently reproduced to the tri, geometry re-derived
+flush with no crate/partition/door/stair conflicts, smoke
+re-run solo green — but the landed code comment claimed the
+upper panels sit at "slab 3.125 + 1.7" (= 4.825) while the code
+used 4.83 (+1.705): a false arithmetic claim in the permanent
+record (Lesson 19's exactitude rule). Correction: the code was
+changed to the stated value (both upper panels y 4.83 → 4.825;
+nothing else moved), smoke + metrics re-verified unchanged, and
+Coach's confirmation re-grade on the committed-content tree
+returned **FULL PASS — all eight criteria, no deductions
+outstanding**, its own run reproducing 93,100 tris (+48).
+
+**Close-out verification (Lead, personally run):**
+`node tools/smoke.mjs` → **SMOKE PASSED, exit 0** on the
+end-state tree (335 ✓ lines, stdout byte-identical to the HEAD
+baseline).
+
+**Grade:** **PASS** (Coach grading pass + confirmation re-grade
+after the one-line arithmetic correction recorded above).
+
+**Commits:** one local commit, `training: realism — HQ interior
+window-light panels for lit windows (Verity review)`. Not pushed.
+
+**New lessons:** 30 (a lit window must read from both faces —
+interior panels in the same glass buckets, bucket-matched, dark
+panes get none; state panel arithmetic exactly). Next session:
+Sun Nov 1 — CONSOLIDATE (no code changes): re-baseline per
+Sunday's plan, correct Lessons 1/7 stale statements, prune per
+the playbook rules, and carry forward the Ops-interior dressing
+finding + NE ops console-wall candidate.
+
+**Post-close-out addendum (same day, after the commit above):**
+Two items from the staff's full written reports arrived after
+close-out and are recorded here so they are not lost:
+
+1. **REVIEWER headline finding — the facade block is stale by
+   one expansion (Lead-verified after close-out, Lesson 17).**
+   U6-12 (`5e4438b`) grew Ops 10×8 → 12×10 and HQ west −22 →
+   −24.5, but that commit touched ZERO facade coordinates
+   (`git show 5e4438b -- js/world.js`, window/trim markers: 0
+   hits), so parts of the facade still describe the pre-growth
+   buildings: Ops north windows at z 39.97 vs the north wall's
+   faces at 39.0/39.3 (~0.7 m inside the room, floating), with
+   the same drift on Ops' south/west faces, corner boards, door
+   frames and parapets; HQ west windows at x −22.19 vs the west
+   wall at −24.5 (2.46 m inside the widened bunk/overwatch
+   rooms), plus the west parapet, floor-line band and corner
+   boards at −22-era x. HQ north/south/east facade DOES align
+   (those walls did not move), which is why the drift hides.
+   Today's landed panels are unaffected — all four sit on the
+   aligned north/south faces, inside solid wall spans (Coach C2
+   verified). Why it survived: facade geometry is visual-only,
+   unmirrored, and NO gate pins a single window/trim coordinate
+   — a candidate TEST CRAFT item (pin facade anchors the way T1
+   pins SOLIDS). Priced follow-up (Reviewer): re-anchor the
+   drifted sets by coordinate-only edits inside the existing
+   merged meshes (+0 calls, +0 tris, no casters) — HQ west face
+   is one training-sized slice (windows → x −24.69, parapet →
+   −24.65, band → −24.66, corner boards → −24.5); Ops' four
+   faces are a regular build session's job. This is the top
+   candidate for the next REALISM session; it was NOT landed
+   today (one unit per session, and the session had closed).
+2. **Grading Coach's minor deduction, corrected:** the landed
+   comment said the panels sit "at the same x/y as the exterior
+   panes" — exact for the ground pair, imprecise for the upper
+   pair (same x; centres 4.825 by design vs the panes' 4.6).
+   The comment now states both numbers. A follow-up
+   `training:` commit carries this comment correction plus this
+   addendum (comment/docs only — no geometry changed; smoke
+   re-run green before that commit, stdout unchanged).
+
+---
+
+## Sun Nov 1, 2026 — CONSOLIDATE
+
+**Staff:** Training Lead (ran the session), REVIEWER (recent record,
+read-only), COACH (consolidation plan + grading criteria; grading pass
+on the actual files recorded below / as addendum).
+
+**Pre-checks:** Tree clean on `main` at `9e746f6` before the session —
+full session allowed; Sunday rule applies regardless: no code changes.
+Guardian Nov 1 08:07 PT Watch rotation: all-pass, SMOKE PASSED
+(335 checks), mobile-check T1–T13 pass, live integrity explained
+(live world.js is origin/main V7.5; local diff is exactly the unpushed
+Oct 31 training panels, awaiting a gated push). Since Saturday's
+REALISM session only 3 commits landed, all docs-only stand-down
+verifications — no code, no push.
+
+**Drill run:** Consolidation only — `LESSONS.md` corrected under its
+own prune rules (contradicted lessons corrected in place with date +
+new evidence, never silently deleted):
+- **Lesson 1 — CORRECTED (flagged 3 sessions running, since Oct 28).**
+  "Lighting is locked" is false: Brett lifted the lock Oct 28 (U7 spec
+  `96d7723`), and U7-04 landed (`2808fd3`/`ad081ab`). New baseline,
+  tree-verified today: `js/lighting.js` sha `38cded1a06271631`,
+  exposure per-profile (compound 1.10 / forest 1.08 / snow 1.08 /
+  mars 1.06), shadowExtent 86 all profiles, normalBias 0.35
+  (`js/main.js:69`), shadow map still 4096. Durable rule restated:
+  lighting moves only on Brett's order, and every profile must clear
+  SHADOW_FLOOR 0.36. The v6-metrics LIGHTING TOUCHED warning fires
+  against the stale V6 baseline — expected, not a regression. The
+  pre-U7 lock statement also added to the Retired section.
+- **Lesson 7 — CORRECTED.** Durable pattern kept (caster tris are the
+  shadow budget; Forest tightest); post-V6-3 snapshot (127 calls /
+  213,868 tris) retired. Replacement figures are dated and
+  instrument-named from the re-baseline below.
+- **Lesson 8 — DEMOTED to historical, NOT re-baselined.** The Oct 25
+  condition ("if Brett/Havoc have ruled") is unmet: no ruling on V6-3
+  feel in the record, and the premise expired — V7 Slice A (`2c37103`)
+  changed `js/weapons.js`. TTK re-baseline is OPEN, pending a post-V7
+  VM2 re-run + Havoc ruling.
+- **Lesson 11 — MERGED into Lesson 27** (duplicate under the prune
+  rules). One-line pointer remains, stating plainly: smoke still uses
+  fixed port 8199, a random port is still open, and Oct 29 mitigated —
+  did not fix/randomise — the port.
+- **Lesson 2 — SCOPE CORRECTED.** Pattern kept; the expired
+  "V6 Updates 3–20" bound removed (V7 superseded the spine Oct 30).
+- **Lesson 6 — KEPT + reinforced** with a second proof: Oct 31 facade
+  panels +48 tris identical on all 4 maps, Δ0 calls/casters.
+- All other lessons (4, 5, 9, 10, 12–30): no prune today. Warning
+  noted for Sun Nov 8: Oct 25-cited snapshots hit the 2-week expiry.
+
+**Re-baseline (Lead-measured today, `tools/v6-metrics.mjs` on HEAD
+`9e746f6`; the harness's `v6-metrics.json` writer side-effect was
+restored, as in prior sessions):**
+- Smoke: 335 checks, PASSED (guardian + Lead close-out, below).
+- Compound: sustained 134 calls / 93,100 tris; static 51 / 33,836.
+- Forest: sustained 148 calls / 285,774 tris; static 65 / 226,510;
+  38 casters; shadow-pass est. 211 calls / 250,088 tris.
+- Snow: sustained 147 calls / 131,408 tris; static 64 / 72,144.
+- Mars: sustained 149 calls / 115,930 tris; static 66 / 56,666.
+- Lighting integrity line: sha `38cded1a06271631` vs stale baseline
+  `a40a3f79c85670a6` — CHANGED, as expected post-U7 (see Lesson 1).
+
+**Open items carried forward (unchanged, no new regressions):**
+backend hardening list (conn/room caps, routing-layer rate caps,
+Origin check, re-hello overwrite, audit log, signal size mismatch,
+in-process WSS, Stage 2 signed sessions) — build-session scope, NOT
+training; U6-12 facade drift (top REALISM candidate, priced below);
+Ops interior dressing / NE ops console wall; ASSAULT U1–U3; VM2
+reporter §9 items 2–4; playtest verdicts owed on V7/V7.5 (driving
+feel first, then ADS tightness, gunsmith readability, recoil feel,
+online dogs) — no verdicts in the record yet.
+
+**Close-out verification (Lead, personally run):**
+`node tools/smoke.mjs` → **SMOKE PASSED, exit 0** (335 ✓ lines) on
+the end-state tree. Diff scope: `docs/training/` only.
+
+**Grade:** **PASS** (Coach grading pass on the actual files — all
+six criteria met, no blocking defects, no deductions; Coach
+independently re-ran smoke solo: exit 0, SMOKE PASSED, 335 ✓
+lines, tree clean of side-effects).
+
+**Commits:** one local commit, `training: consolidate — correct
+Lessons 1/7/8/11/2/6, Nov 1 re-baseline + next-week focus`.
+Not pushed.
+
+### Next week's focus (Mon Nov 2 – Sun Nov 8, 2026)
+
+| Day | Drill | Concrete target |
+|---|---|---|
+| Mon Nov 2 — CODE QUALITY | `js/world.js` facade block: extract facade coordinates into a named anchor table/constants, zero geometry moved; proof = metrics identical (Lesson 16 pattern), smoke green. Prep for Wed + Fri. |
+| Tue Nov 3 — BUILD TECHNIQUE | Weather-fx merge-prep, scratch only (do NOT merge in training): fix the half-open wrap (Lesson 20), pin cross-rebuild tint determinism, remove the 2 redundant wrap `if`s; re-run the 66-check probe. Merge itself is a regular build change (Vega: `main.js` hook; Atlas: `WEATHER_FX` home). |
+| Wed Nov 4 — FIX PRACTICE | U6-12 facade drift, HQ west face slice only: windows → x −24.69, parapet → −24.65, band → −24.66, corner boards → −24.5. Coordinate-only in existing merged meshes, +0 calls / +0 tris / no casters, green-or-revert. Ops' four drifted faces are explicitly NOT this slice (build session). |
+| Thu Nov 5 — EFFICIENCY | Re-baseline Forest shadow budget on the V7.5 tree (follow-through on today's Lesson 7 correction): static vs sustained + caster tris; optimise one caster bottleneck only if a merged/instanced win is measured, otherwise measurement-only is a pass (Lesson 24 if timing is claimed). |
+| Fri Nov 6 — TEST CRAFT | Facade anchor gate pin: pin facade anchors the way T1 pins SOLIDS, with a negative test (shift one anchor → sole failure). Pin Wed's west face if it landed, else the aligned N/S/E anchors and log the gap. Queued behind it: VM2 §9 items 2–4 (ring-start cases, 0-attacker Mars control pin, trace promotion). |
+| Sat Nov 7 — REALISM | Verity review: Ops interior dressing / NE ops console wall (PM panel + GC console pattern from Comms Shed / Relay Tower) + Ops partition door frames. At most one small unit, +0 calls via existing buckets; dress only interior/aligned surfaces — nothing on Ops' drifted exterior facade until the build session re-anchors it. Brett's playtest verdict is the court. |
+| Sun Nov 8 — CONSOLIDATE | No code. Prune at the 2-week expiry line; review ASSAULT U1–U3 status without tuning; update Lesson 8 only if a Havoc ruling exists in the record by then. |
+
+Explicitly NOT assigned to training next week: backend hardening
+(build-session / Lockdown scope) — drills must not drift into it.
