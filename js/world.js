@@ -944,6 +944,21 @@ export function buildWorld(scene) {
     win(-19, 4.6, 46.69, 'S', GC); win(-5.5, 4.6, 46.69, 'S', GW);
     win(-17, 4.6, 37.31, 'N', GW); win(-11, 4.6, 37.31, 'N', GD);
     win(-22.19, 4.6, 40, 'W', GW);
+    // Training REALISM (Oct 31, Verity desk review): interior faces
+    // of four LIT HQ windows — the exterior panes glow (GW/GC) but
+    // their inside faces were bare wallMat, so a room read windowless
+    // from within while its windows burned outside. Four glass-bucket
+    // panels sit on the interior wall faces at the exterior panes'
+    // x and ground y 1.7; upper centres are 4.825 (upper floor
+    // 3.125 + 1.7, vs the exterior panes' 4.6). Bucket matched to
+    // the exterior pane (the GD dark panes get none — dark glass
+    // spills no light). VISUAL ONLY, merged into the existing glass
+    // meshes: +0 draw calls, +48 tris, no shadow casters (glass
+    // meshes never cast), no collider/worlddata change.
+    GW.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.05), color: 0xffffff, x: -19, y: 1.7, z: 46.34 });
+    GW.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.05), color: 0xffffff, x: -11, y: 1.7, z: 37.66 });
+    GC.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.05), color: 0xffffff, x: -19, y: 4.825, z: 46.34 });
+    GW.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.05), color: 0xffffff, x: -17, y: 4.825, z: 37.66 });
     // ---- Comms Shed (centre 24, 56; walls y 0..2.4, roof top 2.6) ----
     // Roof fascia on all four edges.
     t_(new THREE.BoxGeometry(6.5, 0.18, 0.16), trimB, 24, 2.52, 53.22);
