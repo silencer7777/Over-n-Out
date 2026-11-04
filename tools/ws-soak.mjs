@@ -329,12 +329,17 @@ async function waitFor(fn, timeoutMs, label) {
     else fail(`C1 malformed JSON -> close ${code}`);
   }
 
-  // C2: oversized message -> 1009.
+  // C2: oversized message -> 1009. The frame cap is
+  // LIMITS.SIGNAL_MAX_BYTES (16384) since the Lockdown
+  // reconciliation (2026-11-04, spec item 5: one number, both
+  // layers — the decoder admits the largest legal message, a
+  // signal; GameServer enforces the smaller per-type caps).
+  // The payload below is sized past THAT number.
   {
     const c = await WsClient.connect(url);
     const p = closedWith(c);
     c.send(JSON.stringify({ t: 'hello', protocol: 1, name: 'BIG', room: 'AB01' }));
-    c.send('x'.repeat(5000));
+    c.send('x'.repeat(17000));
     const code = await p;
     if (code === CLOSE_CODE.TOO_BIG) ok('C2 oversized message closes with 1009');
     else fail(`C2 oversized -> close ${code}`);
@@ -402,6 +407,59 @@ async function waitFor(fn, timeoutMs, label) {
     if (errCode === 'bad_loadout' && !game.getRoom('AB04')?.players.has('w-cheat')) ok('C8 invalid loadout refused with bad_loadout');
     else fail(`C8 bad loadout -> error ${errCode}`);
     c.close();
+  }
+
+  // C9 (Lockdown item 6): Origin check on upgrade. A raw
+  // handshake helper — WsClient deliberately sends no Origin,
+  // so these probes write the upgrade request by hand.
+  {
+    const { connect: netConnect } = await import('node:net');
+    const rawHandshake = (port, origin) => new Promise((resolve) => {
+      const s = netConnect(port, '127.0.0.1', () => {
+        s.write(
+          'GET /play HTTP/1.1\r\n' +
+          `Host: 127.0.0.1:${port}\r\n` +
+          'Upgrade: websocket\r\nConnection: Upgrade\r\n' +
+          'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n' +
+          'Sec-WebSocket-Version: 13\r\n' +
+          (origin ? `Origin: ${origin}\r\n` : '') + '\r\n',
+        );
+      });
+      let buf = '';
+      s.on('data', (d) => {
+        buf += d.toString('latin1');
+        if (buf.includes('\r\n')) { s.destroy(); resolve(buf.split('\r\n')[0]); }
+      });
+      s.on('error', () => resolve('error'));
+      setTimeout(() => { s.destroy(); resolve('timeout'); }, 3000).unref?.();
+    });
+    const oSrv = createOnlineServer({ port: 0, host: '127.0.0.1', allowedOrigins: ['https://allowed.example'] });
+    await oSrv.listen();
+    const oPort = oSrv.httpServer.address().port;
+    const evil = await rawHandshake(oPort, 'https://evil.example');
+    const good = await rawHandshake(oPort, 'https://allowed.example');
+    const none = await rawHandshake(oPort, null);
+    await oSrv.close();
+    if (!evil.includes('403')) fail(`C9 cross-origin upgrade not refused → ${evil}`);
+    else if (!good.includes('101')) fail(`C9 allowlisted origin not accepted → ${good}`);
+    else if (!none.includes('101')) fail(`C9 no-Origin client not accepted → ${none}`);
+    else ok('C9 Origin check: cross-origin refused 403; allowlisted + no-Origin accepted 101');
+  }
+
+  // C10 (Lockdown item 1): per-IP connection cap — the third
+  // concurrent socket from one address is refused at handshake.
+  {
+    const capSrv = createOnlineServer({ port: 0, host: '127.0.0.1', maxPerIp: 2 });
+    await capSrv.listen();
+    const capUrl = `ws://127.0.0.1:${capSrv.httpServer.address().port}/play`;
+    const k1 = await WsClient.connect(capUrl);
+    const k2 = await WsClient.connect(capUrl);
+    let thirdRefused = false;
+    try { const k3 = await WsClient.connect(capUrl); k3.close(); } catch { thirdRefused = true; }
+    k1.close(); k2.close();
+    await capSrv.close();
+    if (thirdRefused) ok('C10 per-IP cap: 3rd concurrent socket from one IP refused at handshake');
+    else fail('C10 per-IP cap not enforced (3rd socket connected)');
   }
 
   transport.close();
