@@ -140,7 +140,7 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   const touch = readFileSync(new URL('../js/touchcontrols.js', import.meta.url), 'utf8');
-  eq(html.includes('id="build-stamp"') && html.includes('BUILD V7.14'), true, 'T7 menu build stamp present (cache witness)'); // named re-pin: witness V7.13 -> V7.14 (playtest fix: far environment clouds)
+  eq(html.includes('id="build-stamp"') && html.includes('BUILD V7.15'), true, 'T7 menu build stamp present (cache witness)'); // named re-pin: witness V7.14 -> V7.15 (playtest fix: look smoothness)
   eq(html.includes('name="ono-build" content="V7"'), true, 'T7 ono-build meta present'); // V7 named re-pin: witness 15 -> V7
   eq(main.includes('__onoBuild'), true, 'T7 build number exposed for support reads');
   eq(main.includes("matchMedia('(orientation: portrait)')") && main.includes("'pageshow'"), true, 'T7 redundant iOS fit triggers present');
@@ -462,18 +462,79 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
 // the bar wraps, buttons carry 44px targets, panels hide by
 // default and only the .active one renders.)
 {
+  const chk = (c, m) => { if (c) ok(m); else fail(m); };
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
-  ok((html.match(/id="menu-tabs"/g) || []).length === 1, 'T15a exactly one #menu-tabs bar');
+  chk((html.match(/id="menu-tabs"/g) || []).length === 1, 'T15a exactly one #menu-tabs bar');
   for (const t of ['play', 'loadout', 'record', 'shop', 'settings'])
-    ok(html.includes(`data-tab="${t}"`), `T15b tab present: ${t}`);
-  ok(main.includes('buildMenuTabs') && main.includes('selectMenuTab') && main.includes("'ono-menu-tab'"),
+    chk(html.includes(`data-tab="${t}"`), `T15b tab present: ${t}`);
+  chk(main.includes('buildMenuTabs') && main.includes('selectMenuTab') && main.includes("'ono-menu-tab'"),
     'T15c tab machinery + persistence key wired in main.js');
-  ok(css.includes('#menu-tabs') && css.includes('flex-wrap:wrap') && css.includes('.mtab-panel') && css.includes('min-height:44px'),
+  chk(css.includes('#menu-tabs') && css.includes('flex-wrap:wrap') && css.includes('.mtab-panel') && css.includes('min-height:44px'),
     'T15d tab CSS: wrapping bar, hidden panels, 44px targets');
   for (const id of ['meta-panel', 'loadout', 'online-panel', 'chat-panel', 'play-btn', 'daily-btn', 'emblem-pickers', 'package-pickers', 'offer-pickers', 'settings'])
-    ok(html.includes(`id="${id}"`), `T15e section survived the regroup: #${id}`);
+    chk(html.includes(`id="${id}"`), `T15e section survived the regroup: #${id}`);
+}
+
+// --- T16 · LOOK CONSISTENCY (V7.15): the shipped lookfeel
+// integrator must produce the SAME camera path at 20/30/60/120
+// Hz and under jittered frame times — same drag, same turn,
+// everywhere. Simulates a constant-velocity pan (target
+// advancing 2.0 rad/s for 0.75 s = a 1.5 rad drag) plus a
+// 0.6 s settle, stepping the REAL stepLookAngles at each
+// rate, and compares trajectories.
+{
+  const chk = (c, m) => { if (c) ok(m); else fail(m); };
+  const { stepLookAngles, lookRateFor, LOOK_RATE } = await import('../js/lookfeel.js');
+  const OM = 2.0, PAN = 0.75, SETTLE = 0.6, TOTAL = PAN + SETTLE;
+  function run(dtAt) {
+    let yaw = 0, target = 0, t = 0, i = 0, midYaw = null, panEndYaw = null, panEndLag = null;
+    while (t < TOTAL - 1e-9) {
+      const dt = Math.min(dtAt(i), TOTAL - t);
+      // Advance the target only up to the pan boundary — a
+      // step that straddles it must not overshoot the drag
+      // (that was a harness artifact: up to one step of extra
+      // target at low rates, masquerading as integrator error).
+      if (t < PAN) target += OM * Math.min(dt, PAN - t);
+      [yaw] = stepLookAngles(yaw, 0, target, 0, dt, false);
+      t += dt; i++;
+      if (midYaw === null && t >= 0.3) midYaw = yaw;
+      if (panEndYaw === null && t >= PAN - 1e-9) { panEndYaw = yaw; panEndLag = target - yaw; }
+    }
+    return { midYaw, panEndYaw, panEndLag, finalYaw: yaw, target };
+  }
+  const rates = { '120Hz': run(() => 1 / 120), '60Hz': run(() => 1 / 60), '30Hz': run(() => 1 / 30), '20Hz': run(() => 1 / 20), 'jitter~60': run(i => (i % 2 ? 1 / 40 : 1 / 80)) };
+  // What "consistent" can honestly mean mid-pan: input itself
+  // is frame-sampled (a hand movement arrives as one lump per
+  // frame — 0.017 rad at 120 Hz, 0.1 rad at 20 Hz), so the
+  // chasing camera's mid-pan position carries an
+  // input-quantization term no smoothing law can remove. The
+  // integrator's own contribution is what T16d pins (settled
+  // totals are EXACT at every rate); here the core rates
+  // (60/120/jitter) must agree tightly, and the low rates must
+  // stay inside the quantization bound (~one frame of pan).
+  const core = [rates['120Hz'], rates['60Hz'], rates['jitter~60']];
+  const coreSpread = key => Math.max(...core.map(r => r[key])) - Math.min(...core.map(r => r[key]));
+  chk(coreSpread('midYaw') < 0.015, `T16a core-rate mid-pan yaw agrees (spread ${(coreSpread('midYaw') * 1000).toFixed(1)} mrad)`);
+  chk(coreSpread('panEndYaw') < 0.015, `T16b core-rate pan-end yaw agrees (spread ${(coreSpread('panEndYaw') * 1000).toFixed(1)} mrad)`);
+  chk(Math.abs(rates['30Hz'].midYaw - rates['120Hz'].midYaw) < 0.035 && Math.abs(rates['20Hz'].midYaw - rates['120Hz'].midYaw) < 0.04,
+    'T16a2 30/20 Hz mid-pan inside the input-quantization bound');
+  chk(Math.abs(rates['60Hz'].panEndLag - rates['120Hz'].panEndLag) < rates['120Hz'].panEndLag * 0.2,
+    `T16c pan lag 60 vs 120 Hz within 20% (${(rates['60Hz'].panEndLag * 1000).toFixed(0)} vs ${(rates['120Hz'].panEndLag * 1000).toFixed(0)} mrad)`);
+  chk(rates['30Hz'].panEndLag > rates['120Hz'].panEndLag * 0.3 && rates['20Hz'].panEndLag > rates['120Hz'].panEndLag * 0.3,
+    'T16c2 low-rate pan lag stays in the same regime (no stall, no snap)');
+  for (const [name, r] of Object.entries(rates))
+    chk(Math.abs(r.finalYaw - 1.5) < 0.003, `T16d ${name}: same drag = same total turn (settled ${(r.finalYaw).toFixed(4)} of 1.5 rad)`);
+  // ADS damps harder (rate x1.5): from the same error, aiming
+  // settles measurably closer in 100 ms — precision behavior
+  // the rework had to keep coherent.
+  const [hipY] = stepLookAngles(0, 0, 0.5, 0, 0.05, false);
+  const [adsY] = stepLookAngles(0, 0, 0.5, 0, 0.05, true);
+  chk(adsY > hipY + 0.02, `T16e ADS approach faster than hip (${hipY.toFixed(3)} vs ${adsY.toFixed(3)} rad in 50 ms)`);
+  // The adaptive term is capped at +50% (the anti-surge law):
+  chk(lookRateFor(10, false) <= LOOK_RATE * 1.5 + 1e-9, 'T16f adaptive rate capped at +50%');
+  chk(Math.abs(lookRateFor(0, false) - LOOK_RATE) < 1e-9, 'T16g zero-error rate is the shipped base 30');
 }
 
 if (failures) { console.error(`\nmobile-check: ${failures} failure(s)`); process.exit(1); }
