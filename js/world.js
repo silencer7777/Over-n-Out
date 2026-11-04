@@ -849,6 +849,40 @@ export function buildWorld(scene) {
     const GD = [];  // dark glass
     const PM = [];  // flat metal panels (junction / electrical boxes)
     const trimA = 0xd8dde2, trimB = 0xc3c9d0, trimC = 0xaeb5bd;
+    // Facade anchor table (Training CODE QUALITY, Nov 2, 2026) — the
+    // single named source for every window plane + centre in this
+    // block. Values are EXACTLY the literals they replace: zero
+    // geometry moved (proof: v6-metrics identical, smoke green).
+    // Wed Nov 4 re-anchors the HQ west face from THIS table only
+    // (U6-12 drift: hqWestWinX / hqWestUpperWinX are -22.19 while
+    // the west wall stands at x -24.5); Fri Nov 6 pins these
+    // anchors in smoke. Ops anchors likewise describe pre-growth
+    // faces (e.g. opsNorthZ 39.97 vs the wall at z 39) — their
+    // re-anchor is a build session's job, NOT a training slice.
+    // Trim (t_) coordinates stay literal here — they are one-off
+    // placements, not shared planes.
+    const FACADE_ANCHORS = Object.freeze({
+      // Shared window centre heights.
+      winY: 1.7,        // Ops + HQ ground windows
+      hqUpperY: 4.6,    // HQ upper windows (exterior panes)
+      hqPanelY: 4.825,  // HQ interior panels, upper (3.125 + 1.7)
+      commsY: 1.5,      // Comms Shed windows
+      // Ops Building (centre -32, 44).
+      opsNorthZ: 39.97, opsWestX: -37.04, opsSouthZ: 48.04,
+      opsNorthX: Object.freeze([-35, -32, -29]),
+      opsWestZ: Object.freeze([42, 46]),
+      opsSouthX: Object.freeze([-34.5, -28.4]),
+      // HQ (solids centre -13.25, 42 — the block header's "-12"
+      // is stale, Reviewer-verified Nov 2 from worlddata.js).
+      hqSouthZ: 46.69, hqNorthZ: 37.31,
+      hqSouthX: Object.freeze([-19, -5.5]),
+      hqNorthX: Object.freeze([-17, -11]),
+      hqWestWinX: -22.19, hqEastWinX: -1.81, hqWestUpperWinX: -22.19,
+      hqWestZ: 42, hqWestUpperZ: 40, hqEastZ: 42,
+      hqPanelSouthZ: 46.34, hqPanelNorthZ: 37.66,
+      // Comms Shed (centre 24, 56).
+      commsNorthZ: 53.47, commsNorthX: Object.freeze([22.6, 25.4]),
+    });
     const t_ = (geo, color, x, y, z, rx = 0, ry = 0, rz = 0) => P.push({ geo, color, x, y, z, rx, ry, rz });
     // Window unit: frame + sill into trim, pane into a glass bucket.
     // face: 'N'|'S' (pane plane ⊥ z) or 'W' (pane plane ⊥ x).
@@ -904,9 +938,9 @@ export function buildWorld(scene) {
     t_(new THREE.BoxGeometry(0.24, 2.3, 0.18), trimA, -27.15, 1.15, 45.05);
     t_(new THREE.BoxGeometry(0.24, 0.24, 2.3), trimA, -27.15, 2.42, 44);
     // Windows: north face ×3, west face ×2, south face ×2 — mixed buckets.
-    win(-35, 1.7, 39.97, 'N', GW); win(-32, 1.7, 39.97, 'N', GD); win(-29, 1.7, 39.97, 'N', GC);
-    win(-37.04, 1.7, 42, 'W', GD); win(-37.04, 1.7, 46, 'W', GW);
-    win(-34.5, 1.7, 48.04, 'S', GC); win(-28.4, 1.7, 48.04, 'S', GD);
+    win(FACADE_ANCHORS.opsNorthX[0], FACADE_ANCHORS.winY, FACADE_ANCHORS.opsNorthZ, 'N', GW); win(FACADE_ANCHORS.opsNorthX[1], FACADE_ANCHORS.winY, FACADE_ANCHORS.opsNorthZ, 'N', GD); win(FACADE_ANCHORS.opsNorthX[2], FACADE_ANCHORS.winY, FACADE_ANCHORS.opsNorthZ, 'N', GC);
+    win(FACADE_ANCHORS.opsWestX, FACADE_ANCHORS.winY, FACADE_ANCHORS.opsWestZ[0], 'W', GD); win(FACADE_ANCHORS.opsWestX, FACADE_ANCHORS.winY, FACADE_ANCHORS.opsWestZ[1], 'W', GW);
+    win(FACADE_ANCHORS.opsSouthX[0], FACADE_ANCHORS.winY, FACADE_ANCHORS.opsSouthZ, 'S', GC); win(FACADE_ANCHORS.opsSouthX[1], FACADE_ANCHORS.winY, FACADE_ANCHORS.opsSouthZ, 'S', GD);
     // Flat junction boxes (metal bucket).
     PM.push({ geo: new THREE.BoxGeometry(0.5, 0.7, 0.07), color: 0xb9c0c7, x: -27.6, y: 1.3, z: 39.96 });
     PM.push({ geo: new THREE.BoxGeometry(0.07, 0.5, 0.4), color: 0x9aa1a9, x: -37.03, y: 1.1, z: 44 });
@@ -938,12 +972,12 @@ export function buildWorld(scene) {
     // Windows: south ×2 + north ×2 + west ×1 + east ×1 per floor
     // (upper floor: no east window — the stairwell's north light
     // and the overwatch west glass carry it).
-    win(-19, 1.7, 46.69, 'S', GW); win(-5.5, 1.7, 46.69, 'S', GC);
-    win(-17, 1.7, 37.31, 'N', GD); win(-11, 1.7, 37.31, 'N', GW);
-    win(-22.19, 1.7, 42, 'W', GC); win(-1.81, 1.7, 42, 'W', GD);
-    win(-19, 4.6, 46.69, 'S', GC); win(-5.5, 4.6, 46.69, 'S', GW);
-    win(-17, 4.6, 37.31, 'N', GW); win(-11, 4.6, 37.31, 'N', GD);
-    win(-22.19, 4.6, 40, 'W', GW);
+    win(FACADE_ANCHORS.hqSouthX[0], FACADE_ANCHORS.winY, FACADE_ANCHORS.hqSouthZ, 'S', GW); win(FACADE_ANCHORS.hqSouthX[1], FACADE_ANCHORS.winY, FACADE_ANCHORS.hqSouthZ, 'S', GC);
+    win(FACADE_ANCHORS.hqNorthX[0], FACADE_ANCHORS.winY, FACADE_ANCHORS.hqNorthZ, 'N', GD); win(FACADE_ANCHORS.hqNorthX[1], FACADE_ANCHORS.winY, FACADE_ANCHORS.hqNorthZ, 'N', GW);
+    win(FACADE_ANCHORS.hqWestWinX, FACADE_ANCHORS.winY, FACADE_ANCHORS.hqWestZ, 'W', GC); win(FACADE_ANCHORS.hqEastWinX, FACADE_ANCHORS.winY, FACADE_ANCHORS.hqEastZ, 'W', GD);
+    win(FACADE_ANCHORS.hqSouthX[0], FACADE_ANCHORS.hqUpperY, FACADE_ANCHORS.hqSouthZ, 'S', GC); win(FACADE_ANCHORS.hqSouthX[1], FACADE_ANCHORS.hqUpperY, FACADE_ANCHORS.hqSouthZ, 'S', GW);
+    win(FACADE_ANCHORS.hqNorthX[0], FACADE_ANCHORS.hqUpperY, FACADE_ANCHORS.hqNorthZ, 'N', GW); win(FACADE_ANCHORS.hqNorthX[1], FACADE_ANCHORS.hqUpperY, FACADE_ANCHORS.hqNorthZ, 'N', GD);
+    win(FACADE_ANCHORS.hqWestUpperWinX, FACADE_ANCHORS.hqUpperY, FACADE_ANCHORS.hqWestUpperZ, 'W', GW);
     // Training REALISM (Oct 31, Verity desk review): interior faces
     // of four LIT HQ windows — the exterior panes glow (GW/GC) but
     // their inside faces were bare wallMat, so a room read windowless
@@ -955,10 +989,10 @@ export function buildWorld(scene) {
     // spills no light). VISUAL ONLY, merged into the existing glass
     // meshes: +0 draw calls, +48 tris, no shadow casters (glass
     // meshes never cast), no collider/worlddata change.
-    GW.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.05), color: 0xffffff, x: -19, y: 1.7, z: 46.34 });
-    GW.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.05), color: 0xffffff, x: -11, y: 1.7, z: 37.66 });
-    GC.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.05), color: 0xffffff, x: -19, y: 4.825, z: 46.34 });
-    GW.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.05), color: 0xffffff, x: -17, y: 4.825, z: 37.66 });
+    GW.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.05), color: 0xffffff, x: FACADE_ANCHORS.hqSouthX[0], y: FACADE_ANCHORS.winY, z: FACADE_ANCHORS.hqPanelSouthZ });
+    GW.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.05), color: 0xffffff, x: FACADE_ANCHORS.hqNorthX[1], y: FACADE_ANCHORS.winY, z: FACADE_ANCHORS.hqPanelNorthZ });
+    GC.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.05), color: 0xffffff, x: FACADE_ANCHORS.hqSouthX[0], y: FACADE_ANCHORS.hqPanelY, z: FACADE_ANCHORS.hqPanelSouthZ });
+    GW.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.05), color: 0xffffff, x: FACADE_ANCHORS.hqNorthX[0], y: FACADE_ANCHORS.hqPanelY, z: FACADE_ANCHORS.hqPanelNorthZ });
     // ---- Comms Shed (centre 24, 56; walls y 0..2.4, roof top 2.6) ----
     // Roof fascia on all four edges.
     t_(new THREE.BoxGeometry(6.5, 0.18, 0.16), trimB, 24, 2.52, 53.22);
@@ -972,7 +1006,7 @@ export function buildWorld(scene) {
     }
     t_(new THREE.BoxGeometry(6.1, 0.2, 0.08), trimB, 24, 2.2, 53.47);
     // Two windows in the north wall + a wall panel inside the open south.
-    win(22.6, 1.5, 53.47, 'N', GW); win(25.4, 1.5, 53.47, 'N', GD);
+    win(FACADE_ANCHORS.commsNorthX[0], FACADE_ANCHORS.commsY, FACADE_ANCHORS.commsNorthZ, 'N', GW); win(FACADE_ANCHORS.commsNorthX[1], FACADE_ANCHORS.commsY, FACADE_ANCHORS.commsNorthZ, 'N', GD);
     PM.push({ geo: new THREE.BoxGeometry(0.9, 0.6, 0.06), color: 0x8f979e, x: 24, y: 1.4, z: 53.82 });
     GC.push({ geo: new THREE.BoxGeometry(0.6, 0.34, 0.05), color: 0xffffff, x: 24, y: 1.45, z: 53.86 }); // interior console screen
     // ---- Relay Tower + decks: fascia strips on the slab edges ----
