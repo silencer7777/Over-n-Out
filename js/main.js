@@ -169,7 +169,7 @@ function goLandscape() {
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
 // version tag — Brett reads "BUILD V7.2" in the menu footer.
-const BUILD_NO = 'V7.12';
+const BUILD_NO = 'V7.13';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -226,13 +226,81 @@ const menuMoreBtn = $('menu-more-btn'), menuBackBtn = $('menu-back-btn');
 // page 2 ("MORE OPTIONS") holds settings depth, the story
 // transmission and the controls reference. Every return to the
 // menu lands on page 1 so DEPLOY / results are front and center.
+// V7.13: the TABS below are now the primary navigation and
+// showMenuPage delegates to them ('more' = the SETTINGS tab,
+// 'main' = the player's current main tab) — every existing
+// caller and button keeps its behavior.
 function showMenuPage(which) {
+  if (which === 'more') { selectMenuTab('settings'); return; }
+  selectMenuTab(lastMainTab || 'play');
+}
+if (menuMoreBtn) menuMoreBtn.addEventListener('click', () => showMenuPage('more'));
+if (menuBackBtn) menuBackBtn.addEventListener('click', () => showMenuPage('main'));
+
+// ---------------------------------------------------------------
+// MENU TABS (V7.13 playtest fix: "add tabs instead of having
+// everything go from top to bottom in one long scroll"). The
+// menu's existing sections regroup into five tabs — PLAY
+// (mission / level / online / lobby chat + DEPLOY), LOADOUT,
+// RECORD (Service Record), SHOP (SUPPLY), SETTINGS (the
+// existing options page: story, settings, controls reference).
+// Nothing is rebuilt: the live nodes are MOVED into panel
+// wrappers at boot, so every id, handler and render loop
+// (daily claim, emblem pickers, SUPPLY shop, chat, loadout)
+// keeps working untouched. Only the active panel renders, so
+// page-main no longer scrolls as one long column; the last tab
+// persists in localStorage ('ono-menu-tab', default PLAY).
+// ---------------------------------------------------------------
+const MTABS = ['play', 'loadout', 'record', 'shop', 'settings'];
+let lastMainTab = 'play';
+let currentMenuTab = 'play';
+const mtabPanels = {};
+function flipMenuPage(which) {
   if (menuPageMain) menuPageMain.classList.toggle('hidden', which !== 'main');
   if (menuPageMore) menuPageMore.classList.toggle('hidden', which === 'main');
   menu.scrollTop = 0;
 }
-if (menuMoreBtn) menuMoreBtn.addEventListener('click', () => showMenuPage('more'));
-if (menuBackBtn) menuBackBtn.addEventListener('click', () => showMenuPage('main'));
+function selectMenuTab(name) {
+  if (!MTABS.includes(name)) name = 'play';
+  currentMenuTab = name;
+  if (name !== 'settings') lastMainTab = name;
+  try { localStorage.setItem('ono-menu-tab', name); } catch {}
+  for (const b of document.querySelectorAll('.mtab-btn')) b.classList.toggle('active', b.dataset.tab === name);
+  if (name === 'settings') { flipMenuPage('more'); return; }
+  flipMenuPage('main');
+  for (const key of Object.keys(mtabPanels)) mtabPanels[key].classList.toggle('active', key === name);
+}
+(function buildMenuTabs() {
+  if (!menuPageMain) return;
+  const mk = (id) => { const d = document.createElement('div'); d.className = 'mtab-panel'; d.id = id; return d; };
+  const play = mk('mtab-play'), loadout = mk('mtab-loadout'), record = mk('mtab-record'), shop = mk('mtab-shop');
+  Object.assign(mtabPanels, { play, loadout, record, shop });
+  const anchor = $('meta-panel');
+  if (anchor && anchor.parentNode === menuPageMain) for (const p of [play, loadout, record, shop]) menuPageMain.insertBefore(p, anchor);
+  else for (const p of [play, loadout, record, shop]) menuPageMain.appendChild(p);
+  const move = (id, panel) => { const el = $(id); if (el) panel.appendChild(el); };
+  // PLAY: mission + level + online + lobby chat + the deploy path.
+  for (const id of ['mode-pick', 'mode-goal', 'biome-pick', 'online-panel', 'chat-panel', 'play-btn', 'landscape-btn']) move(id, play);
+  // LOADOUT: the whole loadout block, as one panel.
+  move('loadout', loadout);
+  // RECORD: the Service Record panel. SHOP: its SUPPLY half —
+  // the meta panel splits at the SUPPLY label (that child and
+  // everything after it moves into a shop panel of its own).
+  const metaPanel = $('meta-panel');
+  if (metaPanel) {
+    record.appendChild(metaPanel);
+    const shopPanel = document.createElement('div');
+    shopPanel.id = 'shop-panel';
+    shop.appendChild(shopPanel);
+    const kids = [...metaPanel.children];
+    const at = kids.findIndex(k => (k.textContent || '').trim().startsWith('SUPPLY'));
+    if (at >= 0) for (const k of kids.slice(at)) shopPanel.appendChild(k);
+  }
+  for (const b of document.querySelectorAll('.mtab-btn')) b.addEventListener('click', () => selectMenuTab(b.dataset.tab));
+  let saved = 'play';
+  try { saved = localStorage.getItem('ono-menu-tab') || 'play'; } catch {}
+  selectMenuTab(MTABS.includes(saved) ? saved : 'play');
+})();
 
 // Prefill the server field with the last address used (test-night
 // tunnel URLs change per session; this is a convenience, not a
