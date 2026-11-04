@@ -364,13 +364,22 @@ function buildForestLayout(scene) {
     bushIM.castShadow = true; bushIM.receiveShadow = true; bushIM.frustumCulled = false;
     const deepGreen = new THREE.Color(0x2f4d27), tipGreen = new THREE.Color(0x5f834a);
     bushes.forEach((b, i) => {
-      dummy.rotation.set(0, b.rot, 0);
+      // V7.7: a whisper of tilt on both masses (locally seeded,
+      // mulberry32 on the bush index — the U7-02 discipline) so
+      // the clumps lean like grown shrubs instead of sitting as
+      // placed balls. The shared rng() stream's call order below
+      // is byte-identical: every placement downstream is unmoved.
+      let tk = ((i + 7) * 2246822519) >>> 0;
+      const trnd = () => { tk = (tk + 0x6D2B79F5) >>> 0; let t = tk; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+      const t1x = (trnd() - 0.5) * 0.16, t1z = (trnd() - 0.5) * 0.16;
+      const t2x = (trnd() - 0.5) * 0.16, t2z = (trnd() - 0.5) * 0.16;
+      dummy.rotation.set(t1x, b.rot, t1z);
       dummy.position.set(b.x, b.size * 0.34, b.z);
       dummy.scale.set(b.size, b.size * 0.72, b.size * 0.9);
       dummy.updateMatrix(); bushIM.setMatrixAt(i * 2, dummy.matrix);
       bushIM.setColorAt(i * 2, deepGreen.clone().lerp(tipGreen, rng() * 0.55));
       const oa = rng() * Math.PI * 2, os = b.size * (0.5 + rng() * 0.2);
-      dummy.rotation.set(0, rng() * Math.PI * 2, 0);
+      dummy.rotation.set(t2x, rng() * Math.PI * 2, t2z);
       dummy.position.set(b.x + Math.cos(oa) * b.size * 0.45, os * 0.36, b.z + Math.sin(oa) * b.size * 0.45);
       dummy.scale.set(os, os * 0.7, os * (0.85 + rng() * 0.3));
       dummy.updateMatrix(); bushIM.setMatrixAt(i * 2 + 1, dummy.matrix);
@@ -378,6 +387,28 @@ function buildForestLayout(scene) {
     });
     if (bushIM.instanceColor) bushIM.instanceColor.needsUpdate = true;
     group.add(bushIM);
+
+    // V7.7: skirt masses — the compound map got its grounding
+    // skirt in U7-02; the biome maps never did, so their bushes
+    // floated on two blobs. One low, wide mass per bush in a
+    // low-detail twin mesh (+1 draw call), same locally-seeded
+    // discipline (the shared rng stream is untouched). The
+    // skirt does NOT cast: the two masses above it already cast
+    // the bush's shadow, and the caster ledger stays untouched.
+    const skirtIM = new THREE.InstancedMesh(canopyGeometry(1, 7.7, 0.34, 7, 5), MAT_FOLIAGE(), bushes.length);
+    skirtIM.castShadow = false; skirtIM.receiveShadow = true; skirtIM.frustumCulled = false;
+    bushes.forEach((b, i) => {
+      let sk = ((i + 1) * 2654435761) >>> 0;
+      const srnd = () => { sk = (sk + 0x6D2B79F5) >>> 0; let t = sk; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+      const sa = srnd() * Math.PI * 2, ss = b.size * (0.8 + srnd() * 0.2);
+      dummy.rotation.set(0, srnd() * Math.PI * 2, 0);
+      dummy.position.set(b.x + Math.cos(sa) * b.size * 0.22, b.size * 0.13, b.z + Math.sin(sa) * b.size * 0.22);
+      dummy.scale.set(ss, b.size * 0.34, ss * (0.85 + srnd() * 0.3));
+      dummy.updateMatrix(); skirtIM.setMatrixAt(i, dummy.matrix);
+      skirtIM.setColorAt(i, deepGreen.clone().lerp(tipGreen, srnd() * 0.3));
+    });
+    if (skirtIM.instanceColor) skirtIM.instanceColor.needsUpdate = true;
+    group.add(skirtIM);
 
     const stumpIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.28, 0.42, 0.5, 9),
       new THREE.MeshStandardMaterial({ color: 0xa08b6d, map: TEX.bark, roughness: 1 }), 14);
