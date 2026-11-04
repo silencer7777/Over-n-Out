@@ -364,4 +364,21 @@ export const LIMITS = Object.freeze({
   IDLE_TIMEOUT_MS: 10000,
   CHAT_MAX_PER_WINDOW: 5,
   CHAT_WINDOW_MS: 4000,
+  // Lockdown pass (2026-11-04, Brett's backend order — spec in
+  // docs/sessions/v7-midday-2026-10-30-report.md, items 1/2/5):
+  // process-level blast-radius caps. One process hosts every
+  // room, so unbounded connections / rooms / message rates let
+  // one hostile or buggy client starve everyone. These numbers
+  // sit far above any real playtest load (a full room is 8
+  // humans) and exist to bound damage, not to shape play.
+  MAX_CONNECTIONS: 64,      // concurrent sockets per process (transport-enforced)
+  MAX_PER_IP: 8,            // concurrent sockets per source address
+  MAX_ROOMS: 32,            // live rooms per process (GameServer-enforced)
+  ROOM_EMPTY_TTL_MS: 60000, // empty non-LOBBY rooms are reaped after this
+  MSG_MAX_PER_SEC: 20,      // non-input messages per player per second
+                            // (hello/ping/chat/signal; input has its own
+                            // 40/s transport cap, chat its own 5-per-4s cap)
+  VIOLATION_LOG_BUDGET: 5,  // anti-cheat log lines per player before the
+                            // counter runs silently (log flood is itself
+                            // an attack surface)
 });
