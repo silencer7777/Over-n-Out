@@ -94,6 +94,9 @@ export class Player {
     // --- V6-3 feel state (cosmetic smoothing only; no sim value) ---
     this.bobAmp = 0;             // head-bob envelope (eases in/out, no pop)
     this.leanZ = 0;              // strafe camera roll (radians, subtle)
+    this.lookLean = 0;           // V7.8: turn camera roll (look-around feel)
+    this.runLean = 0;            // V7.8: sprint forward pitch whisper
+    this._lookPrevYaw = 0;       // V7.8: last frame's smoothed yaw (lean source)
     this.swayX = 0; this.swayY = 0; // view-model look sway (lag offsets)
     this._prevYaw = 0; this._prevPitch = 0; // last frame's smoothed look
 
@@ -212,6 +215,7 @@ export class Player {
     this.stance = 'stand'; this.eyeCur = EYE; this.spreadMult = 1;
     this.gunKick = 0;
     this.bobAmp = 0; this.leanZ = 0; this.swayX = 0; this.swayY = 0;
+    this.lookLean = 0; this.runLean = 0; this._lookPrevYaw = this.yaw;
     this._prevYaw = this.yaw; this._prevPitch = this.pitch;
     this.aiming = false;
     this.aimBlend = 0;
@@ -289,6 +293,21 @@ export class Player {
     this.pitch += dPitchT * lookK;
     this.yawTarget = this.targetYaw;
     this.pitchTarget = this.targetPitch;
+
+    // V7.8 LOOK LEAN (Brett's vision queue: look-around feel): a
+    // whisper of camera roll INTO a fast turn, measured from the
+    // SMOOTHED yaw (post-smoothing, so raw mouse jitter never
+    // reaches it). Capped at ±0.010 rad (~0.6°) — the strafe
+    // lean's family — and damped to 35% while aiming, where the
+    // sight picture must stay level. Turning left (yaw rising)
+    // rolls the view left (positive z). Cosmetic only: yaw,
+    // pitch, sensitivity and every sim value are untouched.
+    let dYawL = this.yaw - (this._lookPrevYaw ?? this.yaw);
+    dYawL = Math.atan2(Math.sin(dYawL), Math.cos(dYawL));
+    this._lookPrevYaw = this.yaw;
+    const yawRate = dt > 0 ? Math.max(-6, Math.min(6, dYawL / dt)) : 0;
+    const lookLeanTarget = Math.max(-0.010, Math.min(0.010, yawRate * 0.0016)) * (input.aim ? 0.35 : 1);
+    this.lookLean += (lookLeanTarget - this.lookLean) * Math.min(1, dt * 7);
 
     // Orientation
     this.rig.rotation.y = this.yaw;
@@ -527,7 +546,15 @@ export class Player {
     const leanTarget = this.onGround
       ? Math.max(-0.011, Math.min(0.011, -latVel * 0.0016)) : 0;
     this.leanZ += (leanTarget - this.leanZ) * Math.min(1, dt * 8);
-    this.camera.rotation.z = this.leanZ;
+    this.camera.rotation.z = this.leanZ + (this.lookLean || 0);
+    // V7.8 RUN LEAN (Brett's vision queue: walking locomotion
+    // feel): at a full sprint the camera tips a whisper forward
+    // (0.006 rad, eased both ways) — the lean-into-the-run that
+    // pairs with the sprint FOV kick above. Same trigger family
+    // as the FOV kick; never while aiming.
+    const runTarget = (input.sprint && hSpeed > 6 && this.onGround && !this.aiming) ? -0.006 : 0;
+    this.runLean += (runTarget - this.runLean) * Math.min(1, dt * 5);
+    this.camera.rotation.x += this.runLean;
     // View-model look sway (V6-3): the gun lags the camera a touch
     // when you flick, then settles — measured from the SMOOTHED
     // yaw/pitch deltas (post look-smoothing), wrapped to the short
