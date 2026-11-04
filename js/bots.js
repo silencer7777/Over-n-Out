@@ -226,6 +226,7 @@ function buildBotLegs(pal = BOT_PALETTES.hostile) {
     _part(L, _cylT(0.100, 0.080, 0.34, 14), pal.camoDark, s * 0.145, 0.27, 0);      // shin (U5-05: tapered overlay, slim to the boot) (U9: 11 seg) (U12: 14 seg)
   }
   _part(L, _box(0.10, 0.22, 0.09), pal.dark, 0.265, 0.86, -0.02);                 // thigh holster, right (V4 kit)
+  _part(L, _box(0.235, 0.035, 0.27), pal.dark, 0.145, 0.90, 0);                   // holster thigh strap, right (V7.6: the drop-leg rig is strapped to the leg, not floating beside it)
   _part(L, _box(0.17, 0.20, 0.06), pal.gear, -0.145, 0.80, -0.145);                // drop-leg pouch, left (U6-06v: kit asymmetry — soldiers are not mirrored)
   for (const s of [-1, 1]) {
     _part(L, _cylT(0.082, 0.068, 0.16, 12), pal.camoDark, s * 0.145, 0.17, 0);     // ankle taper (U6-06v: the shin narrows into the boot — no peg legs) (U9: 10 seg) (U12: 12 seg)
@@ -278,6 +279,8 @@ function buildBotTorso(pal = BOT_PALETTES.hostile) {
   _part(L, _sph(0.085, 7, 5), pal.gear, -0.455, 1.02, 0.02, 0, 0, 0, 0.95, 0.55, 1.05); // left elbow pad (V6-3: domed)
   _part(L, _sph(0.10, 12, 9), pal.gear, 0, 1.17, 0.29, 0.02, 0, 0, 2.15, 2.6, 0.95); // backpack (U9: rounded pack in the old box's envelope — the crate on the back is gone) (V5: slimmer, slight kit hunch) (U12: 12x9)
   _part(L, _box(0.32, 0.24, 0.06), pal.gearLight, 0, 1.02, 0.40);                   // pack pouch
+  _part(L, _box(0.17, 0.19, 0.07), pal.gearLight, -0.15, 0.90, 0.205);              // dump pouch, rear belt (V7.6: spent-mag pouch — the back of the belt was empty)
+  _part(L, _cylY(0.013, 0.34, 6), pal.dark, 0.20, 1.38, 0.10, 0.55, 0, -0.25);      // hydration tube (V7.6: pack over the right shoulder toward the chest strap — a line a soldier silhouette carries)
   _part(L, _cylY(0.008, 0.52), pal.steel, 0.16, 1.70, 0.30);                        // antenna
   return new THREE.Mesh(mergeColoredParts(L), BOT_BODY_MAT);
 }
@@ -294,6 +297,9 @@ function buildBotHead(pal = BOT_PALETTES.hostile) {
   _part(L, _cylY(0.232, 0.05, 12), pal.camoDark, 0, 1.75, 0);                      // helmet camo band (V4 kit, follows the dome)
   _part(L, _box(0.09, 0.07, 0.07), pal.steel, 0, 1.79, -0.228);                     // NVG mount (V4 kit)
   _part(L, _box(0.07, 0.11, 0.13), pal.gear, -0.205, 1.68, 0.01);                   // headset cup, left (V5 people-like: comms on a person)
+  _part(L, _box(0.07, 0.11, 0.13), pal.gear, 0.205, 1.68, 0.01);                    // headset cup, right (V7.6: the pair is complete — the left cup shipped alone in V5, the right ear was bare)
+  for (const s of [-1, 1]) _part(L, _box(0.025, 0.13, 0.04), pal.dark, s * 0.185, 1.615, -0.01, 0, 0, s * 0.18); // helmet chin straps (V7.6: brim to jaw — the helmet is worn, not balanced)
+  _part(L, _box(0.13, 0.09, 0.055), pal.gear, 0, 1.75, 0.205);                      // NVG counterweight pouch, helmet rear (V7.6: balances the front mount — standard issue with NVGs)
   _part(L, _cylY(0.008, 0.15, 6), pal.steel, -0.155, 1.615, -0.115, 1.15, 0, 0.5);  // boom mic, arcing to the mouth (V5)
   _part(L, _sph(0.10, 11, 8), pal.gear, 0, 1.545, -0.182, 0, 0, 0, 1.55, 0.65, 0.30); // jaw guard (U9: curved shell in the old slab's envelope) (U12: 11x8)
   _part(L, _cylT(0.185, 0.195, 0.10, 12), pal.camoDark, 0, 1.565, 0.01);            // neck / balaclava (V6-3: a round neck ring, not a slab)
