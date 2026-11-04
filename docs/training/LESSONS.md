@@ -193,7 +193,12 @@ with a source commit/report. No lesson without evidence.
     outside the stated band — invisible while the probe allows
     1e-4 slack. Bounds proofs should use the same interval the
     code claims, with zero tolerance at the seam. (Coach grading
-    deduction, Training, Oct 27, 2026)
+    deduction, Training, Oct 27, 2026) **Closed Nov 3, 2026** in
+    the weather-fx scratch: `wrapDelta` is `>=` (offsets land in
+    `[-span/2, +span/2)`), the probe constructs the seam with
+    `===` assertions instead of hunting it in random frames, and
+    `inBox` carries zero tolerance — mutation-proven (reverting
+    to `>` fails exactly the seam checks J1/J5/J7).
 25. **Parallelise a subprocess fan-out, but buffer the verdicts.**
     81 serial `node --check` spawns (~85–90 ms startup each) were
     smoke's largest single phase; 4 bounded workers with results
@@ -230,6 +235,33 @@ with a source commit/report. No lesson without evidence.
     names still pass), and disabling the regex makes N15 the
     sole failure. Applies to every Watch/guardian fix that lands
     without a check. (Training, Oct 30, 2026)
+31. **Give shared planes a named anchor table before anyone
+    re-anchors them.** Facade window planes lived as repeated raw
+    literals across 20 `win()` calls + 4 interior panel pushes;
+    extracting them into one frozen `FACADE_ANCHORS` table in
+    `js/world.js` (every value exactly the literal it replaced —
+    proof: parsed geometry multiset identical to HEAD, v6-metrics
+    identical on all maps) means a coordinate fix touches one
+    table instead of a file-wide hunt, and a gate can pin the
+    table instead of re-deriving geometry. Keep the table frozen
+    (object + array values) and prove zero-move with a parsed
+    comparison, not eyeballed literals. Scope note: one-off trim
+    (`t_`) placements stay literal — some still share plane values
+    (e.g. Ops north 39.97) and are build-session scope to fold in.
+    (Training, Nov 2, 2026; HQ west re-anchor Wed Nov 4, gate pin
+    Fri Nov 6)
+32. **Pin rebuild determinism pre-update, against literals and a
+    fresh instance.** `elapsed` is instance-level and survives
+    `teardown`/`build`, and sway reads it — so a rebuilt instance
+    and a fresh one diverge after ANY update even with identical
+    fields, and a post-update comparison is confounded evidence.
+    Compare positions/velocities/tint immediately after `setMap`
+    with zero intervening updates; pin tint against the literal
+    spec values, not only self-consistency (a table edit passes
+    a self-consistency check); cover post-update identity only
+    with twin-history — identical setMap + dt sequences.
+    (Training, Nov 3, 2026; probe §K — tint perturbation fails
+    exactly K1/K5)
 
 ## Retired / do not carry forward (corrected Oct 25, 2026, Reviewer audit)
 
