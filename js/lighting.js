@@ -99,6 +99,7 @@ export const LIGHTING_PROFILES = {
     hemiSky: 0xbfd6e8, hemiGround: 0x8a7a63, hemiIntensity: 1.05,
     fogColor: 0xcfdde8, fogNear: 42, fogFar: 220,
     sky: { zenith: 0x2e5a8c, mid: 0x6ea3d4, horizon: 0xcfdde8 },
+    clouds: { tint: 0xfff6ea, cover: 0.8, alpha: 0.85 },
     dome: 'profile',
     disc: true, discColor: 0xfff3d0, glowColor: 0xffe9bb, glowScale: 85, glowAlpha: 0.55,
     stars: 0, exposure: 1.10, shadowExtent: 86,
@@ -110,6 +111,7 @@ export const LIGHTING_PROFILES = {
     hemiSky: 0xbcd8c8, hemiGround: 0x5d6b45, hemiIntensity: 1.04,
     fogColor: 0xc3d5c0, fogNear: 42, fogFar: 200,
     sky: { zenith: 0x2c5a7c, mid: 0x6fae9e, horizon: 0xc3d5c0 },
+    clouds: { tint: 0xffffff, cover: 0.9, alpha: 0.85 },
     dome: 'profile',
     disc: true, discColor: 0xfff3d0, glowColor: 0xffedc4, glowScale: 85, glowAlpha: 0.5,
     stars: 0, exposure: 1.08, shadowExtent: 86,
@@ -121,6 +123,7 @@ export const LIGHTING_PROFILES = {
     hemiSky: 0xe8eef2, hemiGround: 0xdfe8ee, hemiIntensity: 1.25,
     fogColor: 0xe6edf2, fogNear: 42, fogFar: 210,
     sky: { zenith: 0x9fb4c4, mid: 0xc3d2dc, horizon: 0xe6edf2 },
+    clouds: { tint: 0xe9eff4, cover: 1.0, alpha: 0.75 },
     dome: 'profile',
     disc: true, discColor: 0xf7fafc, glowColor: 0xeef4f8, glowScale: 130, glowAlpha: 0.35,
     stars: 0, exposure: 1.08, shadowExtent: 86,
@@ -135,6 +138,7 @@ export const LIGHTING_PROFILES = {
     fogColor: 0x9a5f36, fogNear: 42, fogFar: 200,
     // Documentary only: Atlas's dome painting owns the Mars sky.
     sky: { zenith: 0x3a1710, mid: 0x8a4526, horizon: 0x9a5f36 },
+    clouds: { tint: 0xdca26a, cover: 0.35, alpha: 0.38 },
     dome: 'atlas',
     // The Mars sun lives in Atlas's dome painting — the rig's
     // disc/glow hide here. One sun per sky.
@@ -164,6 +168,61 @@ export function makeSkyTexture(THREE, p) {
   grad.addColorStop(1.00, css(shade(p.sky.horizon, 0.30)));
   c.fillStyle = grad; c.fillRect(0, 0, 4, 512);
   const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// ------------------------------------------------------------
+// Cloud band texture (V7.14 — playtest fix: the far environment
+// had NO clouds at all, only the gradient dome). Painted once
+// per profile onto a transparent canvas: clusters of soft
+// radial-gradient puffs (layered ellipses — the layering is
+// what makes them read as clouds rather than blobs), tinted by
+// the profile's cloud tint, density by its cover. Seeded LCG,
+// so a map's sky is identical on every load; every puff is
+// drawn at x, x-1024 and x+1024 so the horizontal wrap is
+// seamless; a destination-in vertical gradient feathers the
+// band's top and bottom edges to nothing. world.js wraps this
+// on an open cylinder just inside the dome; main.js drifts it.
+// ------------------------------------------------------------
+export function makeCloudTexture(THREE, p) {
+  if (typeof document === 'undefined' || !THREE || !THREE.CanvasTexture) return null;
+  const cl = p.clouds || { tint: 0xffffff, cover: 0.8, alpha: 0.85 };
+  const W = 1024, H = 256;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const c = cv.getContext('2d');
+  let seed = 7;
+  for (const ch of (p.id || 'sky')) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const r = (cl.tint >> 16) & 255, g = (cl.tint >> 8) & 255, b = cl.tint & 255;
+  const clusters = Math.round(8 + cl.cover * 14);
+  for (let i = 0; i < clusters; i++) {
+    const cx = rnd() * W, cy = 64 + rnd() * 128;
+    const puffs = 5 + Math.floor(rnd() * 5);
+    for (let j = 0; j < puffs; j++) {
+      const px = cx + (rnd() - 0.5) * 130, py = cy + (rnd() - 0.5) * 34;
+      const rx = 30 + rnd() * 62, ry = rx * (0.30 + rnd() * 0.14);
+      const a = 0.13 + rnd() * 0.16;
+      for (const ox of [-W, 0, W]) {
+        const grad = c.createRadialGradient(px + ox, py, 0, px + ox, py, rx);
+        grad.addColorStop(0, `rgba(${r},${g},${b},${a})`);
+        grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+        c.fillStyle = grad;
+        c.save(); c.translate(px + ox, py); c.scale(1, ry / rx); c.translate(-(px + ox), -py);
+        c.beginPath(); c.arc(px + ox, py, rx, 0, Math.PI * 2); c.fill();
+        c.restore();
+      }
+    }
+  }
+  const fade = c.createLinearGradient(0, 0, 0, H);
+  fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(0.22, 'rgba(0,0,0,1)');
+  fade.addColorStop(0.78, 'rgba(0,0,0,1)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
+  c.globalCompositeOperation = 'destination-in';
+  c.fillStyle = fade; c.fillRect(0, 0, W, H);
+  c.globalCompositeOperation = 'source-over';
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.repeat.x = 2;
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
@@ -229,6 +288,23 @@ export function applyLightingProfile(THREE, scene, renderer, id) {
       if (dome.userData) dome.userData.lightingMap = tex;
       if (prev && prev !== tex && typeof prev.dispose === 'function') prev.dispose();
     }
+  }
+
+  // V7.14: the cloud band re-paints with the profile, exactly
+  // like the dome (Mars keeps a thin rusty haze — cover/alpha
+  // come from the profile's clouds row, never geometry).
+  const band = scene.getObjectByName('cloud-band');
+  if (band && band.material && 'map' in band.material && p.clouds) {
+    const tex = makeCloudTexture(THREE, p);
+    if (tex) {
+      const prev = band.userData ? band.userData.cloudMap : null;
+      band.material.map = tex;
+      band.material.needsUpdate = true;
+      if (band.userData) band.userData.cloudMap = tex;
+      if (prev && prev !== tex && typeof prev.dispose === 'function') prev.dispose();
+    }
+    band.material.opacity = p.clouds.alpha;
+    band.visible = p.clouds.alpha > 0.02;
   }
 
   const disc = scene.getObjectByName('sun-disc');
