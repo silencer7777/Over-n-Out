@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { collide } from './world.js';
 import { buildViewmodelGun, buildViewmodelArms } from './gunmodels.js';
 import { STANCE, createStanceState, stepStance } from './stance.js';
+import { stepLookAngles, easeK } from './lookfeel.js';
 
 const EYE = 1.66;
 
@@ -14,7 +15,8 @@ export const COYOTE_TIME = 0.10;
 export const JUMP_BUFFER_TIME = 0.12;
 export const JUMP_CUT_FACTOR = 0.5;
 export const JUMP_CUT_MIN_SPEED = 2;
-const LOOK_SMOOTHING_RATE = 30;
+// (The look-smoothing rate moved to js/lookfeel.js in V7.15 —
+// LOOK_RATE there is the same shipped 30.)
 // V6 Update 5 (U5-07a, Havoc feel retune): slightly softer ground
 // accel/stop and a touch more air control — movement GLIDES
 // instead of snapping. Top speeds (walk 5.6 / sprint 9.2) and
@@ -272,25 +274,20 @@ export class Player {
     this.flashDim = weapon.stealth ? 0.3 : 1;
   }
 
-  update(dt, input) {
-    // Mouse-look smoothing: ease yaw/pitch toward the look()
-    // targets with a frame-rate-independent factor. U7-03 LOOK
-    // FEEL: the rate is now error-adaptive — it scales with the
-    // wrapped angular distance to target (capped ×2.6) so long
-    // flicks catch up fast instead of swimming, while fine
-    // corrections keep the shipped ~35 ms settle; ADS multiplies
-    // the rate ×1.5 for precision. Sensitivity and targets are
+  update(dt, input, dtLook = dt) {
+    // Look smoothing lives in js/lookfeel.js (V7.15): a
+    // substepped exponential approach whose rate is a pure
+    // function of angular error (adaptive cap +50%, was +160%
+    // — the old gain made the same hand movement surge or
+    // trail depending on the frame's sampled error) and the
+    // ADS precision multiplier (x1.5, unchanged). dtLook is
+    // the look-specific frame time (main.js clamps it looser
+    // than the sim dt, so a render hitch does not stall the
+    // camera and then whip it). Sensitivity and targets are
     // untouched — only the approach curve changes.
-    let dYawT = this.targetYaw - this.yaw;
-    dYawT = Math.atan2(Math.sin(dYawT), Math.cos(dYawT));
-    const dPitchT = this.targetPitch - this.pitch;
-    const angErr = Math.hypot(dYawT, dPitchT);
-    const lookRate = LOOK_SMOOTHING_RATE
-      * (1 + Math.min(1.6, angErr * 2.2))
-      * (input.aim ? 1.5 : 1);
-    const lookK = 1 - Math.exp(-lookRate * dt);
-    this.yaw += dYawT * lookK;
-    this.pitch += dPitchT * lookK;
+    const stepped = stepLookAngles(this.yaw, this.pitch, this.targetYaw, this.targetPitch, dtLook, !!input.aim);
+    this.yaw = stepped[0];
+    this.pitch = stepped[1];
     this.yawTarget = this.targetYaw;
     this.pitchTarget = this.targetPitch;
 
@@ -307,7 +304,7 @@ export class Player {
     this._lookPrevYaw = this.yaw;
     const yawRate = dt > 0 ? Math.max(-6, Math.min(6, dYawL / dt)) : 0;
     const lookLeanTarget = Math.max(-0.010, Math.min(0.010, yawRate * 0.0016)) * (input.aim ? 0.35 : 1);
-    this.lookLean += (lookLeanTarget - this.lookLean) * Math.min(1, dt * 7);
+    this.lookLean += (lookLeanTarget - this.lookLean) * easeK(7, dt); // V7.15: exact-exp ease (was min(1, dt*7))
 
     // Orientation
     this.rig.rotation.y = this.yaw;
@@ -512,7 +509,7 @@ export class Player {
       ? this.baseFov / this.adsZoom
       : (input.sprint && hSpeed > 6 && this.onGround) ? 82 : this.baseFov;
     if (Math.abs(this.camera.fov - targetFov) > 0.01) {
-      this.camera.fov += (targetFov - this.camera.fov) * Math.min(1, dt * 8);
+      this.camera.fov += (targetFov - this.camera.fov) * easeK(8, dt); // V7.15: exact-exp ease
       if (Math.abs(this.camera.fov - targetFov) <= 0.01) this.camera.fov = targetFov;
       this.camera.updateProjectionMatrix();
     }
@@ -545,7 +542,7 @@ export class Player {
     const latVel = this.vel.x * cos - this.vel.z * sin;
     const leanTarget = this.onGround
       ? Math.max(-0.011, Math.min(0.011, -latVel * 0.0016)) : 0;
-    this.leanZ += (leanTarget - this.leanZ) * Math.min(1, dt * 8);
+    this.leanZ += (leanTarget - this.leanZ) * easeK(8, dt); // V7.15: exact-exp ease
     this.camera.rotation.z = this.leanZ + (this.lookLean || 0);
     // V7.8 RUN LEAN (Brett's vision queue: walking locomotion
     // feel): at a full sprint the camera tips a whisper forward
@@ -553,7 +550,7 @@ export class Player {
     // pairs with the sprint FOV kick above. Same trigger family
     // as the FOV kick; never while aiming.
     const runTarget = (input.sprint && hSpeed > 6 && this.onGround && !this.aiming) ? -0.006 : 0;
-    this.runLean += (runTarget - this.runLean) * Math.min(1, dt * 5);
+    this.runLean += (runTarget - this.runLean) * easeK(5, dt); // V7.15: exact-exp ease
     this.camera.rotation.x += this.runLean;
     // View-model look sway (V6-3): the gun lags the camera a touch
     // when you flick, then settles — measured from the SMOOTHED
@@ -565,14 +562,14 @@ export class Player {
     this._prevYaw = this.yaw; this._prevPitch = this.pitch;
     const yawVel = dt > 0 ? Math.max(-8, Math.min(8, dYawS / dt)) : 0;
     const pitchVel = dt > 0 ? Math.max(-8, Math.min(8, dPitchS / dt)) : 0;
-    const swayK = Math.min(1, dt * 10);
+    const swayK = easeK(10, dt); // V7.15: exact-exp ease
     this.swayX += (Math.max(-0.02, Math.min(0.02, yawVel * 0.0035)) - this.swayX) * swayK;
     this.swayY += (Math.max(-0.012, Math.min(0.012, -pitchVel * 0.0025)) - this.swayY) * swayK;
     // U6-01: ADS blend eases over ~150 ms (matches the FOV ease
     // family); the overlay in main.js keys off aimBlend via
     // this.aiming, and the scope viewmodel rule below keys off
     // the blend so the gun never pops.
-    this.aimBlend += ((this.aiming ? 1 : 0) - this.aimBlend) * Math.min(1, dt * 11);
+    this.aimBlend += ((this.aiming ? 1 : 0) - this.aimBlend) * easeK(11, dt); // V7.15: exact-exp ease
     if (this.aimBlend < 0.001) this.aimBlend = 0;
     if (this.aimBlend > 0.999) this.aimBlend = 1;
     const scopeInner = (this.adsKind === 'mid' || this.adsKind === 'sniper') && this.aimBlend > 0.55;
