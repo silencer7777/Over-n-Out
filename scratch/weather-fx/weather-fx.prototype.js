@@ -18,6 +18,14 @@
 // V6 change for Vega (frame hook) + Atlas (profile-table home),
 // gated on Brett's playtest — not a training-session edit.
 //
+// MERGE-PREP (Training, Tue Nov 3, 2026): the three Oct 27 grading
+// deductions are closed in this file + the probe — (1) wrapDelta
+// wraps half-open [-span/2, +span/2) (Lesson 20); (2) the probe
+// pins field + tint identity across setMap rebuild cycles (§K);
+// (3) the two redundant trailing wrap ifs in update() are removed.
+// Still NOT merged; the merge change itself remains Vega's hook +
+// Atlas's WEATHER_FX home, gated on Brett's playtest.
+//
 // Design notes / honest deltas vs the shipped snow system:
 // - Generalises the shipped system to all four maps via one
 //   WEATHER_FX profile table (the table Atlas offered to house in
@@ -103,11 +111,15 @@ function makeRng(seed) {
 }
 
 function wrapDelta(d, span) {
-  // Wrap a centre-relative offset into [-span/2, +span/2].
-  // Pure arithmetic, no allocation, no branching surprises:
+  // Wrap a centre-relative offset into the HALF-OPEN interval
+  // [-span/2, +span/2): the lower seam point is the one canonical
+  // representative, so +span/2 maps to -span/2 (>=, not >). A
+  // closed interval leaves a particle sitting exactly on the seam
+  // a hair outside the stated band (Lesson 20; merge-prep fix,
+  // Training Nov 3, 2026). Pure arithmetic, no allocation:
   // JS % keeps the sign of d, so normalise in two steps.
   let r = d % span;
-  if (r > span / 2) r -= span;
+  if (r >= span / 2) r -= span;
   else if (r < -span / 2) r += span;
   return r;
 }
@@ -193,7 +205,6 @@ export function createWeatherFx(scene, mapId, { seed = 20261027 } = {}) {
     if (step === 0) return;
     elapsed += step;
     const cx = cameraPosition.x, cy = cameraPosition.y, cz = cameraPosition.z;
-    const halfW = WEATHER_BOX.width / 2, halfD = WEATHER_BOX.depth / 2;
     const yLo = cy - 2, ySpan = WEATHER_BOX.height;
     const swayAmp = profile.sway.amp, swayFreq = profile.sway.freq;
     const n = profile.count;
@@ -203,14 +214,19 @@ export function createWeatherFx(scene, mapId, { seed = 20261027 } = {}) {
       let x = positions[ix] + (velocities[ix] + sway) * step;
       let y = positions[iy] + velocities[iy] * step;
       let z = positions[iz] + velocities[iz] * step;
-      // Recycle: wrap every axis into the camera-centred box.
+      // Recycle: wrap every axis into the camera-centred box —
+      // x/z half-open [-span/2, +span/2) via wrapDelta, y half-open
+      // [yLo, yLo+ySpan) by the single-step band check below (max
+      // fall step 15 * 0.05 = 0.75 m << ySpan, so one correction
+      // suffices). wrapDelta's output is in-band by construction,
+      // so no second x/z correction exists or is needed — the two
+      // trailing lower-bound-only ifs the Oct 27 draft carried
+      // were unreachable and asymmetric; removed in merge-prep
+      // (Training Nov 3, 2026).
       x = cx + wrapDelta(x - cx, WEATHER_BOX.width);
       z = cz + wrapDelta(z - cz, WEATHER_BOX.depth);
       if (y < yLo) y += ySpan;
       else if (y >= yLo + ySpan) y -= ySpan;
-      // Keep x/z honest after the y-only band check (already wrapped).
-      if (x < cx - halfW) x += WEATHER_BOX.width;
-      if (z < cz - halfD) z += WEATHER_BOX.depth;
       positions[ix] = x; positions[iy] = y; positions[iz] = z;
     }
     points.geometry.attributes.position.needsUpdate = true;
