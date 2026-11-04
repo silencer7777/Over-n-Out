@@ -66,7 +66,7 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   eq(core.touchStart(2, 600, 200), 'look', 'T3 right-half touch claims look');
   core.touchMove(2, 630, 190);
   eq(calls.look.length, 1, 'T3 one look call per move');
-  eq(calls.look[0][0], 30 * TOUCH_LOOK_SCALE, 'T3 look dx scaled by TOUCH_LOOK_SCALE');
+  eq(calls.look[0] && calls.look[0][0], 30 * TOUCH_LOOK_SCALE, 'T3 look dx scaled by TOUCH_LOOK_SCALE');
   eq(calls.look[0][1], -10 * TOUCH_LOOK_SCALE, 'T3 look dy scaled (up is negative)');
   eq(core.touchEnd(2), 'look', 'T3 look end reports its zone');
   eq(input.forward, true, 'T3 ending look leaves the stick held');
@@ -140,7 +140,7 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   const touch = readFileSync(new URL('../js/touchcontrols.js', import.meta.url), 'utf8');
-  eq(html.includes('id="build-stamp"') && html.includes('BUILD V7.9'), true, 'T7 menu build stamp present (cache witness)'); // named re-pin: witness V7.8 -> V7.9 (vision-queue night)
+  eq(html.includes('id="build-stamp"') && html.includes('BUILD V7.10'), true, 'T7 menu build stamp present (cache witness)'); // named re-pin: witness V7.9 -> V7.10 (playtest fix: touch rotate)
   eq(html.includes('name="ono-build" content="V7"'), true, 'T7 ono-build meta present'); // V7 named re-pin: witness 15 -> V7
   eq(main.includes('__onoBuild'), true, 'T7 build number exposed for support reads');
   eq(main.includes("matchMedia('(orientation: portrait)')") && main.includes("'pageshow'"), true, 'T7 redundant iOS fit triggers present');
@@ -346,6 +346,113 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   eq(css.includes('.tc-interact') && css.includes('#vehicle-hud'), true, 'T13 USE button + vehicle HUD styled');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   eq(main.includes('interact: () =>') && main.includes('input.forward ? 1 : 0'), true, 'T13 main wires USE + drives from the stick axes');
+}
+
+// T14 (V7.10): the DOM BINDING layer — the link T1–T13 never
+// exercised. T3 proves the pure core turns touch points into look
+// calls; the owner's phone proved the hard way that a correct core
+// is worthless if real TouchEvents never reach it (the V7.10
+// rotate report: every in-repo stage verified in isolation while
+// look drags failed on the device). This block constructs the REAL
+// TouchControls over a minimal fake DOM and delivers TouchEvent-
+// shaped objects the way a browser does — targeted at page
+// elements — including the regression case that motivated the
+// capture-routing fix: a drag whose target is an unrelated
+// full-screen element (canvas / overlay) must still reach the
+// core. On the pre-V7.10 layer-bound listeners this case fails:
+// TouchControls registered no document listeners at all.
+{
+  const { TouchControls } = await import('../js/touchcontrols.js');
+  class FakeClassList {
+    constructor() { this.set = new Set(); }
+    add(c) { this.set.add(c); }
+    remove(c) { this.set.delete(c); }
+    toggle(c, force) { if (force === undefined) { this.set.has(c) ? this.set.delete(c) : this.set.add(c); } else if (force) this.set.add(c); else this.set.delete(c); }
+    contains(c) { return this.set.has(c); }
+  }
+  class FakeEl {
+    constructor(tag) { this.tagName = tag; this.children = []; this.parentNode = null; this.classList = new FakeClassList(); this.style = {}; this.listeners = {}; this.textContent = ''; this._className = ''; }
+    // Real DOM: classList reflects className. The binding's
+    // button filter reads classList, so the fake must sync them.
+    get className() { return this._className; }
+    set className(v) { this._className = v; this.classList.set = new Set(String(v).split(/\s+/).filter(Boolean)); }
+    setAttribute() {}
+    appendChild(c) { c.parentNode = this; this.children.push(c); return c; }
+    addEventListener(type, fn, opts) { (this.listeners[type] ||= []).push({ fn, capture: !!(opts && opts.capture) }); }
+    fireOwn(type, ev) { for (const l of this.listeners[type] || []) l.fn(ev); }
+  }
+  const docListeners = {};
+  const fakeDoc = {
+    body: new FakeEl('body'),
+    createElement: tag => new FakeEl(tag),
+    addEventListener(type, fn, opts) { (docListeners[type] ||= []).push({ fn, capture: !!(opts && opts.capture) }); },
+  };
+  const fakeWin = { innerWidth: 852, innerHeight: 393, addEventListener() {} };
+  const input = { forward: false, back: false, left: false, right: false, sprint: false, jump: false, aim: false };
+  const calls = { look: [], setFire: [] };
+  const tc = new TouchControls({
+    doc: fakeDoc, win: fakeWin, input,
+    slots: [{ label: 'AR' }, { label: 'SMG' }],
+    hooks: {
+      look: (dx, dy) => calls.look.push([dx, dy]),
+      setFire: d => calls.setFire.push(d),
+      setAim() {}, reload() {}, lethal() {}, tactical() {}, streak() {},
+      weapon() {}, pause() {}, interact() {}, stance() {}, orient() {}, firstTouch() {},
+    },
+  });
+  tc.setActive(true);
+  let prevented = 0;
+  const deliver = (target, type, id, x, y) => {
+    const ev = { target, changedTouches: [{ identifier: id, clientX: x, clientY: y }], preventDefault() { prevented++; }, stopPropagation() {} };
+    for (const l of docListeners[type] || []) if (l.capture) l.fn(ev);
+    return ev;
+  };
+  // T14a: a drag delivered on the layer itself looks (sanity —
+  // the path that always worked in isolation).
+  deliver(tc.root, 'touchstart', 1, 700, 200);
+  deliver(tc.root, 'touchmove', 1, 730, 190);
+  eq(calls.look.length, 1, 'T14 binding: layer-target drag reaches look');
+  eq(calls.look[0] && calls.look[0][0], 30 * TOUCH_LOOK_SCALE, 'T14 binding: look dx scaled through the DOM layer');
+  deliver(tc.root, 'touchend', 1, 730, 190);
+  // T14b: REGRESSION — the same drag targeted at an unrelated
+  // full-screen element (the canvas / an overlay the page stack
+  // hit-tests first) must STILL reach the core.
+  const overlay = new FakeEl('div');
+  deliver(overlay, 'touchstart', 2, 700, 200);
+  deliver(overlay, 'touchmove', 2, 740, 200);
+  eq(calls.look.length, 2, 'T14 regression: overlay-target drag still reaches look (capture routing)');
+  eq(calls.look[1] && calls.look[1][0], 40 * TOUCH_LOOK_SCALE, 'T14 regression: overlay drag delta intact');
+  deliver(overlay, 'touchend', 2, 740, 200);
+  // T14c: a touch starting on a real button is the button's own —
+  // capture routing must skip it (no look claim), and the button's
+  // own handler still fires.
+  const lookBefore = calls.look.length;
+  deliver(tc.fireBtn, 'touchstart', 3, 780, 280);
+  eq(calls.look.length, lookBefore, 'T14 binding: button-origin touch is not claimed as look');
+  eq(tc.core.look.id, null, 'T14 binding: button-origin touch claims no look slot in the core');
+  tc.fireBtn.fireOwn('touchstart', { preventDefault() {}, stopPropagation() {}, changedTouches: [{ identifier: 3, clientX: 780, clientY: 280 }] });
+  eq(calls.setFire.join(','), 'true', 'T14 binding: FIRE button handler still fires');
+  tc.fireBtn.fireOwn('touchend', { preventDefault() {}, stopPropagation() {}, changedTouches: [{ identifier: 3, clientX: 780, clientY: 280 }] });
+  deliver(tc.fireBtn, 'touchmove', 3, 700, 200);
+  eq(calls.look.length, lookBefore, 'T14 binding: button-origin touch never becomes look mid-drag');
+  // T14d: two-finger play through the binding (stick + look).
+  deliver(overlay, 'touchstart', 4, 120, 300);
+  deliver(overlay, 'touchmove', 4, 120, 250);
+  eq(input.forward, true, 'T14 binding: stick claims + drives forward through capture routing');
+  deliver(overlay, 'touchstart', 5, 650, 150);
+  deliver(overlay, 'touchmove', 5, 690, 150);
+  eq(calls.look.length, lookBefore + 1, 'T14 binding: second finger looks while stick held');
+  deliver(overlay, 'touchend', 5, 690, 150);
+  deliver(overlay, 'touchend', 4, 120, 250);
+  // T14e: while the layer is INACTIVE (menus), routing is inert —
+  // no feeding, no preventDefault — so menu interaction is native.
+  tc.setActive(false);
+  const lookAtInactive = calls.look.length; const preventedAtInactive = prevented;
+  deliver(overlay, 'touchstart', 6, 700, 200);
+  deliver(overlay, 'touchmove', 6, 740, 200);
+  eq(calls.look.length, lookAtInactive, 'T14 binding: inactive layer feeds nothing');
+  eq(prevented, preventedAtInactive, 'T14 binding: inactive layer never preventDefaults (menus stay native)');
+  tc.setActive(true);
 }
 
 if (failures) { console.error(`\nmobile-check: ${failures} failure(s)`); process.exit(1); }
