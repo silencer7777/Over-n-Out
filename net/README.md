@@ -59,7 +59,7 @@ the test transport and the sim never knows which wire it is on.
 |---|---|
 | `net/ws.js` | RFC 6455 framing core, zero dependencies (`node:crypto` only): `computeAcceptKey`, a frame encoder (server/client masking), a streaming `FrameDecoder` (fragmentation reassembly, control frames surfaced whole, masking-direction enforcement, RSV=0, minimal length encodings, UTF-8 validity, and a hard cap on assembled message size that fails fast with 1009 from the header, before the payload is buffered), and a minimal masked `WsClient` for headless tests. Verified against the RFC's own worked examples. |
 | `net/ws-transport.js` | `WebSocketTransport` — LoopbackTransport's sibling on `node:http`'s `upgrade` event. Upgrades only on `/play`. Connection-layer rules live HERE, not in GameServer: first message must be `hello` within 5 s (close 1002), idle close at `LIMITS.IDLE_TIMEOUT_MS`, malformed JSON → error + 1007, `input` rate cap `LIMITS.INPUT_MAX_PER_SEC` (1008), decoder size cap (1009), slow-client close past 4 MB unsent (1008). Frame-level ping → pong at this layer; protocol `ping` messages still route to GameServer (§5.5). Exposes the additive `setDisconnectHandler(fn)` convention GameServer uses: **a closed socket IS leaving** (§5.6), so transports that can detect disconnect should say so. |
-| `net/game-server.js` | The runnable online entrypoint: `createOnlineServer()` wires GameServer + WebSocketTransport on one HTTP server. Plain HTTP requests get a status JSON (name, protocol, room list, player counts) for host health checks. Env: `PORT` (default 8081), `HOST` (default 127.0.0.1 since U10 — localhost only; anything else is an explicit opt-in). Graceful SIGINT/SIGTERM shutdown. Importing never listens; run it with `node net/game-server.js`. |
+| `net/game-server.js` | The runnable online entrypoint: `createOnlineServer()` wires GameServer + WebSocketTransport on one HTTP server. Plain HTTP requests get a status JSON (name, protocol, room shapes + player counts — **no room codes since the Lockdown pass; codes are join keys**) for host health checks. Env: `PORT` (default 8081), `HOST` (default 127.0.0.1 since U10 — localhost only; anything else is an explicit opt-in), `ONO_ALLOWED_ORIGINS` (comma-separated exact origins replacing the transport's same-host Origin rule). Graceful SIGINT/SIGTERM shutdown. Importing never listens; run it with `node net/game-server.js`. |
 | `net/protocol.js` | V4 carriage, same `PROTOCOL_VERSION` 1, same 8 `MSG` types: `hello` gains shape-checked optionals — `session` (Stage 2 token, **shape only**, ≤1024 chars), `mode` (mode id shape), `loadout` (one class object); `input` gains optional strictly-boolean `lethal`/`tactical` throw edges (Board 004 §3). New exports: `DEFAULT_MODE` (`'waves'`) and `isValidModeId()`. |
 | `net/server.js` | Session carriage: `createRoom(code, { mode })`; the first `hello` to a fresh room sets the room's mode (unknown id → `bad_mode` error); `hello.loadout` is validated against `js/loadouts.js` (`validateClass`) — invalid → `bad_loadout` error, and only the **sanitized** class is stored and echoed in `welcome`. The sim match is stamped `match.modeId`; snapshots are wrapped with `match.mode` + `match.objectives` (shape owned by the mode layer — this layer carries it verbatim, `null` until modes populate it). Events are XP-tallied with `js/progression.js` `XP_VALUES` (kill/headshot from sim events; `wave_clear` to all players; any event annotated `{ xp: { player, source, count } }` is tallied verbatim — the mode layer's channel for capture/channel/match-win sources), and one `results` event reports per-player XP totals at match end. Profiles stay client-local this version. |
 | `tools/ws-soak.mjs` | Online acceptance, **27 checks**: (A) framing units on `net/ws.js` incl. the RFC vectors; (B) a live two-client session over real localhost WebSockets — client A on the hand-rolled `WsClient`, client B on Node's built-in WebSocket (browser-family interop) — room by code, mode/loadout carriage, ~1600 snapshots each, both players in shared state, events over the wire, ping/pong, socket-close leaving; (C) abuse suite at production limits (1007/1009/1002/1008 closes, wrong-path handshake refusal, `bad_loadout`). Wired into `tools/smoke.mjs` §1i as the W-suite — the build now fails if online play breaks. |
@@ -126,12 +126,24 @@ running the supported setup:
    expose a raw port. The tunnel needs outbound egress only.
 4. **Server authority + caps already in code:** the sim
    validates movement (speed table), fire-rate (weapon table),
-   hit/damage plausibility and stance legality, dropping and
-   logging invalid claims; `LIMITS` caps message size (4 KB),
-   input rate (40/s per protocol, 1008 close on transport
-   abuse), hello timeout and idle timeout. Stage 2 signed
-   session verification remains the named open item — until
-   it lands, posture 1–3 are what keep the server private.
+   hit/damage plausibility and stance legality, dropping
+   invalid claims; `LIMITS` caps message size (4 KB; signal
+   16 KB — and since the Lockdown pass the transport decoder
+   cap is that same 16 KB number), input rate (40/s per
+   protocol, 1008 close on transport abuse), hello timeout
+   and idle timeout. **Lockdown pass (2026-11-04)** added:
+   connection caps (64/process, 8/IP), a 32-room cap with
+   60 s empty-room reaping, a 20/s general cap on non-input
+   messages, per-player violation counting with flood-capped
+   `[violation]` logging, re-hello refusal (identity is fixed
+   per connection), an Origin check on upgrade (allowlist via
+   `ONO_ALLOWED_ORIGINS`, same-host rule otherwise), and a
+   status JSON that no longer lists room codes. The full
+   firewall specification — port table, host rules, tunnel
+   ingress, watchdog — is `docs/FIREWALL.md`. Stage 2 signed
+   session verification remains the named open item (design:
+   `docs/STAGE2-SESSIONS.md`) — until it lands, posture 1–3
+   are what keep the server private.
 
 ## Verification (M0, Oct 24, 2026)
 
