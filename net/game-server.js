@@ -36,11 +36,14 @@ import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { GameServer } from './server.js';
 import { WebSocketTransport } from './ws-transport.js';
-import { PROTOCOL_VERSION } from './protocol.js';
+import { PROTOCOL_VERSION, LIMITS } from './protocol.js';
 
-export function createOnlineServer({ port = 8081, host = '127.0.0.1' } = {}) {
+export function createOnlineServer({ port = 8081, host = '127.0.0.1', allowedOrigins = null, maxConnections, maxPerIp } = {}) {
   const game = new GameServer();
-  const transport = new WebSocketTransport();
+  const transportOpts = { allowedOrigins };
+  if (maxConnections !== undefined) transportOpts.maxConnections = maxConnections;
+  if (maxPerIp !== undefined) transportOpts.maxPerIp = maxPerIp;
+  const transport = new WebSocketTransport(transportOpts);
   game.attachTransport(transport);
 
   const httpServer = createServer((req, res) => {
@@ -48,9 +51,16 @@ export function createOnlineServer({ port = 8081, host = '127.0.0.1' } = {}) {
       name: "Over n' Out — game server",
       protocol: PROTOCOL_VERSION,
       status: 'up',
+      // Lockdown (2026-11-04): room CODES are join keys — the
+      // status JSON no longer lists them. Anyone who can reach
+      // this port (the tunnel forwards plain HTTP too, if the
+      // operator points it here) could otherwise harvest live
+      // room codes and drop into private matches. Counts and
+      // shapes stay: enough to health-check, nothing to join.
       rooms: [...game.rooms.values()].map(r => ({
-        code: r.code, mode: r.mode, map: r.map, players: r.players.size, state: r.state,
+        mode: r.mode, map: r.map, players: r.players.size, state: r.state,
       })),
+      playersOnline: [...game.rooms.values()].reduce((n, r) => n + r.players.size, 0),
       playPath: transport.path,
       note: 'WebSocket clients connect at ws://<host>' + transport.path + ' — see net/README.md',
     });
@@ -83,13 +93,21 @@ const isDirectRun = (() => {
 if (isDirectRun) {
   const port = Number(process.env.PORT) || 8081;
   const host = process.env.HOST || '127.0.0.1'; // U10: localhost by default; HOST= is the operator's explicit opt-in
-  const { game, httpServer, close } = createOnlineServer({ port, host });
+  // Lockdown: ONO_ALLOWED_ORIGINS (comma-separated exact origins,
+  // e.g. https://silencer7777.github.io) replaces the transport's
+  // same-host Origin rule — needed when the page is served from
+  // GitHub Pages but the socket lives on the tunnel host.
+  const allowedOrigins = process.env.ONO_ALLOWED_ORIGINS
+    ? process.env.ONO_ALLOWED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
+    : null;
+  const { game, httpServer, close } = createOnlineServer({ port, host, allowedOrigins });
   game.start();
   httpServer.listen(port, host, () => {
     const addr = httpServer.address();
     console.log(`[game-server] Over n' Out online server → ws://${addr.address}:${addr.port}/play`);
     console.log(`[game-server] status JSON → http://${addr.address}:${addr.port}/`);
     console.log('[game-server] rooms are created by hello; tick 30 Hz, snapshots 20 Hz.');
+    console.log(`[game-server] Lockdown caps: ${LIMITS.MAX_CONNECTIONS} conns / ${LIMITS.MAX_PER_IP} per IP / ${LIMITS.MAX_ROOMS} rooms; origins ${allowedOrigins ? 'allowlist (' + allowedOrigins.join(', ') + ')' : 'same-host rule'}.`);
     console.log('[game-server] ⚠ DEV AUTH: session tokens are shape-checked only (Stage 2 pending).');
     console.log('[game-server] ⚠ Localhost / LAN / private tunnel ONLY — do not expose publicly yet.');
     if (host === '127.0.0.1' || host === '::1') {
