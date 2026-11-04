@@ -169,7 +169,7 @@ function goLandscape() {
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
 // version tag — Brett reads "BUILD V7.2" in the menu footer.
-const BUILD_NO = 'V7.14';
+const BUILD_NO = 'V7.15';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -2554,7 +2554,15 @@ const clock = new THREE.Clock();
 const DOWN_INPUT = { forward: false, back: false, left: false, right: false, sprint: false, jump: false, aim: false, slide: false };
 function tick() {
   requestAnimationFrame(tick);
-  const dt = Math.min(clock.getDelta(), 0.05);
+  const rawDt = clock.getDelta();
+  const dt = Math.min(rawDt, 0.05);
+  // V7.15: the LOOK approach gets a looser clamp than the sim.
+  // Under the old single 50 ms clamp, a render hitch stalled
+  // the camera while look targets kept accumulating from real
+  // input — then the camera whipped to catch up. Look time now
+  // tracks real elapsed time up to 100 ms; the sim keeps its
+  // stability clamp.
+  const dtLook = Math.min(rawDt, 0.1);
 
   // V6 mobile: the touch overlay exists exactly while a run is live
   // (frame-driven, so pause/death/menu paths need no extra hooks).
@@ -2617,7 +2625,7 @@ function tick() {
   if (state === 'online' && session) {
     // R2-5: while driving online, the local walker stands
     // down — the predicted vehicle owns the rig (below).
-    player.update(dt, onlineDrive ? DOWN_INPUT : input);
+    player.update(dt, onlineDrive ? DOWN_INPUT : input, dtLook);
     session.pumpInput(dt, buildOnlineSample);
     voiceRosterAcc += dt; // U6-15: keep the voice mesh rostered (~2 Hz is plenty)
     if (voiceRosterAcc > 0.5) { voiceRosterAcc = 0; syncVoiceRoster(); }
@@ -2679,7 +2687,7 @@ function tick() {
       waveBanner.style.opacity = 1;
       sfx.countTick(false);
     }
-    player.update(dt, DOWN_INPUT);
+    player.update(dt, DOWN_INPUT, dtLook);
     if (countdownT <= 0) {
       state = 'playing';
       waveBanner.textContent = 'GO!';
@@ -2694,7 +2702,7 @@ function tick() {
     const down = M.respawnT > 0;
     if (down) {
       M.respawnT -= dt;
-      player.update(dt, DOWN_INPUT);
+      player.update(dt, DOWN_INPUT, dtLook);
       if (M.respawnT <= 0) {
         player.reset();
         refillGear();
@@ -2704,7 +2712,7 @@ function tick() {
     } else if (driving) {
       stepDrive(dt); // R2-1: the vehicle steps instead of the walker
     } else {
-      player.update(dt, input);
+      player.update(dt, input, dtLook);
     }
 
     bloom = Math.max(0, bloom - 2.2 * dt);
