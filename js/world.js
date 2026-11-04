@@ -1300,28 +1300,39 @@ export function buildWorld(scene) {
     // calls. Its variation comes from a locally-seeded PRNG
     // (mulberry32 on the bush index) so the shared lrand stream
     // — and every placement downstream of it — is untouched.
-    const bushIM = new THREE.InstancedMesh(canopyGeometry(1, 7.7, 0.34), foliageMat, bushData.length * 3);
+    const bushIM = new THREE.InstancedMesh(canopyGeometry(1, 7.7, 0.34), foliageMat, bushData.length * 4);
     bushIM.castShadow = true; bushIM.receiveShadow = true; bushIM.frustumCulled = false;
     bushData.forEach(([x, z, size], i) => {
       dummy.rotation.set(0, lrand() * Math.PI * 2, 0);
       dummy.position.set(x, size * 0.34, z);
       dummy.scale.set(size, size * 0.72, size * (0.85 + lrand() * 0.3));
-      dummy.updateMatrix(); bushIM.setMatrixAt(i * 3, dummy.matrix);
-      bushIM.setColorAt(i * 3, deepGreen.clone().lerp(tipGreen, lrand() * 0.55));
+      dummy.updateMatrix(); bushIM.setMatrixAt(i * 4, dummy.matrix);
+      bushIM.setColorAt(i * 4, deepGreen.clone().lerp(tipGreen, lrand() * 0.55));
       const oa = lrand() * Math.PI * 2, os = size * (0.5 + lrand() * 0.2);
       dummy.rotation.set(0, lrand() * Math.PI * 2, 0);
       dummy.position.set(x + Math.cos(oa) * size * 0.45, os * 0.36, z + Math.sin(oa) * size * 0.45);
       dummy.scale.set(os, os * 0.7, os * (0.85 + lrand() * 0.3));
-      dummy.updateMatrix(); bushIM.setMatrixAt(i * 3 + 1, dummy.matrix);
-      bushIM.setColorAt(i * 3 + 1, deepGreen.clone().lerp(tipGreen, 0.15 + lrand() * 0.5));
+      dummy.updateMatrix(); bushIM.setMatrixAt(i * 4 + 1, dummy.matrix);
+      bushIM.setColorAt(i * 4 + 1, deepGreen.clone().lerp(tipGreen, 0.15 + lrand() * 0.5));
       let sk = ((i + 1) * 2654435761) >>> 0;
       const srnd = () => { sk = (sk + 0x6D2B79F5) >>> 0; let t = sk; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
       const sa = srnd() * Math.PI * 2, ss = size * (0.8 + srnd() * 0.2);
       dummy.rotation.set(0, srnd() * Math.PI * 2, 0);
       dummy.position.set(x + Math.cos(sa) * size * 0.22, size * 0.13, z + Math.sin(sa) * size * 0.22);
       dummy.scale.set(ss, size * 0.34, ss * (0.85 + srnd() * 0.3));
-      dummy.updateMatrix(); bushIM.setMatrixAt(i * 3 + 2, dummy.matrix);
-      bushIM.setColorAt(i * 3 + 2, deepGreen.clone().lerp(tipGreen, srnd() * 0.3));
+      dummy.updateMatrix(); bushIM.setMatrixAt(i * 4 + 2, dummy.matrix);
+      bushIM.setColorAt(i * 4 + 2, deepGreen.clone().lerp(tipGreen, srnd() * 0.3));
+      // V7.7: a FOURTH mass — a sunlit crown puff riding high on
+      // the bush, opposite the low skirt, so the silhouette reads
+      // grown and layered instead of a two-ball clump. Same mesh,
+      // same local PRNG stream (continued, never restarted), the
+      // shared lrand stream and the collider rule are untouched.
+      const ca = srnd() * Math.PI * 2, cs = size * (0.45 + srnd() * 0.15);
+      dummy.rotation.set(0, srnd() * Math.PI * 2, 0);
+      dummy.position.set(x + Math.cos(ca) * size * 0.28, size * 0.62, z + Math.sin(ca) * size * 0.28);
+      dummy.scale.set(cs, cs * 0.66, cs * (0.85 + srnd() * 0.3));
+      dummy.updateMatrix(); bushIM.setMatrixAt(i * 4 + 3, dummy.matrix);
+      bushIM.setColorAt(i * 4 + 3, deepGreen.clone().lerp(tipGreen, 0.45 + srnd() * 0.4));
       if (size >= 1.1) {
         colliders.push(new THREE.Box3(
           new THREE.Vector3(x - size * 0.75, 0, z - size * 0.75),
