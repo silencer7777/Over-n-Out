@@ -169,7 +169,7 @@ function goLandscape() {
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
 // version tag — Brett reads "BUILD V7.2" in the menu footer.
-const BUILD_NO = 'V7.11';
+const BUILD_NO = 'V7.12';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -1132,30 +1132,70 @@ const _muzzle = new THREE.Vector3();
 const _end = new THREE.Vector3();
 
 const TRACER_POOL_SIZE = 32;
-const TRACER_LIFE = 0.05;
 const tracers = [];
 let tracerCursor = 0;
 for (let i = 0; i < TRACER_POOL_SIZE; i++) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
-  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0 }));
+  // V7.12 (playtest fix: "it doesn't look like real bullets"):
+  // additive blending so the streak reads as a hot core against
+  // bright sky as well as dark ground.
+  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xffe08a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
   line.visible = false;
   line.frustumCulled = false;
   scene.add(line);
-  tracers.push({ line, life: 0 });
+  tracers.push({ line, t: 0, dur: 0, from: new THREE.Vector3(), to: new THREE.Vector3(), dir: new THREE.Vector3(), dist: 0, speed: 880, len: 2 });
 }
 
-function showTracer(from, to, color) {
+// V7.12: a tracer is no longer a full muzzle-to-target LINE
+// flashed for 50 ms (that read as a laser beam: instant, static,
+// hair-thin, same at 5 m and 100 m). It is a SHORT STREAK —
+// roughly a fifth of the flight path, clamped 1.6–8 units — that
+// TRAVELS from muzzle to impact at the weapon's table velocity
+// (weapons.js `velocity`, the speed class the spec sheet already
+// published). Purely visual: hitscan resolution is untouched,
+// this only re-renders the already-computed from/to segment.
+function showTracer(from, to, color, velocity = 880) {
   const slot = tracers[tracerCursor];
   tracerCursor = (tracerCursor + 1) % TRACER_POOL_SIZE;
-  slot.life = TRACER_LIFE;
-  const pos = slot.line.geometry.attributes.position;
-  pos.setXYZ(0, from.x, from.y, from.z);
-  pos.setXYZ(1, to.x, to.y, to.z);
-  pos.needsUpdate = true;
+  slot.from.copy(from);
+  slot.to.copy(to);
+  slot.dir.subVectors(to, from);
+  slot.dist = slot.dir.length();
+  if (slot.dist < 0.05) { slot.t = 0; slot.dur = 0; slot.line.visible = false; return; }
+  slot.dir.multiplyScalar(1 / slot.dist);
+  slot.speed = Math.max(60, velocity || 880);
+  slot.len = Math.min(8, Math.max(1.6, slot.dist * 0.22));
+  // Life = head travel + tail catch-up; floored so point-blank
+  // shots still flash a streak, capped so nothing lingers.
+  slot.dur = Math.min(0.5, Math.max(0.035, (slot.dist + slot.len) / slot.speed));
+  slot.t = 0;
   slot.line.material.color.set(color);
-  slot.line.material.opacity = 0.9;
+  slot.line.material.opacity = 0;
   slot.line.visible = true;
+}
+
+// Advance every live tracer streak (head runs at weapon
+// velocity, tail follows one streak-length behind; the streak
+// collapses into the impact point as the tail arrives).
+// Opacity: quick strike-in, full while travelling, out as the
+// tail closes. Called from BOTH the offline and online ticks.
+function stepTracers(dt) {
+  for (const s of tracers) {
+    if (s.dur <= 0 || s.t >= s.dur) continue;
+    s.t += dt;
+    const head = Math.min(s.dist, s.speed * s.t);
+    const tail = Math.max(0, head - s.len);
+    const pos = s.line.geometry.attributes.position;
+    pos.setXYZ(0, s.from.x + s.dir.x * tail, s.from.y + s.dir.y * tail, s.from.z + s.dir.z * tail);
+    pos.setXYZ(1, s.from.x + s.dir.x * head, s.from.y + s.dir.y * head, s.from.z + s.dir.z * head);
+    pos.needsUpdate = true;
+    const p = Math.min(1, s.t / s.dur);
+    const fadeIn = Math.min(1, p / 0.12);
+    const fadeOut = p > 0.7 ? 1 - (p - 0.7) / 0.3 : 1;
+    s.line.material.opacity = 0.95 * fadeIn * fadeOut;
+    if (s.t >= s.dur) s.line.visible = false;
+  }
 }
 
 function falloffDamage(weapon, distance) {
@@ -1249,7 +1289,7 @@ function shoot() {
     }
 
     // Suppressed shots render no tracer (Havoc §3 stealth identity).
-    if (tracerCount < 3 && !weapon.stealth) { showTracer(_muzzle, _end, weapon.tracerColor); tracerCount++; }
+    if (tracerCount < 3 && !weapon.stealth) { showTracer(_muzzle, _end, weapon.tracerColor, weapon.velocity); tracerCount++; }
   }
 
   if (hitAny) {
@@ -2111,7 +2151,7 @@ async function joinOnline() {
     onShot: ev => {
       _from.set(ev.origin[0], ev.origin[1], ev.origin[2]);
       _to.set(ev.end[0], ev.end[1], ev.end[2]);
-      showTracer(_from, _to, getWeapon(ev.weapon).tracerColor);
+      showTracer(_from, _to, getWeapon(ev.weapon).tracerColor, getWeapon(ev.weapon).velocity);
       if (ev.by === session?.playerId) sfx.shot(getWeapon(ev.weapon).sound);
       else sfx.enemyShot(player.position.distanceTo(_from), getWeapon(ev.weapon).sound);
     },
@@ -2544,12 +2584,7 @@ function tick() {
       }
     }
     stepOnlineVehicles(dt, me); // R2-5: own-vehicle prediction + prompts
-    for (const t of tracers) {
-      if (t.life <= 0) continue;
-      t.life -= dt;
-      t.line.material.opacity = Math.max(0, t.life / TRACER_LIFE) * 0.9;
-      if (t.life <= 0) t.line.visible = false;
-    }
+    stepTracers(dt); // V7.12: traveling streaks (shared with offline tick)
     vignette.style.opacity = Math.max(0, vignette.style.opacity - dt * 1.6);
   }
 
@@ -2739,13 +2774,8 @@ function tick() {
 
     updateV5Systems(dt);
 
-    // tracers fade
-    for (const t of tracers) {
-      if (t.life <= 0) continue;
-      t.life -= dt;
-      t.line.material.opacity = Math.max(0, t.life / TRACER_LIFE) * 0.9;
-      if (t.life <= 0) t.line.visible = false;
-    }
+    // tracers travel + fade (V7.12 streaks)
+    stepTracers(dt);
     vignette.style.opacity = Math.max(0, vignette.style.opacity - dt * 1.6);
     if (dmgDirT > 0) {
       dmgDirT -= dt;
