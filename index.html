@@ -69,9 +69,22 @@
      the story transmission and the controls reference. Nothing was
      removed; both pages live in the DOM so every id stays served. -->
 <div id="menu">
+  <!-- V7.13 MENU TABS (playtest fix): the menu's sections live
+       behind this tab bar instead of one long scroll. The bar
+       sits outside the two pages so it stays visible on the
+       SETTINGS page too; js/main.js regroups the existing
+       sections into panels at boot (nodes are moved, never
+       rebuilt, so every handler keeps working). -->
+  <nav id="menu-tabs" role="tablist" aria-label="Menu sections">
+    <button type="button" class="mtab-btn active" data-tab="play" role="tab">▶ PLAY</button>
+    <button type="button" class="mtab-btn" data-tab="loadout" role="tab">🎒 LOADOUT</button>
+    <button type="button" class="mtab-btn" data-tab="record" role="tab">★ RECORD</button>
+    <button type="button" class="mtab-btn" data-tab="shop" role="tab">🛒 SUPPLY</button>
+    <button type="button" class="mtab-btn" data-tab="settings" role="tab">⚙ SETTINGS</button>
+  </nav>
   <div id="menu-page-main" class="menu-page">
     <h1>OVER <span>N'</span> OUT</h1>
-    <p class="tag">TACTICAL BROWSER FPS · v0.7.12</p>
+    <p class="tag">TACTICAL BROWSER FPS · v0.7.13</p>
     <div id="menu-chips" aria-hidden="true"><span class="mchip hot">VERSION 7 — LIVE BUILD</span><span class="mchip">WORKING OPTICS</span><span class="mchip">TEAM CHAT + VOICE</span><span class="mchip">4 MAPS · 4 IDENTITIES</span></div>
     <p id="menu-msg">Hostile waves inbound. Hold the compound.</p>
     <div id="results" class="hidden"><div class="story-label">AFTER ACTION — XP</div><div id="results-body"></div></div>
@@ -138,7 +151,7 @@
     <button id="menu-options-btn" type="button">⚙ &nbsp;OPTIONS — CONTROLS · SCREEN · MOVEMENT · AUDIO</button>
     <button id="menu-more-btn" type="button">📜 &nbsp;STORY · CONTROLS REFERENCE</button>
     <p class="fine">One build for desktop + phone — on touch screens, on-screen controls appear automatically when you deploy.</p>
-    <p class="fine" id="build-stamp">BUILD V7.12 · v0.7.12</p>
+    <p class="fine" id="build-stamp">BUILD V7.13 · v0.7.13</p>
   </div>
   <div id="menu-page-more" class="menu-page hidden">
     <div class="menu-page-title">OPTIONS</div>
