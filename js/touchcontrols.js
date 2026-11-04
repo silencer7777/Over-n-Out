@@ -290,33 +290,66 @@ export class TouchControls {
     return b;
   }
 
+  // V7.10 ROTATE FIX (Analog, Input & Accessibility): gesture
+  // routing moved from the layer element to DOCUMENT CAPTURE
+  // listeners. The old layer-bound listeners only ever received a
+  // gesture when the browser delivered it to #touch-layer itself —
+  // the one link in the look chain the headless harness could not
+  // exercise (mobile-check drove the pure core; the owner's phone
+  // is where delivery actually happens, and there the drag simply
+  // never arrived: core, hooks and player.look were all proven
+  // correct in isolation). Capture-phase routing at the document
+  // sees every touch on the page first, whatever element it lands
+  // on (canvas, HUD, an overlay, the layer), so nothing in the
+  // page stack can silently swallow a look/stick drag again.
+  // Semantics are unchanged: buttons still claim their own touches
+  // (their handlers are untouched — capture routing skips any
+  // touch that starts inside a .tc-btn / .tc-slot; for touchmove /
+  // touchend the event target is the start element, so a finger
+  // that began on FIRE is skipped for its whole life, exactly as
+  // before). While the layer is inactive (menus), routing is fully
+  // inert — no preventDefault, no feeding — so menu taps, scroll
+  // and clicks behave natively.
+  _isButtonTouch(e) {
+    let n = e.target;
+    while (n) {
+      if (n.classList && (n.classList.contains('tc-btn') || n.classList.contains('tc-slot'))) return true;
+      n = n.parentNode;
+    }
+    return false;
+  }
+
   _bind() {
-    const root = this.root;
-    // The layer owns stick/look gestures. preventDefault on every
-    // phase (+ touch-action:none in CSS) kills scroll, pull-to-
-    // refresh, double-tap zoom and long-press callouts mid-match.
-    root.addEventListener('touchstart', e => {
+    const doc = this.doc;
+    // The layer owns stick/look gestures while active.
+    // preventDefault on every fed gesture (+ touch-action:none in
+    // CSS) kills scroll, pull-to-refresh, double-tap zoom and
+    // long-press callouts mid-match.
+    doc.addEventListener('touchstart', e => {
+      if (!this.core.active || this._isButtonTouch(e)) return;
       e.preventDefault();
       for (const t of e.changedTouches) {
         const zone = this.core.touchStart(t.identifier, t.clientX, t.clientY);
         if (zone === 'stick') this._showStick(t.clientX, t.clientY);
       }
-    }, { passive: false });
-    root.addEventListener('touchmove', e => {
+    }, { passive: false, capture: true });
+    doc.addEventListener('touchmove', e => {
+      if (!this.core.active || this._isButtonTouch(e)) return;
       e.preventDefault();
       for (const t of e.changedTouches) {
         const r = this.core.touchMove(t.identifier, t.clientX, t.clientY);
         if (r && r.zone === 'stick') this._moveKnob(r.dx, r.dy);
       }
-    }, { passive: false });
+    }, { passive: false, capture: true });
     const end = e => {
+      if (!this.core.active || this._isButtonTouch(e)) return;
       e.preventDefault();
       for (const t of e.changedTouches) {
         if (this.core.touchEnd(t.identifier) === 'stick') this.stickBase.style.display = 'none';
       }
     };
-    root.addEventListener('touchend', end, { passive: false });
-    root.addEventListener('touchcancel', end, { passive: false });
+    doc.addEventListener('touchend', end, { passive: false, capture: true });
+    doc.addEventListener('touchcancel', end, { passive: false, capture: true });
     // iOS Safari pinch gestures arrive as gesture events, not
     // touches — swallow them so a two-finger look never zooms.
     this.doc.addEventListener('gesturestart', e => e.preventDefault());
