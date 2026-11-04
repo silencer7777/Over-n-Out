@@ -147,6 +147,18 @@ html, body { width:100%; height:100%; overflow:hidden; background:#0b0f14; font-
 #menu-back-btn { margin-top:26px; }
 #menu-more-btn:hover, #menu-back-btn:hover { border-color:rgba(182,255,176,.85); }
 
+/* V7.13 menu tabs: a wrapping flex bar (never wider than the
+   screen, 44px thumb targets with no hover dependence) and
+   panels of which exactly one renders at a time — the menu's
+   long single scroll is gone. DEPLOY keeps the only loud
+   (gradient) styling; the active tab is a green-tinted ghost. */
+#menu-tabs { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; width:100%; max-width:640px; position:sticky; top:0; z-index:5; padding:8px 4px; margin-bottom:10px; background:rgba(4,8,6,.9); border-radius:6px; }
+.mtab-btn { pointer-events:auto; cursor:pointer; background:rgba(255,255,255,.06); border:1px solid rgba(182,255,176,.35); color:#d9e8db; padding:11px 14px; min-height:44px; font-size:12px; font-weight:700; letter-spacing:2px; border-radius:4px; flex:1 1 auto; }
+.mtab-btn.active { border-color:#39ff6a; color:#fff; background:rgba(57,255,106,.16); }
+.mtab-panel { display:none; width:100%; }
+.mtab-panel.active { display:flex; flex-direction:column; align-items:center; width:100%; }
+#shop-panel { margin-top:12px; max-width:560px; width:100%; }
+
 /* Touch-mode shell: 44px+ targets everywhere in the menu, no
    double-tap zoom, HUD readouts moved clear of the thumb cluster. */
 body.touch-mode { touch-action:manipulation; }
