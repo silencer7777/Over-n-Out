@@ -663,3 +663,43 @@ accounts feed it (§5.1), the store never touches match traffic
 a Unity client speaking §5 to the same server is the intended end
 state, which is one more reason the protocol — not the browser
 client — is the asset this document defines.
+
+---
+
+## 13. Lockdown status (2026-11-04 — Brett's backend order)
+
+The hardening pass specced in
+`docs/sessions/v7-midday-2026-10-30-report.md` is **implemented**
+(items 1–6 in code, item 7 as design). Full record:
+`docs/sessions/v8-lockdown-2026-11-04-report.md`.
+
+- **Caps & cleanup (§7.6 extended):** 64 connections/process,
+  8 per IP, 32 rooms, empty rooms reaped after 60 s (LOBBY
+  exempt) — all in `net/protocol.js` `LIMITS`, enforced in
+  `net/ws-transport.js` + `net/server.js`, pinned by smoke
+  N16–N21 and ws-soak C9/C10.
+- **General rate cap:** non-input messages 20/s per player
+  (input 40/s and chat 5-per-4 s caps unchanged).
+- **Violation accounting:** every refused claim is counted per
+  player; the first 5 per player log as `[violation]` lines
+  (flood-capped logging, §9's ops minimum made real).
+- **Identity within a connection:** re-hello refused
+  (`already_hello`); a connection's name/loadout cannot change
+  mid-session.
+- **Payload reconciliation:** the transport decoder cap and the
+  signal limit are one number (`LIMITS.SIGNAL_MAX_BYTES`,
+  16,384); per-type caps still apply in GameServer.
+- **Origin check** on upgrade (allowlist via
+  `ONO_ALLOWED_ORIGINS`, same-host rule otherwise) — §11 risk 9's
+  abuse surface narrowed before Stage 2 exists.
+- **Status JSON** no longer lists room codes (they are join
+  keys).
+- **Firewall specification:** `docs/FIREWALL.md` — port table,
+  host rules (pf/ufw/Defender), tunnel ingress rule, in-process
+  limit table, watchdog behaviour, and the host-side checklist
+  that only Brett can do at the Mac.
+- **Stage 2:** designed, NOT built — `docs/STAGE2-SESSIONS.md`
+  (threat model T1–T8, scrypt account store, HMAC session
+  tokens, 30 s reconnect grace keyed to token identity, which
+  also settles §11 risk 5's leaning). §11 risk 4 stands exactly
+  as written: no public exposure until it lands.
