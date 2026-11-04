@@ -402,6 +402,87 @@ if (MSG && typeof validateHello === 'function' && typeof validateInput === 'func
     else if (spaced.ok !== true) fail(`N15 validateHello rejected an ordinary spaced name → ${JSON.stringify(spaced)}`);
     else ok('N15 validateHello rejects control characters in name (\\n/NUL/DEL); spaced names pass');
   } catch (e) { fail('N15 validateHello control-character checks threw: ' + e.message); }
+
+  // N16–N21 (Lockdown pass, 2026-11-04 — spec: docs/sessions/
+  // v7-midday-2026-10-30-report.md items 1–6; Brett's backend
+  // order). Each pin is the acceptance test its spec item names.
+  try {
+    const { GameServer } = await import('../net/server.js');
+    const { WebSocketTransport } = await import('../net/ws-transport.js');
+
+    // N16 (item 5): one payload number, both layers — the
+    // transport decoder admits LIMITS.SIGNAL_MAX_BYTES, and the
+    // Lockdown caps exist in LIMITS.
+    const t0 = new WebSocketTransport();
+    const payloadAgree = t0.maxPayload === LIMITS.SIGNAL_MAX_BYTES && LIMITS.SIGNAL_MAX_BYTES === 16384;
+    t0.close();
+    if (!payloadAgree) fail(`N16 transport maxPayload → ${t0.maxPayload} (expected LIMITS.SIGNAL_MAX_BYTES 16384)`);
+    else if (LIMITS.MAX_CONNECTIONS !== 64 || LIMITS.MAX_PER_IP !== 8 || LIMITS.MAX_ROOMS !== 32 || LIMITS.MSG_MAX_PER_SEC !== 20) fail('N16 LIMITS Lockdown caps drifted (64 conns / 8 per IP / 32 rooms / 20 msg/s)');
+    else ok('N16 Lockdown caps in LIMITS; transport decoder cap === SIGNAL_MAX_BYTES (one number, both layers)');
+
+    // N17 (item 4): re-hello on one connection is refused and
+    // the original identity is untouched.
+    const gs = new GameServer({ logger: () => {} });
+    const room = gs.createRoom('N17R');
+    const hello = (name) => ({ t: 'hello', protocol: 1, name, room: 'N17R' });
+    const w1 = gs.handleMessage(room, 'p1', hello('FIRST'));
+    const w2 = gs.handleMessage(room, 'p1', hello('SECOND'));
+    if (!w1 || w1.t !== 'welcome') fail('N17 first hello did not welcome');
+    else if (!w2 || w2.t !== 'error' || w2.code !== 'already_hello') fail(`N17 re-hello not refused → ${JSON.stringify(w2)}`);
+    else if (room.players.get('p1').name !== 'FIRST') fail('N17 re-hello renamed the player');
+    else ok('N17 re-hello refused (already_hello); original identity untouched');
+
+    // N18 (item 1a): room cap — a new room past the cap is
+    // refused (null); existing rooms are unaffected.
+    const gs2 = new GameServer({ maxRooms: 2, logger: () => {} });
+    gs2.createRoom('AA11'); gs2.createRoom('BB22');
+    if (gs2.createRoom('CC33') !== null) fail('N18 room cap not enforced (3rd room created at cap 2)');
+    else if (!gs2.createRoom('AA11')) fail('N18 existing room lost at cap');
+    else ok('N18 room cap enforced; existing rooms unaffected');
+
+    // N19 (item 2): general non-input rate cap — pings past
+    // MSG_MAX_PER_SEC inside a second are dropped with
+    // rate_limited; the messages before the cap still pong.
+    const gs3 = new GameServer({ logger: () => {} });
+    const room3 = gs3.createRoom('N19R');
+    gs3.handleMessage(room3, 'p9', { t: 'hello', protocol: 1, name: 'PING', room: 'N19R' });
+    let pongs = 0, limited = 0;
+    for (let i = 0; i < LIMITS.MSG_MAX_PER_SEC + 5; i++) {
+      const r = gs3.handleMessage(room3, 'p9', { t: 'ping', id: i });
+      if (r && r.t === 'pong') pongs++;
+      else if (r && r.t === 'error' && r.code === 'rate_limited') limited++;
+    }
+    if (pongs === 0) fail('N19 no pongs before the rate cap');
+    else if (limited === 0) fail('N19 ping flood never rate-limited');
+    else ok(`N19 non-input rate cap: ${pongs} pongs through, ${limited} dropped rate_limited`);
+
+    // N20 (item 3): violations are counted per player and the
+    // log budget caps lines (flood-proof logging).
+    const lines = [];
+    const gs4 = new GameServer({ logger: (l) => lines.push(l) });
+    const room4 = gs4.createRoom('N20R');
+    gs4.handleMessage(room4, 'bad1', { t: 'hello', protocol: 99, name: 'X', room: 'N20R' });
+    for (let i = 0; i < 8; i++) {
+      gs4.handleMessage(room4, 'bad1', { t: 'input', seq: i, keys: { forward: 'yes' }, yaw: 0, pitch: 0, fire: false, reload: false, weapon: 99 });
+    }
+    const vTotal = gs4.violations.get('bad1') || 0;
+    if (vTotal !== 9) fail(`N20 violation count → ${vTotal} (expected 9: 1 bad hello + 8 bad inputs)`);
+    else if (lines.length !== LIMITS.VIOLATION_LOG_BUDGET) fail(`N20 log lines → ${lines.length} (expected budget ${LIMITS.VIOLATION_LOG_BUDGET})`);
+    else if (!lines.every(l => l.startsWith('[violation]'))) fail('N20 log lines missing the [violation] prefix');
+    else ok('N20 violations counted per player (9); log lines capped at the budget (5)');
+
+    // N21 (item 1b): empty-room GC — an aged empty room is
+    // reaped on step(); the default LOBBY room is exempt.
+    const gs5 = new GameServer({ roomEmptyTtlMs: 1000, logger: () => {} });
+    const doomed = gs5.createRoom('GONE');
+    doomed._emptySince = Date.now() - 5000;
+    const lobby = gs5.createRoom('LOBBY');
+    lobby._emptySince = Date.now() - 5000;
+    gs5.step();
+    if (gs5.rooms.has('GONE')) fail('N21 aged empty room was not reaped');
+    else if (!gs5.rooms.has('LOBBY')) fail('N21 LOBBY was reaped (must be exempt)');
+    else ok('N21 empty-room GC reaps aged rooms; LOBBY exempt');
+  } catch (e) { fail('N16-N21 Lockdown pins threw: ' + e.message); }
 }
 
 // 1f) Gun models (V3 Phase 2 workstream 1) — source contract.
