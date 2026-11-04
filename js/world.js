@@ -1081,18 +1081,26 @@ export function buildWorld(scene) {
     const seg = 72, positions = [], colors = [], indices = [];
     const hash = n => { const s = Math.sin(n * 127.1 + phase * 311.7) * 43758.5453; return s - Math.floor(s); };
     const base = new THREE.Color(baseColor), crest = new THREE.Color(crestColor), tmp = new THREE.Color();
+    // V7.9: a MID-SLOPE row at 55% height, pulled inward as the
+    // slope rises — the two-row curtain becomes a three-stop
+    // terrain gradient (base → mid → crest), so the rings shade
+    // like mountainsides instead of flat walls. Same mesh, same
+    // deterministic hash family; silhouette outline unchanged.
+    const mid = base.clone().lerp(crest, 0.45);
     for (let i = 0; i <= seg; i++) {
       const a = (i / seg) * Math.PI * 2;
       const bump = Math.sin(a * 3 + phase) * 0.45 + Math.sin(a * 7 + phase * 2.3) * 0.3 + Math.sin(a * 13 + phase * 4.1) * 0.25;
       const r = baseR + bump * rVar + (hash(i) - 0.5) * rVar * 0.5;
       const h = Math.max(2.5, baseH + bump * hVar + (hash(i + 57) - 0.5) * hVar * 0.6);
-      positions.push(Math.cos(a) * r, -2, Math.sin(a) * r, Math.cos(a) * r, h, Math.sin(a) * r);
+      const rm = r - h * 0.16, hm = -2 + (h + 2) * 0.55;
+      positions.push(Math.cos(a) * r, -2, Math.sin(a) * r, Math.cos(a) * rm, hm, Math.sin(a) * rm, Math.cos(a) * r, h, Math.sin(a) * r);
       tmp.copy(base).offsetHSL(0, 0, (hash(i + 131) - 0.5) * 0.08); colors.push(tmp.r, tmp.g, tmp.b);
+      tmp.copy(mid).offsetHSL(0, 0, (hash(i + 164) - 0.5) * 0.09); colors.push(tmp.r, tmp.g, tmp.b);
       tmp.copy(crest).offsetHSL(0, 0, (hash(i + 197) - 0.5) * 0.10); colors.push(tmp.r, tmp.g, tmp.b);
     }
     for (let i = 0; i < seg; i++) {
-      const b = i * 2, t = b + 1, b2 = b + 2, t2 = b + 3;
-      indices.push(b, b2, t, t, b2, t2);
+      const b = i * 3, m = b + 1, t = b + 2, b2 = b + 3, m2 = b + 4, t2 = b + 5;
+      indices.push(b, b2, m, m, b2, m2, m, m2, t, t, m2, t2);
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -1106,6 +1114,41 @@ export function buildWorld(scene) {
   ridgeRing('horizon-near', 132, 9, 13, 8, 0x181126, 0x342a52, 4.2);      // near ridge — lower, darker (was r100 flat)
   ridgeRing('horizon-mid', 152, 11, 19, 10, 0x211a38, 0x453a68, 5.6);     // mid ridge — new parallax layer
   ridgeRing('horizon-far', 178, 13, 27, 14, 0x2a2044, 0x5a4c82, 1.7);     // far ridge — taller, lighter (was r124 flat)
+
+  // V7.9 TREE LINE (vision queue: scenery depth): a jagged
+  // conifer-silhouette ring at r ≈ 117.5 — between the playable
+  // corner (~113.1) and the foothill ring — so the ground reads
+  // arena → forest edge → foothills → ridges → peaks instead of
+  // arena → mountains. Top edge is hash-spiked (clustered spikes
+  // read as conifer crowns); near-black green, MeshBasic +
+  // fog:false like the rings it joins. ONE new mesh (+1 call,
+  // compound only), visual only: no colliders, no shootables,
+  // castShadow off — shadow budget Δ0.
+  {
+    const seg = 128, positions = [], colors = [], indices = [];
+    const hash = n => { const s = Math.sin(n * 197.3 + 41.7) * 43758.5453; return s - Math.floor(s); };
+    const base = new THREE.Color(0x11160f), tip = new THREE.Color(0x222c1b), tmp = new THREE.Color();
+    for (let i = 0; i <= seg; i++) {
+      const a = (i / seg) * Math.PI * 2;
+      const r = 117.5 + (hash(i * 3) - 0.5) * 2.4;
+      const spike = hash(i * 3 + 1);
+      const h = Math.max(1.6, 2.6 + spike * spike * 3.4 + Math.sin(a * 9 + 1.3) * 0.5);
+      positions.push(Math.cos(a) * r, -2, Math.sin(a) * r, Math.cos(a) * r, h, Math.sin(a) * r);
+      tmp.copy(base); colors.push(tmp.r, tmp.g, tmp.b);
+      tmp.copy(tip).offsetHSL(0, 0, (hash(i * 3 + 2) - 0.5) * 0.05); colors.push(tmp.r, tmp.g, tmp.b);
+    }
+    for (let i = 0; i < seg; i++) {
+      const b = i * 2, t = b + 1, b2 = b + 2, t2 = b + 3;
+      indices.push(b, b2, t, t, b2, t2);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    g.setIndex(indices);
+    const treeline = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, fog: false, side: THREE.DoubleSide }));
+    treeline.name = 'horizon-treeline';
+    scene.add(treeline);
+  }
 
   // Distant peaks — ONE merged geometry: 18 irregular summits at
   // r 195–225, heights ~34–58, pale apex vertices (the snow/light
