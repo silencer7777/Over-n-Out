@@ -155,14 +155,40 @@ export class LoopbackTransport {
 // rate is carried now because `welcome` reports it, §5.1).
 // ------------------------------------------------------------------
 export class GameServer {
-  constructor({ tickRate = 30, snapshotRate = 20 } = {}) {
+  constructor({ tickRate = 30, snapshotRate = 20, maxRooms = LIMITS.MAX_ROOMS, roomEmptyTtlMs = LIMITS.ROOM_EMPTY_TTL_MS, logger = null } = {}) {
     this.tickRate = tickRate;
     this.snapshotRate = snapshotRate;
+    // Lockdown (2026-11-04): blast-radius caps + anti-cheat
+    // observability. maxRooms / roomEmptyTtlMs are constructor
+    // options so tests can shrink them; production uses LIMITS.
+    this.maxRooms = maxRooms;
+    this.roomEmptyTtlMs = roomEmptyTtlMs;
+    this.logger = logger; // fn(line) — defaults to console.warn in _viol
     /** @type {Map<string, object>} room code -> room */
     this.rooms = new Map();
+    /** @type {Map<string, number>} playerId -> refused-message count */
+    this.violations = new Map();
+    /** @type {Map<string, number[]>} playerId -> recent non-input msg times */
+    this._msgWindows = new Map();
     this.transport = null;
     this._timer = null;
     this._nextTickAt = 0;
+  }
+
+  // Anti-cheat violation accounting (Lockdown item 3): every
+  // refused client claim is COUNTED per player, and the first
+  // LIMITS.VIOLATION_LOG_BUDGET per player are also logged —
+  // dropped claims must not be silent, but the log itself must
+  // not become a flood vector. Returns the player's total.
+  _viol(playerId, room, kind, detail = '') {
+    const total = (this.violations.get(playerId) || 0) + 1;
+    this.violations.set(playerId, total);
+    if (total <= LIMITS.VIOLATION_LOG_BUDGET) {
+      const line = `[violation] player=${String(playerId)} room=${room ? room.code : '-'} kind=${kind}${detail ? ' — ' + detail : ''}`;
+      if (typeof this.logger === 'function') this.logger(line);
+      else console.warn(line);
+    }
+    return total;
   }
 
   get running() {
@@ -178,6 +204,11 @@ export class GameServer {
   createRoom(code, { mode, map } = {}) {
     const existing = this.rooms.get(code);
     if (existing) return existing;
+    // Lockdown item 1: room cap. Every room boots a headless sim
+    // on first hello, so unbounded room creation is a CPU/memory
+    // denial-of-service. Refusing a NEW room past the cap returns
+    // null; existing rooms are never affected.
+    if (this.rooms.size >= this.maxRooms) return null;
     const room = {
       code,
       mode: MODE_ORDER.includes(mode) ? mode : DEFAULT_MODE,
@@ -186,6 +217,7 @@ export class GameServer {
       tick: 0,
       state: 'lobby',
       createdAt: Date.now(),
+      _emptySince: Date.now(), // Lockdown: GC clock for empty rooms (step())
       match: null,          // M1: headless sim state (net/sim.js), created on first hello
       pendingEvents: [],     // sim events awaiting delivery on the next tick
       xp: new Map(),         // M4: playerId -> { counts: {source: n} } session XP tallies
@@ -230,6 +262,13 @@ export class GameServer {
           const code =
             typeof msg.room === 'string' && msg.room.length === 4 ? msg.room : 'LOBBY';
           room = this.rooms.get(code) || this.createRoom(code);
+          if (!room) {
+            // Room cap reached (Lockdown item 1): refuse the join
+            // with a plain error — never queue, never half-create.
+            const err = { t: MSG.ERROR, code: 'server_full', message: 'room cap reached — try again shortly' };
+            if (typeof transport.deliver === 'function') transport.deliver(clientId, err);
+            return err;
+          }
         } else {
           room =
             this._roomForPlayer(clientId) ||
@@ -286,12 +325,14 @@ export class GameServer {
     try {
       byteLength = new TextEncoder().encode(JSON.stringify(msg)).length;
     } catch {
+      this._viol(playerId, room, 'bad_message', 'not JSON-serialisable');
       return this._error(playerId, 'bad_message', 'message is not JSON-serialisable');
     }
     // U6-15: signal messages carry SDP and get the larger cap;
     // every field inside is still bounded by validateSignal.
     const byteCap = msg.t === MSG.SIGNAL ? LIMITS.SIGNAL_MAX_BYTES : LIMITS.MAX_MESSAGE_BYTES;
     if (byteLength > byteCap) {
+      this._viol(playerId, room, 'too_large', `${byteLength} > ${byteCap}`);
       return this._error(
         playerId,
         'too_large',
@@ -300,25 +341,60 @@ export class GameServer {
     }
 
     if (!isKnownType(msg.t)) {
+      this._viol(playerId, room, 'unknown_type', String(msg.t));
       return this._error(playerId, 'unknown_type', `unknown message type: ${String(msg.t)}`);
+    }
+
+    // Lockdown item 2: general rate cap for NON-input messages.
+    // Input has its own 40/s transport cap and chat its own
+    // 5-per-4 s cap; hello/ping/signal previously had none, so a
+    // client could flood 16 KB signal relays or hello churn at
+    // line rate. Over-rate messages are dropped with an error,
+    // counted as violations, and never reach the switch.
+    if (msg.t !== MSG.INPUT) {
+      const now = Date.now();
+      const win = (this._msgWindows.get(playerId) || []).filter(t => now - t < 1000);
+      win.push(now);
+      this._msgWindows.set(playerId, win);
+      if (win.length > LIMITS.MSG_MAX_PER_SEC) {
+        this._viol(playerId, room, 'msg_rate', `${msg.t} over ${LIMITS.MSG_MAX_PER_SEC}/s`);
+        return this._error(playerId, 'rate_limited', `non-input messages exceed ${LIMITS.MSG_MAX_PER_SEC}/s`);
+      }
     }
 
     switch (msg.t) {
       case MSG.HELLO: {
         const check = validateHello(msg);
         if (!check.ok) {
+          this._viol(playerId, room, 'bad_hello', check.errors[0] || '');
           return this._error(playerId, 'protocol', check.errors.join('; '));
         }
+        // Lockdown item 4: identity is fixed at first hello. A
+        // mid-session re-hello on the same connection must not
+        // silently rename / re-loadout / re-identify the player
+        // (chat stamps and XP tallies key off the stored record).
+        // Refused with an error; the original record is untouched.
+        // Reconnecting means a NEW connection (new playerId).
+        const existingPlayer = room.players.get(playerId);
+        if (existingPlayer && existingPlayer.name) {
+          this._viol(playerId, room, 're_hello', 'second hello on one connection');
+          return this._error(playerId, 'already_hello', 'already said hello on this connection — identity is fixed for the session');
+        }
+        // (A NAMELESS stub record — created by the forgiving
+        // input-before-hello loopback path — is not an identity
+        // yet; the hello below replaces it wholesale.)
         // Mode membership (js/modes.js owns the ids): an unknown
         // mode is refused here rather than silently downgraded —
         // the client asked for a game that doesn't exist.
         if (msg.mode !== undefined && !MODE_ORDER.includes(msg.mode)) {
+          this._viol(playerId, room, 'bad_mode', String(msg.mode));
           return this._error(playerId, 'bad_mode', `unknown mode: ${msg.mode}`);
         }
         // Map membership (Board 005 §3.3, js/maps.js owns the
         // ids): same discipline as mode — bad_map mirrors
         // bad_mode.
         if (msg.map !== undefined && !isMapId(msg.map)) {
+          this._viol(playerId, room, 'bad_map', String(msg.map));
           return this._error(playerId, 'bad_map', `unknown map: ${msg.map}`);
         }
         // Loadout (Board 004 §3): the class is validated against
@@ -329,6 +405,7 @@ export class GameServer {
         if (msg.loadout !== undefined) {
           const vc = validateClass(msg.loadout);
           if (!vc.ok) {
+            this._viol(playerId, room, 'bad_loadout', vc.errors[0] || '');
             return this._error(playerId, 'bad_loadout', vc.errors.join('; '));
           }
           loadout = vc.cls;
@@ -350,6 +427,7 @@ export class GameServer {
           loadout,
         };
         room.players.set(playerId, player);
+        room._emptySince = null; // occupied — the GC clock stops
         if (!room.xp.has(playerId)) room.xp.set(playerId, { counts: {} });
         // M1: the first hello boots the room's headless match and
         // every hello adds a sim player to it. The match is
@@ -392,6 +470,9 @@ export class GameServer {
       case MSG.INPUT: {
         const check = validateInput(msg);
         if (!check.ok) {
+          // Lockdown item 3: an invalid input IS an invalid
+          // movement/fire claim — counted + logged, never silent.
+          this._viol(playerId, room, 'bad_input', check.errors[0] || '');
           return this._error(playerId, 'bad_input', check.errors.join('; '));
         }
         let player = room.players.get(playerId);
@@ -434,16 +515,19 @@ export class GameServer {
         // what relays is safe to render as text anywhere.
         const check = validateChat(msg);
         if (!check.ok) {
+          this._viol(playerId, room, 'bad_chat', check.errors[0] || '');
           return this._error(playerId, 'bad_chat', check.errors.join('; '));
         }
         const sender = room.players.get(playerId);
         if (!sender || !sender.name) {
+          this._viol(playerId, room, 'no_hello', 'chat before hello');
           return this._error(playerId, 'no_hello', 'say hello before chatting');
         }
         // Rate limit: LIMITS.CHAT_MAX_PER_WINDOW per window.
         const now = Date.now();
         sender._chatTimes = (sender._chatTimes || []).filter(t => now - t < LIMITS.CHAT_WINDOW_MS);
         if (sender._chatTimes.length >= LIMITS.CHAT_MAX_PER_WINDOW) {
+          this._viol(playerId, room, 'chat_rate');
           return this._error(playerId, 'chat_rate', 'slow down — chat is rate limited');
         }
         sender._chatTimes.push(now);
@@ -474,9 +558,11 @@ export class GameServer {
         // verbatim. The server never interprets the payload.
         const check = validateSignal(msg);
         if (!check.ok) {
+          this._viol(playerId, room, 'bad_signal', check.errors[0] || '');
           return this._error(playerId, 'bad_signal', check.errors.join('; '));
         }
         if (msg.to === playerId || !room.players.has(msg.to)) {
+          this._viol(playerId, room, 'bad_signal_target', String(msg.to));
           return this._error(playerId, 'bad_signal_target', 'signal target is not a player in this room');
         }
         this._reply(msg.to, { t: MSG.SIGNAL, from: playerId, kind: msg.kind, data: msg.data });
@@ -494,6 +580,7 @@ export class GameServer {
         // welcome / snapshot / event / pong / error are server ->
         // client types. Receiving one from a client is a protocol
         // violation, refused — never routed into the room.
+        this._viol(playerId, room, 'unexpected_type', String(msg.t));
         return this._error(
           playerId,
           'unexpected_type',
@@ -507,10 +594,15 @@ export class GameServer {
   // this from its close handler at M3.
   removePlayer(playerId) {
     for (const room of this.rooms.values()) {
-      if (room.players.delete(playerId) && room.match) {
-        removeSimPlayer(room.match, playerId);
+      if (room.players.delete(playerId)) {
+        if (room.match) removeSimPlayer(room.match, playerId);
+        // Lockdown item 1: an emptied room starts its GC clock.
+        if (room.players.size === 0 && room._emptySince === null) {
+          room._emptySince = Date.now();
+        }
       }
     }
+    this._msgWindows.delete(playerId);
     if (this.transport && typeof this.transport.disconnect === 'function') {
       this.transport.disconnect(playerId);
     }
@@ -660,6 +752,24 @@ export class GameServer {
   // Advance every room one tick. The interval loop calls this;
   // tests/soak drive it directly for fast, deterministic runs.
   step() {
+    // Lockdown item 1: reap empty rooms. A room that has sat
+    // empty past ROOM_EMPTY_TTL_MS is deleted with its sim —
+    // room state must not accumulate forever under churn (each
+    // room carries a whole headless match). The default LOBBY
+    // room is exempt: it is the landing room, recreated on
+    // demand anyway, and reaping it buys nothing.
+    const now = Date.now();
+    for (const room of this.rooms.values()) {
+      if (
+        room.code !== 'LOBBY' &&
+        room.players.size === 0 &&
+        room._emptySince !== null &&
+        room._emptySince !== undefined &&
+        now - room._emptySince > this.roomEmptyTtlMs
+      ) {
+        this.rooms.delete(room.code);
+      }
+    }
     for (const room of this.rooms.values()) {
       room.tick += 1;
       this.onTick(room);
