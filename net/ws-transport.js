@@ -18,9 +18,10 @@
 //     inside the same deadline.
 //   - Any message after helloTimeoutMs counts as liveness; a
 //     connection silent for idleTimeoutMs (LIMITS) is closed.
-//   - Message size is capped at the decoder (LIMITS.MAX_MESSAGE_
-//     BYTES, close 1009) — GameServer's own cap stays as the
-//     second line for loopback/direct callers.
+//   - Message size is capped at the decoder (LIMITS.SIGNAL_MAX_
+//     BYTES — the largest legal message; close 1009) —
+//     GameServer's per-type caps (4096 for non-signal) stay as
+//     the second line for loopback/direct callers.
 //   - Malformed JSON closes (1007) after an `error` reply.
 //   - `input` messages are rate-limited per connection
 //     (LIMITS.INPUT_MAX_PER_SEC, sliding 1 s window, close 1008).
@@ -48,13 +49,39 @@ export class WebSocketTransport {
     helloTimeoutMs = 5000,
     idleTimeoutMs = LIMITS.IDLE_TIMEOUT_MS,
     inputMaxPerSec = LIMITS.INPUT_MAX_PER_SEC,
-    maxPayload = LIMITS.MAX_MESSAGE_BYTES,
+    // Lockdown item 5: ONE number, both layers. The decoder cap
+    // must admit the largest LEGAL message — a signal carrying
+    // SDP (LIMITS.SIGNAL_MAX_BYTES) — or legal voice negotiation
+    // dies at the frame layer while GameServer would accept it.
+    // GameServer still enforces the per-type caps (4096 for
+    // everything except signal), so the wider decoder cap opens
+    // nothing: a 16 KB non-signal message is refused one layer
+    // up, before it is trusted.
+    maxPayload = LIMITS.SIGNAL_MAX_BYTES,
+    // Lockdown item 1: connection caps (LIMITS). A socket costs
+    // server state from the moment it upgrades; unbounded
+    // accepts let one source crowd out every real player.
+    maxConnections = LIMITS.MAX_CONNECTIONS,
+    maxPerIp = LIMITS.MAX_PER_IP,
+    // Lockdown item 6: Origin allowlist. null = same-host rule
+    // (an Origin header, when present, must name the Host the
+    // client connected to). An array of exact origin strings
+    // (e.g. 'https://silencer7777.github.io') REPLACES the
+    // same-host rule — needed because the game page is served
+    // by GitHub Pages while the socket lives on the tunnel host.
+    // No-Origin clients (tools, native) are always allowed:
+    // browsers always send Origin on WebSocket upgrades, so an
+    // absent header is never a browser attack.
+    allowedOrigins = null,
     path = PLAY_PATH,
   } = {}) {
     this.helloTimeoutMs = helloTimeoutMs;
     this.idleTimeoutMs = idleTimeoutMs;
     this.inputMaxPerSec = inputMaxPerSec;
     this.maxPayload = maxPayload;
+    this.maxConnections = maxConnections;
+    this.maxPerIp = maxPerIp;
+    this.allowedOrigins = allowedOrigins;
     this.path = path;
     /** @type {Map<string, object>} clientId -> connection */
     this.connections = new Map();
@@ -143,6 +170,32 @@ export class WebSocketTransport {
     if (typeof key !== 'string' || key.length === 0) return refuse('400 Bad Request');
     if (version !== '13') return refuse('426 Upgrade Required');
 
+    // Lockdown item 6: Origin check. Without it, ANY website a
+    // player visits could open a socket to this server from the
+    // player's browser (cross-site WebSocket hijacking) — the
+    // game holds no cookies, so the blast radius today is spam
+    // joins under the victim's IP; with Stage 2 sessions it
+    // would be account-level. The check lands now, before the
+    // sessions it protects exist.
+    const origin = req.headers.origin;
+    if (typeof origin === 'string' && origin.length > 0) {
+      let originOk = false;
+      if (Array.isArray(this.allowedOrigins)) {
+        originOk = this.allowedOrigins.includes(origin);
+      } else {
+        try { originOk = new URL(origin).host === String(req.headers.host || ''); } catch { originOk = false; }
+      }
+      if (!originOk) return refuse('403 Forbidden');
+    }
+
+    // Lockdown item 1: connection caps, enforced before any
+    // socket state is created.
+    if (this.connections.size >= this.maxConnections) return refuse('503 Service Unavailable');
+    const remoteIp = socket.remoteAddress || '';
+    let sameIp = 0;
+    for (const c of this.connections.values()) if (c.ip === remoteIp) sameIp++;
+    if (sameIp >= this.maxPerIp) return refuse('503 Service Unavailable');
+
     const accept = computeAcceptKey(key);
     socket.write(
       'HTTP/1.1 101 Switching Protocols\r\n' +
@@ -155,6 +208,7 @@ export class WebSocketTransport {
     const clientId = 'w' + this._nextId++;
     const conn = {
       id: clientId,
+      ip: remoteIp,
       socket,
       bornAt: Date.now(),
       lastSeen: Date.now(),
