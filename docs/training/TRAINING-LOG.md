@@ -1075,3 +1075,223 @@ Not pushed.
 
 Explicitly NOT assigned to training next week: backend hardening
 (build-session / Lockdown scope) — drills must not drift into it.
+
+---
+
+## Mon Nov 2, 2026 — CODE QUALITY
+
+**Staff:** Training Lead (ran the session), REVIEWER (recent record,
+read-only), COACH (drill design per the Nov 1 focus table; grading
+pass on the actual files by a fresh Coach instance — the design
+instance had closed before grading, so grading was independently
+re-dispatched, not self-graded).
+
+**Pre-checks:** Tree clean on `main` at `2ebffa3` before the
+session — full session allowed. Guardian Nov 2 08:07 PT Watch
+rotation: all-pass, SMOKE PASSED, live integrity byte-identical
+to HEAD, no Medic assignments. Since Sunday's CONSOLIDATE only
+docs-only stand-down commits landed — no code. Baseline (Lead):
+smoke **PASSED, 335 checks, exit 0**; v6-metrics captured (below).
+
+**Target (from Sunday's focus list):** `js/world.js` facade block —
+extract facade coordinates into a named anchor table/constants,
+zero geometry moved; proof = metrics identical (Lesson 16
+pattern), smoke green. Prep for Wed Nov 4 (HQ west re-anchor)
++ Fri Nov 6 (anchor gate pin).
+
+**Reviewer findings (tree-verified by Lead where load-bearing):**
+- State of play: V7.5 is the last shipped build; since then only
+  stand-down verifications and training commits. Playtest verdicts
+  still owed (V7/V7.5 feel items); backend hardening + Stage 2
+  signed sessions remain build-session/Lockdown scope, NOT
+  training's — untouched today, as the focus table directs.
+- Facade drift re-measured against the solids (not the stale
+  comments): HQ solids centre is **-13.25, 42** (the facade header
+  says -12 — stale), HQ west wall outer face **-24.5**; Ops is
+  12×10 post-U6-12 (walls x -38..-26, z 39..49), so Ops anchors
+  (e.g. north windows z 39.97 vs the wall at z 39) are likewise
+  pre-growth — a build session's re-anchor, explicitly not a
+  training slice. Wed's HQ-west targets confirmed from the solids:
+  windows -24.69, parapet -24.65, band -24.66, corner boards -24.5.
+- Under-tested, unchanged: facade geometry has NO gate pin (Fri's
+  drill); ASSAULT U1–U3 open; VM2 §9 items 2–4 open.
+
+**Drill run (`js/world.js` facade block only):**
+- New **`FACADE_ANCHORS`** table (`Object.freeze`, array values
+  frozen too) directly after the bucket declarations: shared
+  heights (winY 1.7, hqUpperY 4.6, hqPanelY 4.825, commsY 1.5),
+  Ops planes/centres (opsNorthZ/WestX/SouthZ + X/Z lists), HQ
+  planes/centres (hqSouthZ/NorthZ/SouthX/NorthX, hqWestWinX +
+  hqWestUpperWinX both -22.19, hqEastWinX, panel Z faces), Comms
+  (commsNorthZ/X). Header comment states the zero-move proof, the
+  Wed/Fri sequencing, and both drifts (HQ west + Ops pre-growth).
+- All **20 `win()` calls** (Ops 7, HQ 11, Comms 2) and all **4
+  interior panel pushes** (Oct 31) now read x/y/z from the table.
+  Face strings, GW/GC/GD bucket assignments, and panel geometry
+  sizes unchanged. **No `t_()` trim call touched** — one-off
+  placements stay literal (Coach deduction 1, recorded below).
+- One in-session correction (comments are claims, Oct 31 rule):
+  the table's HQ comment cites the solids centre -13.25 with its
+  source, not the stale -12 the old header carries.
+
+**Metrics before/after (identical — the drill's whole point):**
+- Smoke: PASSED, 335 checks, exit 0, before and after.
+- v6-metrics, all four maps, every field: compound sustained
+  134 calls / 93,100 tris, static 51 / 33,836, casters 30,
+  shadow 189 / 77,598; forest 148 / 285,774, static 65 /
+  226,510, casters 38, shadow 211 / 250,088; snow 147 /
+  131,408, static 64 / 72,144, casters 40; mars 149 / 115,930,
+  static 66 / 56,666, casters 40; instanced/flat/textured
+  shares identical. (`v6-metrics.json` writer side-effect
+  restored on every run.)
+- Coach's stronger proof: both trees' facade geometry parsed
+  into a (bucket, x, y, z, w, h, d) multiset — **+30 added /
+  -0 removed / +0 net** (the 30 are table-construction entries,
+  not geometry); parsed `win()` coordinate tuples identical.
+
+**Close-out verification (Lead, personally run):**
+`node tools/smoke.mjs` → **SMOKE PASSED, exit 0** on the
+end-state tree (335 ✓ lines), after the records below were
+written.
+
+**Grade:** **PASS** (Coach grading pass — all 5 criteria PASS,
+no auto-fail triggered, all 23 table values verified
+value-identical against HEAD). Three deductions, none blocking:
+(1) trim `t_()` literals still share plane values with the table
+(39.97 ×13, 46.69 neighbours, 37.31 ×4, 53.47 ×3) — a Wed fix
+that touches trim must hand-sync; accepted as the design's
+stated scope boundary, build-session scope to fold in;
+(2) anchored `win()` lines run to 298 chars vs the file's
+~110-char style — an acceptability judgment, not a failure
+(the table reads better than the calls now do);
+(3) Lesson 31 wording: include the frozen-table + parsed-proof
+clause — adopted verbatim in the lesson as filed.
+
+**Commits:** one local commit, `training: code quality —
+FACADE_ANCHORS table for world.js facade windows (zero geometry
+moved)`. Not pushed.
+
+**New lessons:** 31 (shared planes get a named anchor table
+before anyone re-anchors them; keep it frozen; prove zero-move
+parsed, not eyeballed). Next session: Tue Nov 3 — BUILD
+TECHNIQUE, weather-fx merge-prep in scratch only (half-open
+wrap fix, cross-rebuild tint pin, redundant wrap `if`s; 66-check
+probe re-run) per Sunday's focus list.
+
+---
+
+## Tue Nov 3, 2026 — BUILD TECHNIQUE
+
+**Staff:** Training Lead (ran the session), REVIEWER (recent record,
+read-only), COACH (drill design + rubric per the Nov 1 focus table;
+grading pass on the actual files by a fresh Coach instance —
+recorded below).
+
+**Pre-checks:** Tree clean on `main` at `b5579e7` before the
+session — full session allowed. Guardian Nov 3 08:07 PT Watch
+rotation: all-pass, SMOKE PASSED, mobile-check T1–T13 pass,
+0 TODO/FIXME in game code, live integrity explained (live
+`world.js` matches origin/main; the local diff is exactly the
+unpushed Nov 2 training commit — not drift). Since Monday's CODE
+QUALITY session only docs-only stand-down verifications landed —
+no code. Baselines (Lead, personally run): probe **66/66, PROBE
+PASSED** (0.052 ms/update); smoke **PASSED, exit 0**.
+
+**Target (from Sunday's focus list):** weather-fx merge-prep,
+scratch only — do NOT merge. Fix the half-open wrap (Lesson 20),
+pin cross-rebuild tint determinism, remove the 2 redundant wrap
+`if`s; re-run the 66-check probe. The merge itself stays a regular
+build change (Vega: `main.js` hook; Atlas: `WEATHER_FX` home),
+gated on Brett's playtest.
+
+**Reviewer findings (tree-verified by Lead where load-bearing):**
+- All three Oct 27 grading deductions were still open in the
+  scratch, byte-for-byte the graded Oct 27 state: `wrapDelta`
+  closed-interval (`>` at prototype:110), no probe check pins
+  field/tint identity across a `setMap` rebuild (§H checks only
+  that identity *changes*), and the trailing wrap `if`s at
+  prototype:212-213 are provably dead (post-wrap, the `<`
+  conditions can never fire; lower-bound only, asymmetric).
+- Under-tested, unchanged: facade geometry has NO gate pin (Fri
+  Nov 6 drill); the weather-fx probe is NOT wired into smoke (a
+  merge owes a smoke-owned version); ASSAULT U1–U3, VM2 §9 items
+  2–4, backend hardening (build/Lockdown scope, NOT training),
+  U6-12 facade drift, and V7/V7.5 playtest verdicts all carried.
+
+**Drill run (scratch-only — `scratch/weather-fx/`, `js/` diff
+empty):**
+- **Half-open wrap fixed** (`weather-fx.prototype.js`):
+  `wrapDelta` upper branch `>` → `>=`, so offsets wrap into
+  `[-span/2, +span/2)` — `+22 → -22`, `-22 → -22`, `±44 → 0`,
+  `±66 → -22` at span 44. The y band was already half-open
+  (`[yLo, yLo+25)`) and is pinned, not refactored (max fall step
+  0.75 m ≪ 25, one correction suffices). Header + wrap comments
+  state the interval exactly.
+- **Redundant `if`s removed:** both trailing lower-bound-only
+  corrections in `update()` deleted with the now-dead `halfW` /
+  `halfD` locals; the recycle comment states why no second
+  correction exists or is needed.
+- **Probe strengthened** (`weather-fx-probe.mjs`): `inBox()` now
+  asserts the strict half-open contract with **zero tolerance** —
+  the 1e-4 slack that masked the seam survives nowhere in a
+  bounds assertion (the probe is fully deterministic, so a
+  strict pass is stable). New **§J (11 checks)** constructs the
+  seam deterministically: sway-free compound, particle 0's
+  velocity zeroed (the step adds exactly 0), camera (0,2,0) so
+  yLo = 0 exactly, placements/expectations all exact-representable
+  and asserted with `===`. New **§K (8 checks)** pins cross-rebuild
+  determinism over full (`snow→compound→mars→forest→snow`) and
+  short cycles: positions + velocities byte-identical to the
+  pre-cycle snapshot AND to a fresh same-seed instance, tint
+  pinned against the literal spec hexes (rain 0xafc4de, mars
+  0xd8a37a, snow 0xeef4ff) plus snapshot size/opacity/flags, and
+  profile deep-equality — all compared **pre-update**, because
+  `elapsed` is instance-level, survives `setMap`, and drives sway,
+  so any post-update rebuilt-vs-fresh comparison is confounded;
+  post-update identity is covered only by **K8 twin-history**
+  (identical setMap + dt sequences, 150 updates, byte-identical).
+
+**Metrics:**
+- Probe: **85 checks, 0 failures, PROBE PASSED** (66 original
+  §A–§I, none removed or loosened, + 11 seam + 8 rebuild) —
+  three consecutive green runs on the end-state scratch.
+- Perf (§I): 0.044–0.045 ms/update on settled re-runs (one
+  0.197 ms reading under shared-box load, reported per Lesson 24;
+  all far under the 0.50 ms Lumen bar). Cost profile unchanged:
+  one Points, 900 particles, position-only, unlit, no shadow
+  flags — and nothing ships, so game budgets are untouched.
+- Sensitivity (Coach rubric spot-checks, Lead-run, mutations
+  reverted in-session): reverting `>=` → `>` fails **exactly**
+  J1/J5/J7 and nothing else; perturbing the snow tint
+  0xeef4ff → 0xeef4fe fails **exactly** K1/K5 and nothing else.
+  Both pins can fail, and each fails only its own section.
+
+**Close-out verification (Lead, personally run):**
+`node tools/smoke.mjs` → **SMOKE PASSED, exit 0** on the
+end-state tree, after the records below were written. Diff
+scope: `scratch/weather-fx/` + `docs/training/` only;
+`git diff -- js/` empty; `main.js` untouched.
+
+**Grade:** **PASS** (fresh Coach grading pass on the actual
+files, independently re-verified: probe re-run 85 checks /
+0 failures, smoke re-run exit 0 SMOKE PASSED, `git diff -- js/`
+empty, scope confined to `scratch/weather-fx/` +
+`docs/training/`; all six rubric criteria PASS, no deductions
+against the criteria. One minor records note — this entry's
+Commits line was filed before the commit was made; resolved by
+the commit below. The Coach also judged both mutation
+signatures arithmetically exact from the probe code.)
+
+**Commits:** one local commit, `training: build technique —
+weather-fx merge-prep (half-open wrap, cross-rebuild pin, dead
+wrap ifs removed)`. Not pushed.
+
+**New lessons:** 32 (pin rebuild determinism pre-update against
+literals + a fresh instance; `elapsed` survives rebuilds, so
+post-update rebuilt-vs-fresh comparisons are confounded evidence;
+twin-history is the valid post-update pin). Lesson 20 reinforced
+with the landed fix. Next session: Wed Nov 4 — FIX PRACTICE,
+U6-12 facade drift, HQ west face slice only (windows → −24.69,
+parapet → −24.65, band → −24.66, corner boards → −24.5;
+coordinate-only in existing merged meshes, +0 calls / +0 tris /
+no casters, green-or-revert) per Sunday's focus list.
