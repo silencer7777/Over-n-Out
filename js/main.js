@@ -169,7 +169,7 @@ function goLandscape() {
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
 // version tag — Brett reads "BUILD V7.2" in the menu footer.
-const BUILD_NO = 'V7.13';
+const BUILD_NO = 'V7.14';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -1241,6 +1241,15 @@ function showTracer(from, to, color, velocity = 880) {
   slot.line.material.color.set(color);
   slot.line.material.opacity = 0;
   slot.line.visible = true;
+}
+
+// V7.14 cloud drift: the band rotates a fraction of a degree
+// per second — clouds cross the sky slowly enough to feel
+// like weather, not a carousel. Cached lookup, Δ0 cost.
+let cloudBandRef = null;
+function stepSkyDrift(dt) {
+  if (!cloudBandRef) cloudBandRef = scene.getObjectByName('cloud-band');
+  if (cloudBandRef) cloudBandRef.rotation.y += dt * 0.004;
 }
 
 // Advance every live tracer streak (head runs at weapon
@@ -2653,6 +2662,7 @@ function tick() {
     }
     stepOnlineVehicles(dt, me); // R2-5: own-vehicle prediction + prompts
     stepTracers(dt); // V7.12: traveling streaks (shared with offline tick)
+    stepSkyDrift(dt); // V7.14: cloud band drift
     vignette.style.opacity = Math.max(0, vignette.style.opacity - dt * 1.6);
   }
 
@@ -2844,6 +2854,7 @@ function tick() {
 
     // tracers travel + fade (V7.12 streaks)
     stepTracers(dt);
+    stepSkyDrift(dt); // V7.14: cloud band drift
     vignette.style.opacity = Math.max(0, vignette.style.opacity - dt * 1.6);
     if (dmgDirT > 0) {
       dmgDirT -= dt;
