@@ -27,6 +27,24 @@
 //           of the blast (tailDelay / tailGain / tailCutoff). Heavy
 //           rows get more; 'thunder' gets a second, later slap
 //           (tail2*) — the report rolling back off the range.
+// V7.11 RE-VOICE (owner playtest: "the gun shots don't sound like
+// gun shots"). Diagnosis: the layers were right but their SHAPES
+// were wrong — (a) the snap was 12–26 ms of 1.2–2.1 kHz hiss on a
+// buffer that already decayed linearly, so the attack arrived
+// smeared instead of as a spike; (b) the blast shared that
+// pre-decayed buffer, spreading its energy evenly like static
+// instead of front-loading it like a pressure wave; (c) the body
+// led with a pitched sine slide (a "bloop") that small speakers
+// either swallow or expose as a tone; (d) the master ran at a
+// polite 0.35 with no dynamics, so nothing ever slammed. Fixes:
+// a new layer 0, THE CRACK (crackHz / crackGain) — ~5 ms of FLAT
+// noise highpassed at 2.4–5.6 kHz at full level from sample
+// zero; blast + body-noise switched to flat noise so the gain
+// envelope alone shapes them; body sine re-voiced down, body
+// noise up; and own shots route through a dedicated compressor
+// bus (see ensure()) so peaks hit hard without clipping and
+// rapid fire glues instead of stacking into distortion. The old
+// snap survives as the quieter, brighter "air shear" layer.
 // Every layer is micro-varied per shot in shot() (±5–15% on freqs,
 // durations, gains) so full-auto never sounds like a looped sample.
 // Levels: the master gain is 0.35. Heavy rows (boom / thunder) get
@@ -34,11 +52,11 @@
 // stacking raw gain — layer gains stay near the crack row's values.
 const SHOT_DESCRIPTORS = {
   //        snapDur snapFreq snapGain dur   filtFrom filtTo noiseGain bodyFreq bodyTo bodyDur bodyVol bodyNoiseDur bodyNoiseFreq bodyNoiseGain mechDelay mechFreq mechGain mech2Delay tailDelay tailGain tailCutoff tail2Delay tail2Gain
-  crack:   { snapDur: 0.018, snapFreq: 1700, snapGain: 0.85, dur: 0.11,  filterFrom: 6800, filterTo: 420, noiseGain: 0.90, bodyFreq: 115, bodyTo: 48, bodyDur: 0.12, bodyVol: 0.34, bodyNoiseDur: 0.08,  bodyNoiseFreq: 260, bodyNoiseGain: 0.42, mechDelay: 0.045, mechFreq: 1800, mechGain: 0.10, mech2Delay: 0,    tailDelay: 0.11, tailGain: 0.07, tailCutoff: 900,  tail2Delay: 0,    tail2Gain: 0 },
-  rattle:  { snapDur: 0.012, snapFreq: 2100, snapGain: 0.62, dur: 0.065, filterFrom: 7600, filterTo: 650, noiseGain: 0.72, bodyFreq: 135, bodyTo: 65, bodyDur: 0.07, bodyVol: 0.20, bodyNoiseDur: 0.05,  bodyNoiseFreq: 340, bodyNoiseGain: 0.28, mechDelay: 0.030, mechFreq: 2200, mechGain: 0.08, mech2Delay: 0,    tailDelay: 0.09, tailGain: 0.05, tailCutoff: 1000, tail2Delay: 0,    tail2Gain: 0 },
-  boom:    { snapDur: 0.020, snapFreq: 1200, snapGain: 0.70, dur: 0.30,  filterFrom: 3400, filterTo: 85,  noiseGain: 0.98, bodyFreq: 78,  bodyTo: 27, bodyDur: 0.32, bodyVol: 0.55, bodyNoiseDur: 0.18,  bodyNoiseFreq: 150, bodyNoiseGain: 0.52, mechDelay: 0.34,  mechFreq: 900,  mechGain: 0.16, mech2Delay: 0.50, tailDelay: 0.15, tailGain: 0.12, tailCutoff: 500,  tail2Delay: 0,    tail2Gain: 0 },
-  thunder: { snapDur: 0.026, snapFreq: 2000, snapGain: 0.95, dur: 0.19,  filterFrom: 5600, filterTo: 300, noiseGain: 0.92, bodyFreq: 92,  bodyTo: 34, bodyDur: 0.24, bodyVol: 0.46, bodyNoiseDur: 0.13,  bodyNoiseFreq: 190, bodyNoiseGain: 0.44, mechDelay: 0.070, mechFreq: 1500, mechGain: 0.07, mech2Delay: 0,    tailDelay: 0.10, tailGain: 0.14, tailCutoff: 700,  tail2Delay: 0.21, tail2Gain: 0.07 },
-  pop:     { snapDur: 0.014, snapFreq: 1900, snapGain: 0.70, dur: 0.06,  filterFrom: 6200, filterTo: 550, noiseGain: 0.80, bodyFreq: 128, bodyTo: 58, bodyDur: 0.07, bodyVol: 0.22, bodyNoiseDur: 0.045, bodyNoiseFreq: 300, bodyNoiseGain: 0.26, mechDelay: 0.040, mechFreq: 2000, mechGain: 0.09, mech2Delay: 0,    tailDelay: 0.08, tailGain: 0.05, tailCutoff: 1000, tail2Delay: 0,    tail2Gain: 0 },
+  crack:   { crackHz: 4500, crackGain: 1.00, snapDur: 0.018, snapFreq: 2400, snapGain: 0.45, dur: 0.11,  filterFrom: 6800, filterTo: 420, noiseGain: 0.90, bodyFreq: 115, bodyTo: 48, bodyDur: 0.12, bodyVol: 0.26, bodyNoiseDur: 0.08,  bodyNoiseFreq: 260, bodyNoiseGain: 0.50, mechDelay: 0.045, mechFreq: 1800, mechGain: 0.10, mech2Delay: 0,    tailDelay: 0.11, tailGain: 0.07, tailCutoff: 900,  tail2Delay: 0,    tail2Gain: 0 },
+  rattle:  { crackHz: 5600, crackGain: 0.85, snapDur: 0.012, snapFreq: 2800, snapGain: 0.34, dur: 0.065, filterFrom: 7600, filterTo: 650, noiseGain: 0.72, bodyFreq: 135, bodyTo: 65, bodyDur: 0.07, bodyVol: 0.15, bodyNoiseDur: 0.05,  bodyNoiseFreq: 340, bodyNoiseGain: 0.34, mechDelay: 0.030, mechFreq: 2200, mechGain: 0.08, mech2Delay: 0,    tailDelay: 0.09, tailGain: 0.05, tailCutoff: 1000, tail2Delay: 0,    tail2Gain: 0 },
+  boom:    { crackHz: 2400, crackGain: 0.80, snapDur: 0.020, snapFreq: 1600, snapGain: 0.38, dur: 0.30,  filterFrom: 3400, filterTo: 85,  noiseGain: 0.98, bodyFreq: 78,  bodyTo: 27, bodyDur: 0.32, bodyVol: 0.44, bodyNoiseDur: 0.18,  bodyNoiseFreq: 150, bodyNoiseGain: 0.58, mechDelay: 0.34,  mechFreq: 900,  mechGain: 0.16, mech2Delay: 0.50, tailDelay: 0.15, tailGain: 0.12, tailCutoff: 500,  tail2Delay: 0,    tail2Gain: 0 },
+  thunder: { crackHz: 3600, crackGain: 1.05, snapDur: 0.026, snapFreq: 2600, snapGain: 0.50, dur: 0.19,  filterFrom: 5600, filterTo: 300, noiseGain: 0.92, bodyFreq: 92,  bodyTo: 34, bodyDur: 0.24, bodyVol: 0.36, bodyNoiseDur: 0.13,  bodyNoiseFreq: 190, bodyNoiseGain: 0.50, mechDelay: 0.070, mechFreq: 1500, mechGain: 0.07, mech2Delay: 0,    tailDelay: 0.10, tailGain: 0.14, tailCutoff: 700,  tail2Delay: 0.21, tail2Gain: 0.07 },
+  pop:     { crackHz: 4800, crackGain: 0.90, snapDur: 0.014, snapFreq: 2500, snapGain: 0.38, dur: 0.06,  filterFrom: 6200, filterTo: 550, noiseGain: 0.80, bodyFreq: 128, bodyTo: 58, bodyDur: 0.07, bodyVol: 0.17, bodyNoiseDur: 0.045, bodyNoiseFreq: 300, bodyNoiseGain: 0.32, mechDelay: 0.040, mechFreq: 2000, mechGain: 0.09, mech2Delay: 0,    tailDelay: 0.08, tailGain: 0.05, tailCutoff: 1000, tail2Delay: 0,    tail2Gain: 0 },
 };
 
 // Per-class MUZZLE FLASH character (V6-3), keyed by the same sound
@@ -94,6 +112,20 @@ export class Sfx {
       this.master = this.ctx.createGain();
       this.master.gain.value = 0.35 * this.sfxVolume;
       this.master.connect(this.ctx.destination);
+      // V7.11 GUNSHOT BUS (playtest fix: "shots don't sound like
+      // gun shots"): own shots route through a fast compressor so
+      // the crack/blast layers can run at real-report levels
+      // without clipping, and rapid fire glues instead of stacking
+      // into distortion. Two persistent nodes, built once; every
+      // other sound keeps the plain master path, unchanged.
+      try {
+        const comp = this.ctx.createDynamicsCompressor();
+        comp.threshold.value = -14; comp.knee.value = 6; comp.ratio.value = 12;
+        comp.attack.value = 0.001; comp.release.value = 0.18;
+        const busGain = this.ctx.createGain(); busGain.gain.value = 0.9;
+        busGain.connect(comp); comp.connect(this.master);
+        this.shotBus = busGain;
+      } catch (e) { this.shotBus = null; }
       // Start the ambient wind bed alongside the new context. startAmbient()
       // is guarded (starts at most once) and never throws, so a failure here
       // can never break context creation or the game.
@@ -326,7 +358,21 @@ export class Sfx {
     for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
     const src = c.createBufferSource(); src.buffer = buf; return src;
   }
-  _tone(freq, dur, type = 'square', vol = 0.5, slideTo = null, at = 0) {
+  // V7.11: FLAT noise (no baked-in decay). _noise() pre-decays its
+  // buffer linearly, which is right for foley/explosions but wrong
+  // for a gunshot: layered under _burst's exponential gain envelope
+  // it smeared the attack — the front of the shot arrived rounded
+  // instead of vertical, and the report read as a hiss burst. Shot
+  // layers use flat noise so the GAIN envelope alone shapes them:
+  // full level at sample zero, then the exponential fall.
+  _noiseFlat(dur) {
+    const c = this.ctx, len = Math.max(1, Math.floor(c.sampleRate * dur));
+    const buf = c.createBuffer(1, len, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource(); src.buffer = buf; return src;
+  }
+  _tone(freq, dur, type = 'square', vol = 0.5, slideTo = null, at = 0, dest = null) {
     if (!this.ctx) return;
     const c = this.ctx, o = c.createOscillator(), g = c.createGain();
     const t0 = c.currentTime + at;
@@ -334,7 +380,7 @@ export class Sfx {
     if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
     g.gain.setValueAtTime(vol, t0);
     g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-    o.connect(g); g.connect(this.master); o.start(t0); o.stop(t0 + dur);
+    o.connect(g); g.connect(dest || this.master); o.start(t0); o.stop(t0 + dur);
   }
   // Per-shot micro-variation: base scaled by a random ±amt fraction.
   // This is what stops sustained fire sounding like a looped sample —
@@ -344,17 +390,21 @@ export class Sfx {
   // scheduled `at` seconds from now. The shared layer-builder for
   // the V6-3 shot signature (snap / blast / body-noise / mech /
   // tail) and the mechanical foley (reload / dry-fire / canister).
-  _burst({ dur, type = 'lowpass', from, to = null, q = null, gain, at = 0 }) {
+  // `flat` (V7.11) selects the un-decayed noise buffer and `dest`
+  // an alternate output (the gunshot bus); both default to the
+  // exact pre-V7.11 behavior, so every existing caller — foley,
+  // crackle, slapback, enemy snap — is unchanged unless it opts in.
+  _burst({ dur, type = 'lowpass', from, to = null, q = null, gain, at = 0, flat = false, dest = null }) {
     if (!this.ctx || !(gain > 0)) return;
     const c = this.ctx, t0 = c.currentTime + at;
-    const src = this._noise(dur), f = c.createBiquadFilter(), g = c.createGain();
+    const src = flat ? this._noiseFlat(dur) : this._noise(dur), f = c.createBiquadFilter(), g = c.createGain();
     f.type = type;
     f.frequency.setValueAtTime(Math.max(30, from), t0);
     if (to) f.frequency.exponentialRampToValueAtTime(Math.max(30, to), t0 + dur);
     if (q) f.Q.value = q;
     g.gain.setValueAtTime(gain, t0);
     g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-    src.connect(f); f.connect(g); g.connect(this.master);
+    src.connect(f); f.connect(g); g.connect(dest || this.master);
     src.start(t0);
   }
   // The player's own shot, voiced by weapon descriptor (see
@@ -365,14 +415,28 @@ export class Sfx {
   shot(soundId) {
     if (!this.ctx) return;
     const d = SHOT_DESCRIPTORS[soundId] || SHOT_DESCRIPTORS.crack;
-    // 1 — supersonic crack transient (highpassed noise snap).
-    this._burst({ dur: this._v(d.snapDur, 0.15), type: 'highpass', from: this._v(d.snapFreq, 0.10), gain: this._v(d.snapGain, 0.08) });
+    const bus = this.shotBus || this.master;
+    // 0 — V7.11 THE CRACK: a ~5 ms flat-noise spike highpassed at
+    // 2.4–5.6 kHz (per weapon), at full level from sample zero.
+    // This is the transient a real report leads with and the old
+    // voicing lacked: its "snap" was a 12–26 ms hiss through a
+    // 1.2–2.1 kHz highpass on a pre-decayed buffer — all smear,
+    // no spike — so shots read as noise bursts, not gunfire.
+    this._burst({ flat: true, dest: bus, dur: this._v(0.005, 0.15), type: 'highpass', from: this._v(d.crackHz, 0.08), gain: this._v(d.crackGain, 0.06) });
+    // 1 — air shear (the old snap, re-voiced quieter and brighter:
+    // it is the crack's body, not the crack itself).
+    this._burst({ dest: bus, dur: this._v(d.snapDur, 0.15), type: 'highpass', from: this._v(d.snapFreq, 0.10), gain: this._v(d.snapGain, 0.08) });
     // 2 — muzzle blast: broadband noise, lowpass collapsing from
-    // real blast brightness (5–8 kHz) down to a rumble.
-    this._burst({ dur: this._v(d.dur, 0.10), from: this._v(d.filterFrom, 0.07), to: d.filterTo, gain: this._v(d.noiseGain, 0.08) });
-    // 3 — body: sine thump + bandpassed noise under the blast.
-    this._tone(this._v(d.bodyFreq, 0.05), d.bodyDur, 'sine', d.bodyVol, d.bodyTo);
-    this._burst({ dur: d.bodyNoiseDur, type: 'bandpass', from: d.bodyNoiseFreq, q: 0.9, gain: d.bodyNoiseGain });
+    // real blast brightness (5–8 kHz) down to a rumble. V7.11:
+    // flat noise, so the exponential gain envelope puts the
+    // energy at the front where a blast's pressure spike lives.
+    this._burst({ flat: true, dest: bus, dur: this._v(d.dur, 0.10), from: this._v(d.filterFrom, 0.07), to: d.filterTo, gain: this._v(d.noiseGain, 0.08) });
+    // 3 — body: sine thump (re-voiced down — a pitched slide
+    // reads synthetic when it leads) + flat bandpassed noise
+    // carrying the audible weight, incl. on phone speakers that
+    // cannot reproduce the sine's lows at all.
+    this._tone(this._v(d.bodyFreq, 0.05), d.bodyDur, 'sine', d.bodyVol, d.bodyTo, 0, bus);
+    this._burst({ flat: true, dest: bus, dur: d.bodyNoiseDur, type: 'bandpass', from: d.bodyNoiseFreq, q: 0.9, gain: d.bodyNoiseGain });
     // 4 — the action cycling (bolt / slide / pump) just after.
     if (d.mechGain > 0) {
       this._burst({ at: d.mechDelay, dur: 0.03, type: 'bandpass', from: d.mechFreq, to: d.mechFreq * 0.75, q: 5, gain: d.mechGain });
