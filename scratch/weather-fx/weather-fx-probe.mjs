@@ -8,6 +8,13 @@
 // Run:  node scratch/weather-fx/weather-fx-probe.mjs
 // Exit 0 = all checks pass. This probe is NOT wired into smoke;
 // merging the technique would owe a smoke-owned version of it.
+//
+// MERGE-PREP (Nov 3, 2026): §D/§E bounds are now the strict
+// half-open contract with zero tolerance; §J constructs the seam
+// deterministically (Oct 27 deduction 1 / Lesson 20); §K pins
+// field + tint identity across setMap rebuild cycles (Oct 27
+// deduction 2). Original §A–§I checks are unchanged in intent —
+// the inBox tightening is a strengthening, not a loosening.
 
 import { register } from 'node:module';
 import { readFileSync } from 'node:fs';
@@ -29,11 +36,19 @@ function meanAbs(arr, strideOff) {
 }
 function allFinite(arr) { for (let i = 0; i < arr.length; i++) if (!Number.isFinite(arr[i])) return false; return true; }
 function inBox(pos, cam) {
+  // STRICT half-open contract, zero tolerance (merge-prep, Nov 3,
+  // 2026 — Lesson 20): x/z offsets in [-span/2, +span/2), y in
+  // [yLo, yLo+height). The Oct 27 probe allowed 1e-4 slack on every
+  // bound, which masked the closed-seam defect: a particle sitting
+  // exactly at +span/2 passed. No epsilon survives in any bounds
+  // assertion in this file. The probe is fully deterministic
+  // (seeded fields, fixed cameras), so a strict pass is stable.
   const yLo = cam.y - 2;
   for (let i = 0; i < pos.length; i += 3) {
-    if (Math.abs(pos[i] - cam.x) > WEATHER_BOX.width / 2 + 1e-4) return false;
-    if (pos[i + 1] < yLo - 1e-4 || pos[i + 1] >= yLo + WEATHER_BOX.height + 1e-4) return false;
-    if (Math.abs(pos[i + 2] - cam.z) > WEATHER_BOX.depth / 2 + 1e-4) return false;
+    const dx = pos[i] - cam.x, dz = pos[i + 2] - cam.z;
+    if (!(dx >= -WEATHER_BOX.width / 2 && dx < WEATHER_BOX.width / 2)) return false;
+    if (!(pos[i + 1] >= yLo && pos[i + 1] < yLo + WEATHER_BOX.height)) return false;
+    if (!(dz >= -WEATHER_BOX.depth / 2 && dz < WEATHER_BOX.depth / 2)) return false;
   }
   return true;
 }
@@ -202,6 +217,101 @@ for (const id of ['snow', 'compound', 'forest', 'mars']) {
   fx.setMap('snow');
   ok(fx.points === same, 'H3 setMap to the active map is a no-op (no rebuild)');
   fx.dispose();
+}
+
+// ---- J. Seam: half-open wrap, constructed, zero tolerance --------
+// Oct 27 deduction 1 / Lesson 20. Do not hunt the seam by running
+// random frames: CONSTRUCT it. Compound is sway-free (amp 0) and
+// particle 0's velocity is zeroed via the exposed velocities, so
+// update()'s step adds exactly 0 whatever dt is — the velocity
+// step and the sway clock cannot move the test particle. Camera
+// (0, 2, 0) makes yLo exactly 0. Every placement and expectation
+// is an integer or .5 increment — exact in Float32 storage and
+// Float64 arithmetic — so === with zero tolerance is legitimate.
+{
+  const scene = new THREE.Scene();
+  const fx = createWeatherFx(scene, 'compound');
+  const cam = { x: 0, y: 2, z: 0 };
+  fx.velocities[0] = 0; fx.velocities[1] = 0; fx.velocities[2] = 0;
+  const place = (x, y, z) => { fx.positions[0] = x; fx.positions[1] = y; fx.positions[2] = z; fx.update(1 / 60, cam); };
+  place(22, 12, 0);
+  ok(fx.positions[0] === -22, 'J1 seam x: +22 (upper edge) wraps to -22 (half-open)');
+  place(-22, 12, 0);
+  ok(fx.positions[0] === -22, 'J2 seam x: -22 (lower edge) stays -22 (inclusive)');
+  place(44, 12, 0);
+  ok(fx.positions[0] === 0, 'J3 seam x: +44 canonicalises to 0');
+  place(-44, 12, 0);
+  ok(fx.positions[0] === 0, 'J4 seam x: -44 canonicalises to 0');
+  place(66, 12, 0);
+  ok(fx.positions[0] === -22, 'J5 seam x: +66 canonicalises to -22');
+  place(-66, 12, 0);
+  ok(fx.positions[0] === -22, 'J6 seam x: -66 canonicalises to -22');
+  place(0, 12, 22);
+  ok(fx.positions[2] === -22, 'J7 seam z: +22 (upper edge) wraps to -22 (half-open)');
+  place(0, 12, -22);
+  ok(fx.positions[2] === -22, 'J8 seam z: -22 (lower edge) stays -22 (inclusive)');
+  place(0, 25, 0);
+  ok(fx.positions[1] === 0, 'J9 seam y: yLo+25 (upper edge) wraps to yLo (half-open)');
+  place(0, 0, 0);
+  ok(fx.positions[1] === 0, 'J10 seam y: yLo stays yLo (inclusive)');
+  place(0, -0.5, 0);
+  ok(fx.positions[1] === 24.5, 'J11 seam y: yLo-0.5 wraps to yLo+24.5');
+  fx.dispose();
+}
+
+// ---- K. Cross-rebuild determinism (field + tint) ------------------
+// Oct 27 deduction 2. build() re-seeds makeRng(seed) on every
+// setMap, so a rebuild SHOULD be identical — this section proves
+// it. ELAPSED-CLOCK CONFOUND, designed around, not ignored:
+// `elapsed` is instance-level and is NOT reset by teardown/build,
+// and sway reads sin(elapsed*freq + phase) — so a rebuilt instance
+// and a fresh instance diverge after ANY update even with
+// identical fields. Field/tint comparisons below are therefore
+// made IMMEDIATELY after setMap returns, with zero intervening
+// update() calls; post-update identity is pinned only by the
+// twin-history check (K8), where both instances share the exact
+// setMap + dt sequence. Tint is pinned against the literal spec
+// hexes, not only self-consistency, so perturbing a profile tint
+// in the table fails here.
+{
+  const eqArr = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+  const scene = new THREE.Scene();
+  const fx = createWeatherFx(scene, 'snow', { seed: 42 });
+  const snapPos = Float32Array.from(fx.positions);
+  const snapVel = Float32Array.from(fx.velocities);
+  const snapMat = fx.points.material;
+  const snapTint = { hex: snapMat.color.getHex(), size: snapMat.size, opacity: snapMat.opacity };
+  const tintHex = {};
+  for (const id of ['compound', 'mars', 'forest', 'snow']) { fx.setMap(id); tintHex[id] = fx.points.material.color.getHex(); }
+  ok(tintHex.compound === 0xafc4de && tintHex.forest === 0xafc4de && tintHex.mars === 0xd8a37a && tintHex.snow === 0xeef4ff,
+    'K1 rebuild cycle visits the literal spec tints (rain 0xafc4de, mars 0xd8a37a, snow 0xeef4ff)');
+  ok(eqArr(fx.positions, snapPos), 'K2 full cycle snow->compound->mars->forest->snow: positions byte-identical to pre-cycle snapshot');
+  ok(eqArr(fx.velocities, snapVel), 'K3 full cycle: velocities byte-identical to pre-cycle snapshot');
+  const fresh = createWeatherFx(new THREE.Scene(), 'snow', { seed: 42 });
+  ok(eqArr(fx.positions, fresh.positions) && eqArr(fx.velocities, fresh.velocities),
+    'K4 rebuilt field byte-identical to a fresh same-seed instance (pre-update)');
+  const m = fx.points.material;
+  ok(m.color.getHex() === 0xeef4ff && m.color.getHex() === snapTint.hex && m.size === snapTint.size && m.opacity === snapTint.opacity && m.transparent === true && m.depthWrite === false && m.isPointsMaterial === true,
+    'K5 return tint = literal snow hex + snapshot size/opacity; material flags intact');
+  const p = fx.profile, w = WEATHER_FX.snow;
+  ok(p.kind === w.kind && p.color === w.color && p.size === w.size && p.opacity === w.opacity && p.count === w.count && p.fall.min === w.fall.min && p.fall.step === w.fall.step && p.fall.steps === w.fall.steps && p.driftX === w.driftX && p.driftZ === w.driftZ && p.sway.amp === w.sway.amp && p.sway.freq === w.sway.freq,
+    'K6 returned profile deep-equals WEATHER_FX.snow (all fields)');
+  fx.setMap('compound'); fx.setMap('snow');
+  ok(eqArr(fx.positions, snapPos) && fx.points.material.color.getHex() === snapTint.hex,
+    'K7 short cycle snow->compound->snow: positions + tint identical to snapshot');
+  fresh.dispose(); fx.dispose();
+  // Twin-history: identical setMap + dt sequence on both instances.
+  const t1 = createWeatherFx(new THREE.Scene(), 'snow', { seed: 7 });
+  const t2 = createWeatherFx(new THREE.Scene(), 'snow', { seed: 7 });
+  const camK = { x: 5, y: 3, z: 10 };
+  for (const inst of [t1, t2]) {
+    inst.setMap('mars');
+    for (let f = 0; f < 30; f++) inst.update(1 / 60, camK);
+    inst.setMap('snow');
+    for (let f = 0; f < 120; f++) inst.update(1 / 60, camK);
+  }
+  ok(eqArr(t1.positions, t2.positions), 'K8 twin-history across a rebuild: 150 shared updates stay byte-identical');
+  t1.dispose(); t2.dispose();
 }
 
 // ---- I. Perf micro-bench ------------------------------------------
