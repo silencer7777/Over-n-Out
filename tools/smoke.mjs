@@ -208,7 +208,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.7.5') fail(`M6 package.json version → ${pkg.version} (expected '0.7.5')`); else ok("M6 package.json version === '0.7.5'");   // V7.5 bump (round 2 online vehicles)
+  if (pkg.version !== '0.7.6') fail(`M6 package.json version → ${pkg.version} (expected '0.7.6')`); else ok("M6 package.json version === '0.7.6'");   // V7.6 bump (vision queue: character kit completion)
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
