@@ -140,7 +140,7 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   const touch = readFileSync(new URL('../js/touchcontrols.js', import.meta.url), 'utf8');
-  eq(html.includes('id="build-stamp"') && html.includes('BUILD V7.12'), true, 'T7 menu build stamp present (cache witness)'); // named re-pin: witness V7.11 -> V7.12 (playtest fix: traveling tracer streaks)
+  eq(html.includes('id="build-stamp"') && html.includes('BUILD V7.13'), true, 'T7 menu build stamp present (cache witness)'); // named re-pin: witness V7.12 -> V7.13 (playtest fix: menu tabs)
   eq(html.includes('name="ono-build" content="V7"'), true, 'T7 ono-build meta present'); // V7 named re-pin: witness 15 -> V7
   eq(main.includes('__onoBuild'), true, 'T7 build number exposed for support reads');
   eq(main.includes("matchMedia('(orientation: portrait)')") && main.includes("'pageshow'"), true, 'T7 redundant iOS fit triggers present');
@@ -453,6 +453,27 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   eq(calls.look.length, lookAtInactive, 'T14 binding: inactive layer feeds nothing');
   eq(prevented, preventedAtInactive, 'T14 binding: inactive layer never preventDefaults (menus stay native)');
   tc.setActive(true);
+}
+
+// --- T15 · MENU TABS (V7.13): the tab bar, its five tabs, the
+// panel machinery and the phone-fit CSS are all present, and no
+// existing menu section id was lost in the regroup. (Layout
+// itself is CSS; the strongest static proxies are asserted:
+// the bar wraps, buttons carry 44px targets, panels hide by
+// default and only the .active one renders.)
+{
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  ok((html.match(/id="menu-tabs"/g) || []).length === 1, 'T15a exactly one #menu-tabs bar');
+  for (const t of ['play', 'loadout', 'record', 'shop', 'settings'])
+    ok(html.includes(`data-tab="${t}"`), `T15b tab present: ${t}`);
+  ok(main.includes('buildMenuTabs') && main.includes('selectMenuTab') && main.includes("'ono-menu-tab'"),
+    'T15c tab machinery + persistence key wired in main.js');
+  ok(css.includes('#menu-tabs') && css.includes('flex-wrap:wrap') && css.includes('.mtab-panel') && css.includes('min-height:44px'),
+    'T15d tab CSS: wrapping bar, hidden panels, 44px targets');
+  for (const id of ['meta-panel', 'loadout', 'online-panel', 'chat-panel', 'play-btn', 'daily-btn', 'emblem-pickers', 'package-pickers', 'offer-pickers', 'settings'])
+    ok(html.includes(`id="${id}"`), `T15e section survived the regroup: #${id}`);
 }
 
 if (failures) { console.error(`\nmobile-check: ${failures} failure(s)`); process.exit(1); }
