@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeColoredParts, mergePartsByMaterial } from './geo.js';
-import { LIGHTING_PROFILES, sunVector, makeSkyTexture } from './lighting.js';
+import { LIGHTING_PROFILES, sunVector, makeSkyTexture, makeCloudTexture } from './lighting.js';
 import { makeBarkTexture, makeFoliageTexture, makeConcreteTexture, makeMetalPanelTexture, makeRoofTexture, taperedTrunkGeometry, canopyGeometry } from './proctex.js';
 
 // Builds the arena: dusk-lit compound, perimeter walls, cover crates.
@@ -63,6 +63,27 @@ export function buildWorld(scene) {
     sky.name = 'sky-dome'; // biomes.js re-dresses it (Mars) and restores it; lighting.js re-paints it per profile
     sky.userData.lightingMap = sky.material.map;
     scene.add(sky);
+  }
+
+  // Cloud band (V7.14 — playtest fix: "distance objects like
+  // clouds… enhance and make better"; before this slice the far
+  // sky was the bare gradient dome with no clouds at all). One
+  // open cylinder just inside the dome carrying the procedural
+  // cloud texture from lighting.js: +1 draw call, 96 tris, NO
+  // shadow casting, no colliders, playable ground untouched —
+  // it harmonizes with the V7.9 ridge/tree-line silhouettes by
+  // starting ~7° above the horizon so they stay readable.
+  // lighting.js re-paints it per profile; main.js drifts it.
+  {
+    const band = new THREE.Mesh(
+      new THREE.CylinderGeometry(285, 285, 120, 48, 1, true),
+      new THREE.MeshBasicMaterial({ map: makeCloudTexture(THREE, profile), transparent: true, opacity: profile.clouds ? profile.clouds.alpha : 0.85, side: THREE.BackSide, fog: false, depthWrite: false })
+    );
+    band.position.y = 95;
+    band.renderOrder = -9; // right after the dome, under everything else
+    band.name = 'cloud-band';
+    band.userData.cloudMap = band.material.map;
+    scene.add(band);
   }
 
   // Visible sun — disc + soft radial glow, derived from the
@@ -851,14 +872,20 @@ export function buildWorld(scene) {
     const trimA = 0xd8dde2, trimB = 0xc3c9d0, trimC = 0xaeb5bd;
     // Facade anchor table (Training CODE QUALITY, Nov 2, 2026) — the
     // single named source for every window plane + centre in this
-    // block. Values are EXACTLY the literals they replace: zero
-    // geometry moved (proof: v6-metrics identical, smoke green).
-    // Wed Nov 4 re-anchors the HQ west face from THIS table only
-    // (U6-12 drift: hqWestWinX / hqWestUpperWinX are -22.19 while
-    // the west wall stands at x -24.5); Fri Nov 6 pins these
-    // anchors in smoke. Ops anchors likewise describe pre-growth
-    // faces (e.g. opsNorthZ 39.97 vs the wall at z 39) — their
-    // re-anchor is a build session's job, NOT a training slice.
+    // block. The Nov 2 values were EXACTLY the literals they
+    // replaced: zero geometry moved (proof: v6-metrics identical,
+    // smoke green). Training FIX PRACTICE, Nov 4, 2026, re-anchored
+    // the HQ west face to the post-U6-12 west wall (centre x -24.5,
+    // outer face -24.65): the west windows moved from THIS table
+    // (hqWestWinX / hqWestUpperWinX -22.19 -> -24.69 = outer face
+    // - 0.04, as on the aligned faces), and the west parapet
+    // (-24.65), floor-line band (-24.66) and corner boards (-24.5)
+    // were hand-synced t_ literals — trim stays literal, so this
+    // table is the single source for west WINDOWS only, not the
+    // whole west face. Fri Nov 6 pins these anchors in smoke.
+    // Ops anchors likewise describe pre-growth faces (e.g.
+    // opsNorthZ 39.97 vs the wall at z 39) — their re-anchor is a
+    // build session's job, NOT a training slice.
     // Trim (t_) coordinates stay literal here — they are one-off
     // placements, not shared planes.
     const FACADE_ANCHORS = Object.freeze({
@@ -877,7 +904,7 @@ export function buildWorld(scene) {
       hqSouthZ: 46.69, hqNorthZ: 37.31,
       hqSouthX: Object.freeze([-19, -5.5]),
       hqNorthX: Object.freeze([-17, -11]),
-      hqWestWinX: -22.19, hqEastWinX: -1.81, hqWestUpperWinX: -22.19,
+      hqWestWinX: -24.69, hqEastWinX: -1.81, hqWestUpperWinX: -24.69,
       hqWestZ: 42, hqWestUpperZ: 40, hqEastZ: 42,
       hqPanelSouthZ: 46.34, hqPanelNorthZ: 37.66,
       // Comms Shed (centre 24, 56).
@@ -951,16 +978,16 @@ export function buildWorld(scene) {
     // Parapet caps on the roof edge (top 6.25).
     t_(new THREE.BoxGeometry(20.6, 0.28, 0.30), trimA, -12, 6.39, 37.35);
     t_(new THREE.BoxGeometry(20.6, 0.28, 0.30), trimA, -12, 6.39, 46.65);
-    t_(new THREE.BoxGeometry(0.30, 0.28, 9.6), trimA, -22.15, 6.39, 42);
+    t_(new THREE.BoxGeometry(0.30, 0.28, 9.6), trimA, -24.65, 6.39, 42);
     t_(new THREE.BoxGeometry(0.30, 0.28, 9.6), trimA, -1.85, 6.39, 42);
     // Corner boards, full two-story height.
-    for (const [cx, cz] of [[-22, 37.5], [-2, 37.5], [-22, 46.5], [-2, 46.5]]) {
+    for (const [cx, cz] of [[-24.5, 37.5], [-2, 37.5], [-24.5, 46.5], [-2, 46.5]]) {
       t_(new THREE.BoxGeometry(0.34, 6.0, 0.34), trimC, cx, 3.0, cz);
     }
     // Floor-line header band (the slab edge, read from outside).
     t_(new THREE.BoxGeometry(20.2, 0.22, 0.08), trimB, -12, 3.02, 46.66);
     t_(new THREE.BoxGeometry(20.2, 0.22, 0.08), trimB, -12, 3.02, 37.34);
-    t_(new THREE.BoxGeometry(0.08, 0.22, 9.2), trimB, -22.16, 3.02, 42);
+    t_(new THREE.BoxGeometry(0.08, 0.22, 9.2), trimB, -24.66, 3.02, 42);
     t_(new THREE.BoxGeometry(0.08, 0.22, 9.2), trimB, -1.84, 3.02, 42);
     // Door frames: south gap (x -13.6..-12) + north gap (x -6.4..-5).
     t_(new THREE.BoxGeometry(0.18, 2.3, 0.24), trimA, -13.65, 1.15, 46.5);
