@@ -129,6 +129,44 @@ rebind *to*, which is why this was undecidable before Stage 2.
    invite code the host hands out? (Leans: invite code —
    matches the private-tunnel posture.)
 
+## 9. Clan wars — the missing piece (V7.19 groundwork note)
+
+Shipped in V7.19 (account-independent groundwork, js/clans.js):
+clan name + tag in the local profile (sanitized), tag shown
+with callsigns everywhere names flow ([TAG] Name), the tag
+riding the hello as a structured `clan` field (protocol
+shape-checked), and the sim storing `clanTag` on the player
+record. A PLAY-tab CLAN WAR entry point exists and tells the
+player the truth: wars unlock with accounts.
+
+What real clan wars still need, and only Stage 2 provides:
+
+- **Clan registry** (server-side, keyed by account id, never by
+  callsign string): clan record { id, name, tag, founder,
+  created }, tag uniqueness enforced at creation. Today any
+  client can assert any tag — display-only, by design.
+- **Membership**: roles (leader/officer/member), invites and
+  join/leave, one clan per account. Persistence rides the same
+  account store as §6's meta persistence.
+- **War records**: clan-vs-clan match results keyed by clan id
+  (wins/losses, war history). A war MATCH also needs the sim to
+  field two human teams — today every human plays team 'you'
+  against Kestrel bots (co-op architecture); team assignment by
+  clanTag at addSimPlayer is the seam V7.19 left for it, and
+  bot-fill/win-condition rules for a human 'kestrel' side are
+  part of that build, not a flag flip.
+- **Which open decision unblocks what**: §7 Q1 (guests) decides
+  whether a guest connection may carry a clan tag into a war
+  room at all (design leans no — membership is an account
+  property). Q2 (callsign changes) does NOT block clan wars:
+  membership keys on account id, so callsigns may change freely
+  underneath. Q3 (invite code) does not block either — clan
+  invites are a separate flow from server signup — but the
+  invite-code mechanism, if chosen, is the natural transport
+  for clan invites too. The true gate is the Stage 2 build
+  itself (signed sessions + account store), not any single
+  answer in §7.
+
 ## 8. Acceptance sketch for the implementation update
 
 Token forgery probe (bad sig → `bad_session`), expired token
