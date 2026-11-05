@@ -47,16 +47,22 @@ S('crate', 4.9, 0, -46.2, 6.1, 2.3, -45.0);
 // --- Comms Tower (-48, 0): L1 block top 2.3 with ground
 // stairs on its south face; L2 block top 4.6 with stairs on
 // L1's top; mast above. (Relay-tower discipline, new plan.)
+// V7.22 (Job 2 glitch fix): both stair runs shifted 1.6 east
+// (x[-47.9,-44.9]). Centred at x[-49.5,-46.5] they walled off
+// L1's west court — Domination A stands there (-50.5, 1.5) and
+// its centre was reachable only via knife-edge grazes (the
+// zone-reachability gate's strict shipped-physics model proved
+// the seal). The west court is now a clean 3.6 m walk.
 S('metal', -51.5, 0, -3.5, -44.5, 2.3, 3.5);              // L1 block
-S('metal', -49.5, 0, 3.5, -46.5, 2.3, 4.6);               // ground stair 4 (top)
-S('metal', -49.5, 0, 4.6, -46.5, 1.725, 5.7);             // ground stair 3
-S('metal', -49.5, 0, 5.7, -46.5, 1.15, 6.8);              // ground stair 2
-S('metal', -49.5, 0, 6.8, -46.5, 0.575, 7.9);             // ground stair 1
+S('metal', -47.9, 0, 3.5, -44.9, 2.3, 4.6);               // ground stair 4 (top)
+S('metal', -47.9, 0, 4.6, -44.9, 1.725, 5.7);             // ground stair 3
+S('metal', -47.9, 0, 5.7, -44.9, 1.15, 6.8);              // ground stair 2
+S('metal', -47.9, 0, 6.8, -44.9, 0.575, 7.9);             // ground stair 1
 S('metal', -51.5, 2.3, -3.5, -44.5, 4.6, -0.5);           // L2 block
-S('metal', -49.5, 2.3, -0.5, -46.5, 4.6, 0.6);            // L2 stair 4 (top)
-S('metal', -49.5, 2.3, 0.6, -46.5, 4.025, 1.7);           // L2 stair 3
-S('metal', -49.5, 2.3, 1.7, -46.5, 3.45, 2.8);            // L2 stair 2
-S('metal', -49.5, 2.3, 2.8, -46.5, 2.875, 3.5);           // L2 stair 1 (meets L1 top edge)
+S('metal', -47.9, 2.3, -0.5, -44.9, 4.6, 0.6);             // L2 stair 4 (top)
+S('metal', -47.9, 2.3, 0.6, -44.9, 4.025, 1.7);            // L2 stair 3
+S('metal', -47.9, 2.3, 1.7, -44.9, 3.45, 2.8);             // L2 stair 2
+S('metal', -47.9, 2.3, 2.8, -44.9, 2.875, 3.5);            // L2 stair 1 (meets L1 top edge)
 S('metal', -48.3, 4.6, -3.5, -47.7, 11, -2.9);             // mast
 // --- Fuel Depot (44, 44): open-front shed + yard crate.
 S('timber', 41, 0, 41.35, 47, 2.4, 41.65);                // shed north wall
