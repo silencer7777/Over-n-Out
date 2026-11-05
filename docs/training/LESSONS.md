@@ -273,6 +273,51 @@ with a source commit/report. No lesson without evidence.
     clean again — re-landed byte-exact and re-proved in minutes.
     Never commit into another session's flight, and never
     re-derive a fix you can retain. (Training, Nov 4, 2026)
+34. **Diagnose with the engine's own math before touching art.**
+    The "invisible trucks" report resolved to camera placement,
+    not rendering: a raycast probe on the real merged geometry
+    showed the driver eye sitting inside the cab with ~66% of
+    the forward view being the truck's own windshield at <2 m.
+    Build the probe first and let it convict one hypothesis —
+    the fix was a shared camera-pose function, zero model work.
+    (V7.16, docs/sessions/v7.16-drivecam-report.md)
+35. **Merge static geometry BY MATERIAL across districts, not
+    per feature.** The second-ring expansion authored per
+    district measured +25 draw calls and pushed the forest
+    client path to 175 — over the 165 budget. Regrouping the
+    same boxes into one merged mesh per material delivered the
+    identical world at +12 calls. On any expansion, count merge
+    groups before authoring boxes. (V7.18)
+36. **Count pins don't prove geometry; probes do.** A malformed
+    data box (wrong B() arity) sailed through the SOLIDS count
+    pin — the number was right, the box was garbage. The
+    bridge-check's groundHeightAt walk/drives caught it in one
+    run. Any new traversable feature ships with a probe that
+    physically crosses it (truck over the bridge, walker up the
+    stairs), not just a count. (V7.18, tools/bridge-check.mjs)
+37. **Re-derive coordinates from the live file, never from a
+    remembered read of it.** Two stale reads of worlddata.js in
+    one session disagreed on the B() signature itself; both
+    scripted edits asserted and aborted before writing, and a
+    node-side import check confirmed the true shape. When an
+    edit asserts, believe the assert; verify bulk data edits by
+    importing the module and probing values, not by eyeballing
+    the diff. (V7.18)
+38. **Derive gate fixtures from the data they prove.** The
+    per-map reachability gate hardcoded HALF = 62 long after it
+    became a copy of the truth; the expansion fixed the gate to
+    read BOUNDS from each module. Named re-pins are for values
+    changed by decision (contract BOUNDS 62 → 84); plumbing
+    should consume the source of truth directly.
+    (V7.21, tools/reachability-maps.mjs)
+39. **Audit for prior art before building a "new" system.**
+    "Add trip wires" was already shipped end-to-end (data,
+    model, solo + sim trigger logic) as the trip mine — the
+    real gap was the missing gate, closed as
+    tools/tripwire-check.mjs. Clan wars' honest remainder was a
+    Stage 2 spec section, not a faked mode. Search the tree
+    first; ship verification and the missing seam, and spec the
+    rest in the owner's own doc. (V7.19)
 
 ## Retired / do not carry forward (corrected Oct 25, 2026, Reviewer audit)
 
