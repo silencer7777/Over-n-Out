@@ -674,6 +674,28 @@ export function buildWorld(scene) {
   solid(26.5, 59.5, 0.18, 2.2, 0.18, deckMat);         // awning post E
   elevated(24, 2.2, 59.3, 6, 0.12, 1.8, slabMat);      // awning slab (top 2.32)
   solid(27.6, 53.2, 0.14, 5.2, 0.14, deckMat);         // corner mast
+  // V7.24 SOUTH OUTPOST (Job 2 §3) — two-level strongpoint in
+  // the SW ring at (-24, 66), mirror of js/worlddata.js SOLIDS:
+  // walled ground floor (door south), roof deck up an east
+  // stair run (0.57 rises) + landing pier, parapets N/W/S and
+  // a part-E (the gap at z[66.5,70.2] is the roof entry).
+  solid(-24, 62.2, 10, 2.6, 0.4, wallMat);             // north wall
+  solid(-26.9, 69.8, 4.2, 2.6, 0.4, wallMat);          // south wall W of door
+  solid(-21.1, 69.8, 4.2, 2.6, 0.4, wallMat);          // south wall E of door
+  solid(-28.8, 66, 0.4, 2.6, 7.2, wallMat);            // west wall
+  solid(-19.2, 66, 0.4, 2.6, 7.2, wallMat);            // east wall
+  elevated(-24, 2.6, 66, 10.4, 0.25, 8.4, deckMat);    // roof slab (top 2.85)
+  elevated(-24, 2.85, 62, 10.4, 0.55, 0.4, wallMat);   // parapet N
+  elevated(-29, 2.85, 66.2, 0.4, 0.55, 8, wallMat);    // parapet W
+  elevated(-24, 2.85, 70, 10.4, 0.55, 0.4, wallMat);   // parapet S
+  elevated(-19, 2.85, 64.15, 0.4, 0.55, 4.7, wallMat); // parapet E (north run)
+  solid(-17.1, 69.2, 3.4, 2.85, 2.0, deckMat);         // landing pier (top 2.85)
+  solid(-16.9, 70.75, 3, 2.85, 1.1, deckMat);          // outpost steps (0.57 rises)
+  solid(-16.9, 71.85, 3, 2.28, 1.1, deckMat);
+  solid(-16.9, 72.95, 3, 1.71, 1.1, deckMat);
+  solid(-16.9, 74.05, 3, 1.14, 1.1, deckMat);
+  solid(-16.9, 75.15, 3, 0.57, 1.1, deckMat);
+  solid(-25.3, 64.7, 1.4, 1.15, 1.4, crateMat);        // interior cover crate
   // ============ V6-3 HQ — TWO-STORY ENTERABLE (Atlas) ============
   // Stage 1's proof building, raised in the SW inner court
   // (footprint x -22..-2, z 37.5..46.5; the court was empty —
@@ -826,6 +848,13 @@ export function buildWorld(scene) {
       new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.4 }));
     drums.castShadow = true; drums.receiveShadow = true;
     scene.add(drums); shootables.push(drums);
+    // V7.24 (Job 2 glitch pass): the drums finally collide in
+    // the client too — worlddata has carried their EXTRA
+    // colliders for ages, so the sim stopped players at drums
+    // the solo client walked through. Boxes match data (±0.34).
+    registerSolidBox(36.5, 58.5, 0.68, 0.68, 0, 1.05);
+    registerSolidBox(37.8, 59.3, 0.68, 0.68, 0, 1.05);
+    registerSolidBox(35.6, 59.9, 0.68, 0.68, 0, 1.05);
 
     const rubble = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.3),
       new THREE.MeshStandardMaterial({ color: 0x6a6f76, roughness: 1, flatShading: true }), 26);
