@@ -208,7 +208,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.7.19') fail(`M6 package.json version → ${pkg.version} (expected '0.7.19')`); else ok("M6 package.json version === '0.7.19'");   // V7.19 bump (tripwire gate + clan groundwork)
+  if (pkg.version !== '0.7.20') fail(`M6 package.json version → ${pkg.version} (expected '0.7.20')`); else ok("M6 package.json version === '0.7.20'");   // V7.20 bump (operator roster)
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -803,7 +803,7 @@ try {
   else fail(`CL3 hello clan → ok ${helloOk.ok}, badChar ${helloBadChar.ok}, badType ${helloBadType.ok}`);
   const simSrc = readFileSync(new URL('../net/sim.js', import.meta.url), 'utf8');
   const srvSrc = readFileSync(new URL('../net/server.js', import.meta.url), 'utf8');
-  if (simSrc.includes('clanTag: sanitizeClanTag(clanTag)') && srvSrc.includes('addSimPlayer(room.match, playerId, msg.name, loadout, msg.clan)'))
+  if (simSrc.includes('clanTag: sanitizeClanTag(clanTag)') && srvSrc.includes('addSimPlayer(room.match, playerId, msg.name, loadout, msg.clan, msg.character)')) // V7.20 re-pin: hello character rides the same call
     ok('CL4 sim stores the sanitized clanTag on the player record; server threads hello.clan into addSimPlayer');
   else fail('CL4 clan threading missing in sim/server');
   // PG6: Havoc's ruled values + prestige track (v4-progression-curve.md §5 pin)
