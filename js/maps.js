@@ -14,12 +14,16 @@ import * as CompoundData from './worlddata.js';
 import * as ForestData from './worlddata-forest.js';
 import * as SnowData from './worlddata-snow.js';
 import * as MarsData from './worlddata-mars.js';
+import * as OrbitalData from './worlddata-orbital.js';
 
 export const MAPS = [
   { id: 'compound', name: 'COMPOUND', layout: 'distinct', data: CompoundData, lighting: 'compound' },
   { id: 'forest', name: 'FOREST', layout: 'transition', data: ForestData, lighting: 'forest' },
   { id: 'snow', name: 'SNOW STATION', layout: 'transition', data: SnowData, lighting: 'snow' },
   { id: 'mars', name: 'MARS UPLINK', layout: 'transition', data: MarsData, lighting: 'mars' },
+  // V7.25 (Job 2 §4): the space map — an original orbital
+  // station deck (own layout builder + solo dressing).
+  { id: 'orbital', name: 'MERIDIAN ORBITAL', layout: 'transition', data: OrbitalData, lighting: 'orbital' },
 ];
 export const MAP_IDS = MAPS.map(m => m.id);
 export const DEFAULT_MAP_ID = 'compound';
