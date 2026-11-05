@@ -486,10 +486,29 @@ export class Player {
       this.coyoteTimer = COYOTE_TIME;
       this.jumpActive = false;
     } else if (this.onGround) {
-      // Still grounded but the floor fell away (walked off an edge):
-      // become airborne and let gravity take over from here.
-      this.onGround = false;
-      this.slideT = 0; // U5-07b: no air-sliding
+      // V7.28 STEP-DOWN SNAP (Job 2 §8): the floor dropped by no
+      // more than a step (<= 0.6 m — the same height a grounded
+      // step can climb) and this is not a jump or a real fall:
+      // stay grounded and take the step down in stride. Stair
+      // descents (the tower, the gantry, every 0.57 rise in the
+      // game, run backwards) used to be a staircase of micro-
+      // falls — airborne frames, gravity dips, land-dip kicks.
+      // Now they walk like ground. A real edge (drop > 0.6)
+      // still falls exactly as before; no physics constant
+      // changes (speeds, gravity, jump apex untouched), and
+      // nothing new becomes reachable: you could always fall
+      // there — now you can also walk there.
+      const drop = this.rig.position.y - groundY;
+      if (drop <= 0.6 && !this.jumpActive && this.vel.y > -3) {
+        this.rig.position.y = groundY;
+        this.vel.y = 0;
+        this.coyoteTimer = COYOTE_TIME;
+      } else {
+        // Still grounded but the floor fell away (walked off an
+        // edge): become airborne and let gravity take over.
+        this.onGround = false;
+        this.slideT = 0; // U5-07b: no air-sliding
+      }
     }
 
     collide(this.rig.position, this.radius, this.world.colliders, this.world.bounds, feetY);
