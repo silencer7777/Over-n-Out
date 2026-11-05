@@ -208,7 +208,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.7.18') fail(`M6 package.json version → ${pkg.version} (expected '0.7.18')`); else ok("M6 package.json version === '0.7.18'");   // V7.18 bump (second-ring expansion)
+  if (pkg.version !== '0.7.19') fail(`M6 package.json version → ${pkg.version} (expected '0.7.19')`); else ok("M6 package.json version === '0.7.19'");   // V7.19 bump (tripwire gate + clan groundwork)
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -781,6 +781,31 @@ try {
   const san = P.sanitizeProfile({ xp: 5000, classes: [{ primary: 'dmr', attachments: ['scope'] }], activeClass: 3, settings: { sensitivity: 1.4 } });
   if (san.classes.length === 5 && san.settings.sensitivity === 1.4 && san.activeClass === 0) ok('PG5 sanitizeProfile repairs + clamps locked active class');
   else fail(`PG5 sanitizeProfile → activeClass ${san.activeClass}, classes ${san.classes.length}`);
+  // CL (V7.19 clan groundwork): profile sanitize + callsign composition + hello shape.
+  const CL = await import('../js/clans.js');
+  const clanSan = P.sanitizeProfile({ meta: { clan: { name: '  Night   Owls ', tag: 'owl!' } } });
+  const clanBad = P.sanitizeProfile({ meta: { clan: { name: '[Bad]Clan', tag: 'x' } } });
+  if (clanSan.meta.clan.tag === 'OWL' && clanSan.meta.clan.name === 'Night Owls'
+    && clanBad.meta.clan.tag === '' && clanBad.meta.clan.name === 'BadClan')
+    ok('CL1 clan sanitize: tag uppercased/stripped/capped (OWL), 1-char tag rejected, name de-bracketed + single-spaced');
+  else fail(`CL1 clan sanitize → ${JSON.stringify(clanSan.meta.clan)} / ${JSON.stringify(clanBad.meta.clan)}`);
+  if (CL.taggedCallsign('BRETT', { name: 'Night Owls', tag: 'OWL' }) === '[OWL] BRETT'
+    && CL.taggedCallsign('BRETT', { name: '', tag: '' }) === 'BRETT'
+    && CL.taggedCallsign('ABCDEFGHIJKLMNOPQRSTUV', { name: '', tag: 'ABCDE' }).length === 24
+    && CL.sameClan({ tag: 'OWL' }, { tag: 'OWL' }) && !CL.sameClan({ tag: 'OWL' }, { tag: '' }))
+    ok('CL2 taggedCallsign: [TAG] prefix inside the 24-char cap; sameClan needs two real tags');
+  else fail('CL2 taggedCallsign/sameClan wrong');
+  const helloOk = validateHello({ t: 'hello', protocol: 1, name: 'BRETT', room: null, clan: 'OWL' });
+  const helloBadChar = validateHello({ t: 'hello', protocol: 1, name: 'BRETT', room: null, clan: 'OW!' });
+  const helloBadType = validateHello({ t: 'hello', protocol: 1, name: 'BRETT', room: null, clan: 42 });
+  if (helloOk.ok && !helloBadChar.ok && !helloBadType.ok)
+    ok('CL3 hello clan field: shape-checked (<=5 alnum string), garbage refused at the handshake');
+  else fail(`CL3 hello clan → ok ${helloOk.ok}, badChar ${helloBadChar.ok}, badType ${helloBadType.ok}`);
+  const simSrc = readFileSync(new URL('../net/sim.js', import.meta.url), 'utf8');
+  const srvSrc = readFileSync(new URL('../net/server.js', import.meta.url), 'utf8');
+  if (simSrc.includes('clanTag: sanitizeClanTag(clanTag)') && srvSrc.includes('addSimPlayer(room.match, playerId, msg.name, loadout, msg.clan)'))
+    ok('CL4 sim stores the sanitized clanTag on the player record; server threads hello.clan into addSimPlayer');
+  else fail('CL4 clan threading missing in sim/server');
   // PG6: Havoc's ruled values + prestige track (v4-progression-curve.md §5 pin)
   if (P.XP_VALUES.capture === 100 && P.XP_VALUES.assist === 40 && P.XP_VALUES.matchLoss === 100 && P.XP_VALUES.streak8 === 150) ok('PG6 XP values ruled: capture 100 / assist 40 / matchLoss 100 / streak8 150');
   else fail(`PG6 XP values drifted: ${JSON.stringify(P.XP_VALUES)}`);
