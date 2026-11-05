@@ -140,7 +140,7 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   const touch = readFileSync(new URL('../js/touchcontrols.js', import.meta.url), 'utf8');
-  eq(html.includes('id="build-stamp"') && html.includes('BUILD V7.16'), true, 'T7 menu build stamp present (cache witness)'); // named re-pin: witness V7.15 -> V7.16 (playtest fix: driving chase camera)
+  eq(html.includes('id="build-stamp"') && html.includes('BUILD V7.17'), true, 'T7 menu build stamp present (cache witness)'); // named re-pin: witness V7.16 -> V7.17 (playtest fix: auto-ADS on fire)
   eq(html.includes('name="ono-build" content="V7"'), true, 'T7 ono-build meta present'); // V7 named re-pin: witness 15 -> V7
   eq(main.includes('__onoBuild'), true, 'T7 build number exposed for support reads');
   eq(main.includes("matchMedia('(orientation: portrait)')") && main.includes("'pageshow'"), true, 'T7 redundant iOS fit triggers present');
@@ -535,6 +535,31 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   // The adaptive term is capped at +50% (the anti-surge law):
   chk(lookRateFor(10, false) <= LOOK_RATE * 1.5 + 1e-9, 'T16f adaptive rate capped at +50%');
   chk(Math.abs(lookRateFor(0, false) - LOOK_RATE) < 1e-9, 'T16g zero-error rate is the shipped base 30');
+}
+
+// --- T17 · AUTO-ADS (V7.17): the frame aim rule (resolveAim
+// in js/lookfeel.js) — firing engages ADS unless blocked, the
+// manual channels (right-click hold, touch ADS toggle) aim on
+// their own, and releasing the trigger returns to the manual
+// state. The whole truth table, pinned against the shipped
+// function; main.js wiring witnessed below it.
+{
+  const chk = (c, m) => { if (c) ok(m); else fail(m); };
+  const { resolveAim } = await import('../js/lookfeel.js');
+  chk(resolveAim({ firing: true }) === true, 'T17a trigger held = aiming (auto-ADS)');
+  chk(resolveAim({ firing: true, blocked: true }) === false, 'T17b trigger held but blocked (driving/downed/menu) = not aiming');
+  chk(resolveAim({ manual: true }) === true, 'T17c right-click hold alone still aims (no firing needed)');
+  chk(resolveAim({ touch: true }) === true, 'T17d touch ADS toggle alone still aims');
+  chk(resolveAim({ manual: true, blocked: true }) === true, 'T17e manual aim is never blocked (it feeds the same walker contexts it always did)');
+  chk(resolveAim({}) === false && resolveAim({ firing: false }) === false, 'T17f nothing held = hip fire view');
+  chk(resolveAim({ firing: true, manual: false }) === true && resolveAim({ firing: false, manual: false }) === false,
+    'T17g trigger press/release alone drives ADS in and back out');
+  const mainSrc = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const htmlSrc = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  chk(mainSrc.includes('resolveAim({') && mainSrc.includes('player.update(dt, effInput, dtLook)')
+    && mainSrc.includes('aim: effAimNow') && mainSrc.includes('manualAim = true'),
+    'T17h wiring: composite in frame(), walker + online sample consume it, RMB feeds the manual channel');
+  chk(htmlSrc.includes('FIRE</b> TO AIM DOWN SIGHTS'), 'T17i menu hint teaches fire-to-aim (both hint variants)');
 }
 
 if (failures) { console.error(`\nmobile-check: ${failures} failure(s)`); process.exit(1); }
