@@ -16,6 +16,7 @@
 
 import { MAX_CLASSES, defaultClass, validateClass } from './loadouts.js';
 import { CREDITS_CAP, DEFAULT_EMBLEM, isEmblemId, isBadgeId, isDateStr, isShopItemId, getShopEmblem } from './meta.js';
+import { sanitizeClan } from './clans.js';
 
 export const PROFILE_KEY = 'ono-profile-v1';
 // U6-05: the countdown colour palette. Green is the shipped
@@ -176,6 +177,7 @@ export function createMeta() {
     badges: [],
     daily: { lastClaim: null, streakDay: 0 },
     stats: { matches: 0, wins: 0, kills: 0 },
+    clan: { name: '', tag: '' }, // V7.19: clan groundwork (js/clans.js) — local identity only until Stage 2
   };
 }
 
@@ -246,6 +248,7 @@ export function sanitizeProfile(raw) {
       if (isDateStr(m.daily.lastClaim)) p.meta.daily.lastClaim = m.daily.lastClaim;
       if (Number.isFinite(m.daily.streakDay)) p.meta.daily.streakDay = Math.max(0, Math.min(7, Math.floor(m.daily.streakDay)));
     }
+    if (m.clan !== undefined) p.meta.clan = sanitizeClan(m.clan);
     if (m.stats && typeof m.stats === 'object') {
       for (const k of ['matches', 'wins', 'kills']) {
         if (Number.isFinite(m.stats[k]) && m.stats[k] >= 0) p.meta.stats[k] = Math.floor(m.stats[k]);
