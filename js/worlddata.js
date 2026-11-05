@@ -27,7 +27,7 @@
 
 // V4: playable to ±62 (new outer walls at ±63, inner face 62).
 // U6-12: playable to ±80 (outer walls at ±81, inner face 80).
-export const BOUNDS = 80;
+export const BOUNDS = 104; // V7.18 second-ring expansion (was 80)
 
 export const SPAWN_POINTS = [
   [-42, 0, -42], [42, 0, -42], [-42, 0, 42], [42, 0, 42],
@@ -35,14 +35,15 @@ export const SPAWN_POINTS = [
   [13, 2.3, -30], [34, 2.3, -20], [-34, 2.3, -20], [-5, 4.6, -34],
   // V4 ring spawns (gap-aligned — see world.js spawnPoints note)
   [0, 0, -58], [0, 0, 58],
+  [0, 0, -88], [92, 0, 40], [-92, 0, -40], [66, 0, 92], // V7.18 ring spawns
 ];
 
 const B = (x0, y0, z0, x1, y1, z1) => ({ min: [x0, y0, z0], max: [x1, y1, z1] });
 
 export const SOLIDS = [
   // Outer perimeter walls (tops at 7; inner face = ±80, U6-12)
-  B(-82, 0, -82, 82, 7, -80), B(-82, 0, 80, 82, 7, 82),
-  B(-82, 0, -82, -80, 7, 82), B(80, 0, -82, 82, 7, 82),
+  B(-106, 0, -106, 106, 7, -104), B(-106, 0, 104, 106, 7, 106),
+  B(-106, 0, -106, -104, 7, 106), B(104, 0, -106, 106, 7, 106), // V7.18 perimeter (inner face +/-104)
   // V4 ruin line — the V3 wall line at ±50, now interior segments
   // with 10 gaps (the ring's doors). Two segments drop to 5.4.
   // north (z=-50): gaps [-30,-24], [-3,3], [21,27]
@@ -208,6 +209,50 @@ export const SOLIDS = [
   B(70.5, 0, 19.5, 73.5, 1, 20.5), B(70.5, 0, -30.5, 73.5, 1, -29.5),
   B(-73.5, 0, 29.5, -70.5, 1, 30.5), B(-73.5, 0, -20.5, -70.5, 1, -19.5),
   B(18.5, 0, 71.5, 21.5, 1, 72.5), B(-26.5, 0, 71.5, -23.5, 1, 72.5),
+  // ---- V7.18 SECOND RING (bounds 80 -> 104; world.js mirrors) ----
+  // The old +-80 wall becomes the second ruin line: segments with
+  // road gaps (statue-plaza axis, bridge road, depot lane, ring
+  // roads). Two segments stand dropped at 5.4 (ruin character).
+  B(-104, 0, -81, -6, 7, -79), B(6, 0, -81, 30, 7, -79), B(42, 0, -81, 104, 5.4, -79), // N ruin
+  B(-104, 0, 79, -42, 7, 81), B(-30, 0, 79, -6, 7, 81), B(6, 0, 79, 104, 7, 81), // S ruin
+  B(79, 0, -104, 81, 7, -26), B(79, 0, -14, 81, 7, 16), B(79, 0, 28, 81, 5.4, 104), // E ruin
+  B(-81, 0, -104, -79, 7, -4), B(-81, 0, 8, -79, 7, 30), B(-81, 0, 42, -79, 7, 104), // W ruin (bridge-road gap z -4..8)
+  // North gate plaza: statue plinth + gate pillars + sandbags.
+  B(-1.5, 0, -95.5, 1.5, 1.2, -92.5), // statue plinth (top 1.2)
+  B(-9, 0, -93, -7, 5, -91), B(7, 0, -93, 9, 5, -91), // gate pillars
+  B(-6, 0, -88.5, -2, 0.55, -87.5), B(2, 0, -88.5, 6, 0.55, -87.5), // sandbag rows
+  // East Depot — rooftop-playable warehouse (x 84..100, z -28..-12):
+  B(83.8, 0, -28.2, 100.2, 0.15, -11.8), // floor slab
+  B(84, 0, -28, 100, 3.4, -27.4), // N wall
+  B(84, 0, -12.6, 90, 3.4, -12), B(95, 0, -12.6, 100, 3.4, -12), // S wall, loading gap x 90..95
+  B(99.4, 0, -27.4, 100, 3.4, -12.6), // E wall
+  B(84, 0, -27.4, 84.6, 3.4, -22), B(84, 0, -19, 84.6, 3.4, -12.6), // W wall, door gap z -22..-19
+  B(83.8, 3.4, -28.2, 100.2, 3.65, -11.8), // roof plate (top 3.65)
+  B(90, 0, -33.9, 93, 0.575, -32.95), B(90, 0, -32.95, 93, 1.15, -32), B(90, 0, -32, 93, 1.725, -31.05),
+  B(90, 0, -31.05, 93, 2.3, -30.1), B(90, 0, -30.1, 93, 2.875, -29.15), B(90, 0, -29.15, 93, 3.45, -28.2), // exterior stair (0.575 rise)
+  B(83.8, 3.65, -28.2, 89.6, 4.65, -27.8), B(93.4, 3.65, -28.2, 100.2, 4.65, -27.8), // parapets (stair-head gap x 89.6..93.4)
+  B(83.8, 3.65, -12.2, 100.2, 4.65, -11.8), B(99.8, 3.65, -27.8, 100.2, 4.65, -12.2), B(83.8, 3.65, -27.8, 84.2, 4.65, -12.2),
+  B(95, 3.65, -25, 97.5, 4.85, -22.5), // roof HVAC
+  B(87, 3.65, -16, 88.2, 4.45, -14.8), // roof vent
+  B(96.5, 3.65, -15.5, 98.7, 4.8, -13.3), // roof crate
+  B(88, 0, -24, 90.2, 1.15, -21.8), B(94, 0, -17, 96.2, 1.15, -14.8), B(89, 0, -15.5, 91.2, 2.3, -13.3), // interior cover
+  // West reservoir curbs (water is visual-only: shallow-wading model).
+  B(-102, 0, -14, -84, 0.3, -13.4), B(-102, 0, 29.4, -84, 0.3, 30), B(-84.6, 0, -13.4, -84, 0.3, 29.4),
+  B(-102, 0, -13.4, -101.4, 0.3, 2), B(-102, 0, 10, -101.4, 0.3, 29.4),
+  // Causeway bridge over the reservoir (road z 3..9): ramps
+  // 0 -> 0.5 -> deck 1.0 -> 0.5 -> 0; rails stand on the deck.
+  B(-104, 0, 3, -102, 0.5, 9), B(-102, 0, 3, -84, 1, 9), B(-84, 0, 3, -82, 0.5, 9),
+  B(-102, 1, 2.7, -84, 2, 3), B(-102, 1, 9, -84, 2, 9.3), // rails (yBase 1)
+  // South service passage (covered corridor, x 28..58 at z ~88):
+  B(28, 0, 84.8, 58, 2.7, 85.2), B(28, 0, 90.8, 58, 2.7, 91.2), // walls
+  B(27.8, 2.7, 84.6, 58.2, 2.95, 91.4), // roof
+  B(36, 0, 86, 38.2, 1.15, 88.2), B(48, 0, 87.8, 50.2, 1.15, 90), // cover crates
+  // Ring-road cover dressing (jersey barriers + crates + sandbags):
+  B(18, 0, -86, 22, 0.8, -85.4), B(-26, 0, -86, -22, 0.8, -85.4), B(85.4, 0, 20, 86, 0.8, 24),
+  B(85.4, 0, -52, 86, 0.8, -48), B(-52, 0, 85.4, -48, 0.8, 86), B(62, 0, 85.4, 66, 0.8, 86), B(-86, 0, -40, -85.4, 0.8, -36),
+  B(-88, 0, -60, -85.8, 1.15, -57.8), B(60, 0, -88, 62.2, 1.15, -85.8), B(88, 0, 60, 90.2, 1.15, 62.2), B(-60, 0, 84, -57.8, 1.15, 86.2),
+  B(82, 0, -22, 83, 0.55, -19), // sandbags at the depot door
+  B(101, 0, -18, 103.2, 1.15, -15.8), B(101, 0, -21, 103.2, 2.3, -18.8), // depot east crate-hop: second roof route (jump from the 2.3 stack, apex 1.6 -> plate 3.65)
 ];
 
 export const EXTRA_COLLIDERS = [
@@ -249,6 +294,8 @@ export const EXTRA_COLLIDERS = [
   B(36.16, 0, 58.16, 36.84, 1.05, 58.84),
   B(37.46, 0, 58.96, 38.14, 1.05, 59.64),
   B(35.26, 0, 59.56, 35.94, 1.05, 60.24),
+  B(-0.45, 1.2, -94.45, 0.45, 4.6, -93.55), // V7.18 statue figure column (on plinth; EXTRA = not standable)
+  B(101.2, 0, -7.8, 101.8, 1.1, -7.2), B(87.7, 0, 33.7, 88.3, 1.1, 34.3), B(-40.3, 0, -88.3, -39.7, 1.1, -87.7), // V7.18 ring drums
 ];
 
 // Explosive barrel gameplay data (mirrors world.js userData spec).
@@ -283,6 +330,7 @@ export const TRANSMISSIONS = [
   { id: 'tower-relay', x: 42, y: 4.6, z: -55.5 }, // relay tower L2
   { id: 'ridge-top', x: -44, y: 2.3, z: -60.4 },  // north ridge top terrace
   { id: 'motor-pool', x: 47, y: 0, z: 52 },       // motor pool, between wrecks
+  { id: 'gate-statue', x: 3, y: 0, z: -94 }, // V7.18: beside the plaza statue
 ];
 
 export function allColliders() {
