@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildWorld, collide } from './world.js';
 import { Player, EYE } from './player.js';
+import { resolveAim } from './lookfeel.js'; // V7.17: the frame aim rule (auto-ADS)
 import { Bot } from './bots.js';
 import { Sfx } from './audio.js';
 import { WEAPONS, WEAPON_ORDER, getWeapon, coneOffset } from './weapons.js';
@@ -169,7 +170,7 @@ function goLandscape() {
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
 // version tag — Brett reads "BUILD V7.2" in the menu footer.
-const BUILD_NO = 'V7.16';
+const BUILD_NO = 'V7.17';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -918,6 +919,14 @@ applySettings(); // U5-08: first application of the saved options
 player.camoId = activeClass().camo; // U5-10: held gun + arms wear the class camo
 let firing = false;
 let triggerPressed = false;
+// V7.17 AUTO-ADS: the manual aim channel (hold right-click).
+// The touch ADS toggle keeps writing input.aim on touch
+// devices; the frame composite in frame() reads both plus the
+// trigger and decides the ONE aim state (resolveAim) that the
+// player step and the online sample consume via effInput.
+let manualAim = false;
+const effInput = { ...input };
+let effAimNow = false;
 // V6 mobile: the TouchControls instance (touch devices only; the
 // input-section block below constructs it). Null on desktop.
 let touchControls = null;
@@ -1768,11 +1777,11 @@ document.addEventListener('mousemove', e => {
 });
 document.addEventListener('mousedown', e => {
   if ((state === 'playing' || state === 'online') && e.button === 0) { firing = true; triggerPressed = true; }
-  if ((state === 'playing' || state === 'online') && e.button === 2) input.aim = true;
+  if ((state === 'playing' || state === 'online') && e.button === 2) manualAim = true; // V7.17: manual channel (composite decides)
 });
 document.addEventListener('mouseup', e => {
   if (e.button === 0) firing = false;
-  if (e.button === 2) input.aim = false;
+  if (e.button === 2) manualAim = false;
 });
 document.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -2201,7 +2210,7 @@ function buildOnlineSample(seq) {
     yaw: player.yaw, pitch: player.pitch,
     fire: firing, reload: edgeReload,
     weapon: WEAPON_ORDER.indexOf(currentId) + 1,
-    aim: input.aim, throwLethal: edgeThrowL, throwTactical: edgeThrowT,
+    aim: effAimNow, throwLethal: edgeThrowL, throwTactical: edgeThrowT, // V7.17: the composited aim (auto-ADS included), so the sim's spread sees the same state the player sees
     stance: !!input.stance, prone: !!input.prone, // U6-10 (held states; the sim derives taps/holds)
     interact: edgeInteract, // R2-5 (edge; the sim derives enter/exit from it)
   };
@@ -2581,6 +2590,23 @@ function tick() {
   input.stanceTap = pendingStanceTap;
   pendingStanceTap = false;
 
+  // V7.17 AUTO-ADS composite (owner rule change): decide this
+  // frame's ONE aim state from the three channels — hold
+  // right-click, the touch ADS toggle, and the trigger — and
+  // hand it to every consumer (player step, online sample) as
+  // effInput. Firing while sprinting therefore ADSs and slows
+  // to the existing ADS move rule, exactly as manual aim does;
+  // releasing the trigger returns to hip unless a manual
+  // channel is still held.
+  effAimNow = resolveAim({
+    manual: manualAim,
+    touch: TOUCH_MODE ? !!input.aim : false,
+    firing,
+    blocked: !!driving || !!onlineDrive || (state !== 'playing' && state !== 'online') || M.respawnT > 0,
+  });
+  Object.assign(effInput, input);
+  effInput.aim = effAimNow;
+
   // USABLE SCOPES (U6-01; every-kind U7-01): sight picture sync.
   // Shown while truly aimed for EVERY sight kind — iron
   // included (U7 removed the old iron suppression: a bare gun
@@ -2625,7 +2651,7 @@ function tick() {
   if (state === 'online' && session) {
     // R2-5: while driving online, the local walker stands
     // down — the predicted vehicle owns the rig (below).
-    player.update(dt, onlineDrive ? DOWN_INPUT : input, dtLook);
+    player.update(dt, onlineDrive ? DOWN_INPUT : effInput, dtLook);
     session.pumpInput(dt, buildOnlineSample);
     voiceRosterAcc += dt; // U6-15: keep the voice mesh rostered (~2 Hz is plenty)
     if (voiceRosterAcc > 0.5) { voiceRosterAcc = 0; syncVoiceRoster(); }
@@ -2712,7 +2738,7 @@ function tick() {
     } else if (driving) {
       stepDrive(dt); // R2-1: the vehicle steps instead of the walker
     } else {
-      player.update(dt, input, dtLook);
+      player.update(dt, effInput, dtLook); // V7.17: composited aim (auto-ADS)
     }
 
     bloom = Math.max(0, bloom - 2.2 * dt);
