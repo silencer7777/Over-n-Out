@@ -208,7 +208,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.7.15') fail(`M6 package.json version → ${pkg.version} (expected '0.7.15')`); else ok("M6 package.json version === '0.7.15'");   // V7.15 bump (playtest fix: look smoothness/consistency)
+  if (pkg.version !== '0.7.16') fail(`M6 package.json version → ${pkg.version} (expected '0.7.16')`); else ok("M6 package.json version === '0.7.16'");   // V7.16 bump (playtest fix: driving chase camera)
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -902,6 +902,16 @@ try {
     && vehIndex.includes('Enter / exit vehicle'))
     ok('VH7 vehicle feel: procedural engine loop + speed FOV bloom + minimap vehicle squares (solo + online) + controls listing');
   else fail('VH7 vehicle feel layer incomplete');
+  // VH8 (V7.16): the chase drive camera — spec offsets on both
+  // vehicles, the shared poseDriveRig pose, and the on-foot
+  // eye restore on exit. The geometric proof (the old in-cab
+  // eye's windshield wall vs the chase view) lives in
+  // tools/drivecam-check.mjs (DC1-DC4).
+  if (Q.camBack > 3 && Q.camLift > 0.8 && T.camBack > Q.camBack && T.camLift > 0.8
+    && vehMain.includes('function poseDriveRig') && vehMain.includes('st.spec.camBack')
+    && (vehMain.match(/camera\.position\.set\(0, EYE, 0\)/g) || []).length >= 2)
+    ok('VH8 drive camera: chase offsets in spec, shared poseDriveRig pose, on-foot eye restored on both exits');
+  else fail('VH8 drive camera wiring incomplete');
 } catch (e) { fail('VH vehicle checks: ' + e.message); }
 
 // 1z2) Dogs under fire (V7 Round 2, R2-2) — direct sim
