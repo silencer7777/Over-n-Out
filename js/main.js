@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { buildWorld, collide } from './world.js';
-import { Player } from './player.js';
+import { Player, EYE } from './player.js';
 import { Bot } from './bots.js';
 import { Sfx } from './audio.js';
 import { WEAPONS, WEAPON_ORDER, getWeapon, coneOffset } from './weapons.js';
@@ -169,7 +169,7 @@ function goLandscape() {
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
 // version tag — Brett reads "BUILD V7.2" in the menu footer.
-const BUILD_NO = 'V7.15';
+const BUILD_NO = 'V7.16';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -2989,6 +2989,7 @@ function exitVehicle(forced) {
   const st = driving;
   driving = null;
   if (sfx.stopEngine) sfx.stopEngine(); // R2-4
+  camera.position.set(0, EYE, 0); // V7.16: hand the eye back from the chase offset
   player.gun.visible = true;
   player.vel.set(0, 0, 0);
   if (vehicleHudEl) vehicleHudEl.classList.add('hidden');
@@ -3025,12 +3026,23 @@ function tryInteract() {
   if (best) enterVehicle(best);
 }
 
-function stepDrive(dt) {
-  const st = driving;
-  const res = stepVehicle(st, {
-    throttle: (input.forward ? 1 : 0) - (input.back ? 1 : 0),
-    steer: (input.right ? 1 : 0) - (input.left ? 1 : 0),
-  }, dt, VEHICLE_ENV);
+// V7.16 DRIVE CAMERA (Brett playtest, Nov 4: "fix the driving
+// trucks — you can't see"): the pre-V7.16 eye sat INSIDE the
+// truck cab at rig-local (0, seatHeight, 0), directly behind
+// the opaque windshield box (0.84 m ahead at eye height) — the
+// windshield slab and the hood filled the forward view and
+// the road was hidden behind the truck's own glass (proven by
+// raycast grid: tools/drivecam-check.mjs). The camera now
+// rides a CHASE position from the vehicle spec (camBack
+// behind, camLift above the seat), tilted down so the vehicle
+// sits low-centre in frame and the road reads over it; mouse
+// pitch still glances up/down at half gain. The desired
+// camera point is collision-tested with the game's own
+// collide() so backing against a wall pulls the camera in
+// instead of burying it, and a ground guard keeps it off the
+// dirt on slopes. Solo + online driving share this one pose.
+const _driveCamWorld = { x: 0, y: 0, z: 0 };
+function poseDriveRig(st, dt, res) {
   // The rider rides: rig at the vehicle, yaw = heading, mouse
   // keeps pitch only. Bots target player.position, so they
   // engage the vehicle; damagePlayer applies the armor split.
@@ -3038,13 +3050,25 @@ function stepDrive(dt) {
   player.yaw = st.heading; player.targetYaw = st.heading; player.yawTarget = st.heading;
   player.pitch += (player.targetPitch - player.pitch) * Math.min(1, dt * 18);
   player.rig.rotation.y = st.heading;
-  camera.rotation.set(player.pitch, 0, 0);
-  if (res.impact > 0) {
+  if (res && res.impact > 0) {
     driveShake = Math.min(0.14, res.impact * 0.009);
     if (res.impact > 8) sfx.hurt();
   }
   driveShake = Math.max(0, driveShake - dt * 0.5);
-  camera.position.y = st.spec.seatHeight + (driveShake > 0 ? (Math.random() - 0.5) * driveShake : 0);
+  const shakeY = driveShake > 0 ? (Math.random() - 0.5) * driveShake : 0;
+  const camY = st.spec.seatHeight + st.spec.camLift;
+  const back = st.spec.camBack;
+  const sinH = Math.sin(st.heading), cosH = Math.cos(st.heading);
+  _driveCamWorld.x = st.pos.x + back * sinH;
+  _driveCamWorld.z = st.pos.z + back * cosH;
+  _driveCamWorld.y = st.pos.y + camY;
+  const gy = world.groundHeightAt(_driveCamWorld.x, _driveCamWorld.z, st.pos.y);
+  if (_driveCamWorld.y < gy + 0.4) _driveCamWorld.y = gy + 0.4;
+  collide(_driveCamWorld, 0.35, world.colliders, world.bounds, st.pos.y);
+  const dx = _driveCamWorld.x - st.pos.x, dz = _driveCamWorld.z - st.pos.z;
+  camera.position.set(cosH * dx - sinH * dz, _driveCamWorld.y - st.pos.y + shakeY, sinH * dx + cosH * dz);
+  const tilt = Math.atan2(camY - st.spec.seatHeight * 0.75, back);
+  camera.rotation.set(Math.max(-1.15, Math.min(0.5, player.pitch * 0.55 - tilt)), 0, 0);
   // R2-4 feel: speed FOV bloom (75 -> ~82 at top speed, the
   // sprint language) + the engine loop follows speed/load.
   // player.update eases FOV home again on exit.
@@ -3054,6 +3078,15 @@ function stepDrive(dt) {
   camera.updateProjectionMatrix();
   if (sfx.setEngine) sfx.setEngine(speedK, Math.abs((input.forward ? 1 : 0) - (input.back ? 1 : 0)));
   player.aiming = false;
+}
+
+function stepDrive(dt) {
+  const st = driving;
+  const res = stepVehicle(st, {
+    throttle: (input.forward ? 1 : 0) - (input.back ? 1 : 0),
+    steer: (input.right ? 1 : 0) - (input.left ? 1 : 0),
+  }, dt, VEHICLE_ENV);
+  poseDriveRig(st, dt, res);
   // Pose the driven actor + run-over checks.
   for (const v of vehicles) if (v.state === st) v.actor.update(dt, st);
   if (Math.abs(st.speed) > 3.5) {
@@ -3153,6 +3186,7 @@ function stepOnlineVehicles(dt, meEntry) {
     session.setOwnVehicle(null, null);
     onlineDrive = null;
     if (sfx.stopEngine) sfx.stopEngine();
+    camera.position.set(0, EYE, 0); // V7.16: hand the eye back from the chase offset
     player.gun.visible = true;
     if (vehicleHudEl) vehicleHudEl.classList.add('hidden');
   }
@@ -3189,26 +3223,11 @@ function stepOnlineVehicles(dt, meEntry) {
     throttle: (input.forward ? 1 : 0) - (input.back ? 1 : 0),
     steer: (input.right ? 1 : 0) - (input.left ? 1 : 0),
   }, dt, VEHICLE_ENV);
-  // Presentation — the solo stepDrive language, minus the
-  // local run-over (the server owns kills; its kill events
-  // feed the hitmarker through the session hooks).
-  player.rig.position.set(st.pos.x, st.pos.y, st.pos.z);
-  player.yaw = st.heading; player.targetYaw = st.heading; player.yawTarget = st.heading;
-  player.pitch += (player.targetPitch - player.pitch) * Math.min(1, dt * 18);
-  player.rig.rotation.y = st.heading;
-  camera.rotation.set(player.pitch, 0, 0);
-  if (res.impact > 0) {
-    driveShake = Math.min(0.14, res.impact * 0.009);
-    if (res.impact > 8) sfx.hurt();
-  }
-  driveShake = Math.max(0, driveShake - dt * 0.5);
-  camera.position.y = st.spec.seatHeight + (driveShake > 0 ? (Math.random() - 0.5) * driveShake : 0);
-  const speedK = Math.min(1, Math.abs(st.speed) / st.spec.maxSpeed);
-  const targetFov = player.baseFov + 7 * speedK;
-  camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 5);
-  camera.updateProjectionMatrix();
-  if (sfx.setEngine) sfx.setEngine(speedK, Math.abs((input.forward ? 1 : 0) - (input.back ? 1 : 0)));
-  player.aiming = false;
+  // Presentation — the shared poseDriveRig language (V7.16
+  // chase camera included), minus the local run-over (the
+  // server owns kills; its kill events feed the hitmarker
+  // through the session hooks).
+  poseDriveRig(st, dt, res);
   updateVehicleHud(false, st);
 }
 
