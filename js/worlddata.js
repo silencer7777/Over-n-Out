@@ -48,7 +48,15 @@ export const SOLIDS = [
   // with 10 gaps (the ring's doors). Two segments drop to 5.4.
   // north (z=-50): gaps [-30,-24], [-3,3], [21,27]
   B(-51, 0, -51, -30, 7, -49), B(-24, 0, -51, -3, 7, -49),
-  B(3, 0, -51, 21, 7, -49), B(27, 0, -51, 51, 5.4, -49),
+  // V7.22 (Job 2 glitch fix): the x[33,47] span is the RELAY
+  // TOWER's footprint — the tower body itself (solid to its 2.3
+  // deck across z[-61,-47]) seals the line at ground level, so
+  // no wall segment stands there. The 5.4 segment used to cut
+  // straight across the tower's L1 deck, severing the only
+  // route to Domination C's centre and the Assault console
+  // (owner report 2026-11-04; tools/zone-reachability.mjs is
+  // the permanent gate). Mirrored in js/world.js RUIN_SEGMENTS.
+  B(3, 0, -51, 21, 7, -49), B(27, 0, -51, 33, 5.4, -49), B(47, 0, -51, 51, 5.4, -49),
   // south (z=50): gaps [-27,-21], [-3,3], [24,30]
   B(-51, 0, 49, -27, 7, 51), B(-21, 0, 49, -3, 7, 51),
   B(3, 0, 49, 24, 7, 51), B(30, 0, 49, 51, 7, 51),
