@@ -84,7 +84,7 @@
   </nav>
   <div id="menu-page-main" class="menu-page">
     <h1>OVER <span>N'</span> OUT</h1>
-    <p class="tag">TACTICAL BROWSER FPS · v0.7.18</p>
+    <p class="tag">TACTICAL BROWSER FPS · v0.7.19</p>
     <div id="menu-chips" aria-hidden="true"><span class="mchip hot">VERSION 7 — LIVE BUILD</span><span class="mchip">WORKING OPTICS</span><span class="mchip">TEAM CHAT + VOICE</span><span class="mchip">4 MAPS · 4 IDENTITIES</span></div>
     <p id="menu-msg">Hostile waves inbound. Hold the compound.</p>
     <div id="results" class="hidden"><div class="story-label">AFTER ACTION — XP</div><div id="results-body"></div></div>
@@ -94,6 +94,12 @@
     <div id="meta-panel">
       <div class="loadout-label">SERVICE RECORD — EMBLEMS · BADGES · DAILY REWARDS</div>
       <div id="meta-line">★ MERIDIAN STAR · 0 MC · 0 / 10 BADGES</div>
+      <div class="loadout-label">CLAN — YOUR TAG SHOWS WITH YOUR CALLSIGN</div>
+      <div class="online-row">
+        <input type="text" id="clan-name" maxlength="24" placeholder="CLAN NAME">
+        <input type="text" id="clan-tag" maxlength="5" placeholder="TAG" style="text-transform:uppercase">
+      </div>
+      <div id="clan-line">No clan set. Clan wars arrive with accounts — tags are live now.</div>
       <div class="loadout-row" id="emblem-pickers"></div>
       <div id="badge-line">BADGES: none yet — first kill earns FIRST BLOOD</div>
       <div class="online-row"><button id="daily-btn" type="button">🎁 CLAIM DAILY REWARD</button><span id="daily-line"></span></div>
@@ -108,6 +114,7 @@
     </div>
     <div id="mode-pick"><label for="mode-select">MISSION</label><select id="mode-select"><option value="waves" selected>WAVE DEFENSE — hold the compound</option><option value="tdm">TEAM DEATHMATCH — first to 30</option><option value="domination">DOMINATION — hold the zones</option><option value="assault">RELAY ASSAULT — scramble the Carrier relay</option></select></div>
     <div id="mode-goal"></div>
+    <div class="online-row"><button id="clanwar-btn" type="button">⚔ CLAN WAR</button><span id="clanwar-line"></span></div>
     <div id="biome-pick"><label for="biome-select">LEVEL</label><select id="biome-select"><option value="compound" selected>THE COMPOUND — OUTPOST MERIDIAN</option><option value="forest">DENSE FOREST — MERIDIAN RELAY</option><option value="snow">SNOW STATION — RELAY NORTH</option><option value="mars">MARS UPLINK — SURFACE (LOW-G)</option></select></div>
     <div id="loadout">
       <div class="loadout-label">LOADOUT — CLASS <span id="class-level-note"></span></div>
@@ -151,7 +158,7 @@
     <button id="menu-options-btn" type="button">⚙ &nbsp;OPTIONS — CONTROLS · SCREEN · MOVEMENT · AUDIO</button>
     <button id="menu-more-btn" type="button">📜 &nbsp;STORY · CONTROLS REFERENCE</button>
     <p class="fine">One build for desktop + phone — on touch screens, on-screen controls appear automatically when you deploy.</p>
-    <p class="fine" id="build-stamp">BUILD V7.18 · v0.7.18</p>
+    <p class="fine" id="build-stamp">BUILD V7.19 · v0.7.19</p>
   </div>
   <div id="menu-page-more" class="menu-page hidden">
     <div class="menu-page-title">OPTIONS</div>
