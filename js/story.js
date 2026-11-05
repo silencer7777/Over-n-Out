@@ -84,6 +84,11 @@ const MODE_BRIEFINGS = {
   tdm: 'RELAY — Kestrel squad\'s hunting in packs now. First to thirty. Drop them first.',
   domination: 'RELAY — three points keep this compound breathing. Take them. Hold them.',
   assault: 'RELAY — that tower is the Carrier\'s throat. Get me to the relay. Keep me alive.',
+  claim: 'RELAY — the claim won\'t sit still, so neither do you. Where it lights up, that\'s the fight.',
+  signal: 'RELAY — no squad on this one. Every hunter out there is counting. Make your count first.',
+  ladder: 'RELAY — protocol says you climb with what you\'re given. Every drop earns the next rung.',
+  relay: 'RELAY — the core\'s heavy and the clock isn\'t kind. Run it home, three times.',
+  lastsignal: 'RELAY — this transmission leaves tonight or never. Keep them off my ring, operator.',
 };
 
 // One radio line per mode id. Unknown ids fall back to the wave
