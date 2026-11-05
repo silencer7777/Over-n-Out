@@ -45,7 +45,7 @@ import * as THREE from 'three';
 // corridor stay clear, exactly as the scaffold enforced.
 // ============================================================
 
-export const BIOMES = [ { id: 'compound', name: 'The Compound — Outpost Meridian', status: 'live' }, { id: 'forest', name: 'Dense Forest — Meridian Relay', status: 'live' }, { id: 'snow', name: 'Snow Station', status: 'live', owner: 'Hana "Blizzard" Kimura' }, { id: 'mars', name: 'Mars Uplink', status: 'live', owner: 'Yara "Dune" Haddad' } ];
+export const BIOMES = [ { id: 'compound', name: 'The Compound — Outpost Meridian', status: 'live' }, { id: 'forest', name: 'Dense Forest — Meridian Relay', status: 'live' }, { id: 'snow', name: 'Snow Station', status: 'live', owner: 'Hana "Blizzard" Kimura' }, { id: 'mars', name: 'Mars Uplink', status: 'live', owner: 'Yara "Dune" Haddad' }, { id: 'orbital', name: 'Meridian Orbital — Station Deck', status: 'live' } ];
 
 // Fixed placement seeds: same biome on every load, every client.
 const FOREST_SEED = 20261024;
@@ -1581,11 +1581,150 @@ function buildMars(ctx) {
 // arrays returned by buildWorld() in world.js.
 // 'compound' is the live world as built: nothing to add.
 // Unknown ids likewise change nothing. Both return null.
+// ============================================================
+// MERIDIAN ORBITAL dressing (V7.25, Job 2 §4): the Compound
+// re-dressed as a station deck for solo play — dark hull
+// blanket, a docking mast, an observation dome, a solar wing,
+// a habitat drum, and instanced cargo pods. Same rules as
+// every dressing: colliders are honest boxes, tracked in
+// userData, and never walkable (biome-collider family).
+// ============================================================
+const ORBITAL_SEED = 20261125;
+const ORBITAL_POD_COUNT = 36;
+function buildOrbital(ctx) {
+  const rng = makeRng(ORBITAL_SEED);
+  const dummy = new THREE.Object3D();
+  const group = new THREE.Group();
+  group.name = 'biome-orbital';
+  const addedColliders = [];
+  const addedShootables = [];
+  group.userData.biomeId = 'orbital';
+  group.userData.addedColliders = addedColliders;
+  group.userData.addedShootables = addedShootables;
+
+  const POIS = [[50, -52, 7], [-30, 52, 9], [24, 56, 8], [55, -20, 8]];
+  const orbClear = (x, z, pad) => isClear(x, z, pad)
+    && POIS.every(([px, pz, pr]) => Math.hypot(x - px, z - pz) >= pr + pad);
+  const addBoxCollider = (cx, cz, halfX, halfZ, top) => {
+    const c = new THREE.Box3(
+      new THREE.Vector3(cx - halfX, 0, cz - halfZ),
+      new THREE.Vector3(cx + halfX, top, cz + halfZ));
+    addedColliders.push(c); ctx.colliders.push(c);
+    return c;
+  };
+
+  // Hull blanket — one thin slab, dark deck plate.
+  {
+    const blanket = new THREE.Mesh(
+      new THREE.BoxGeometry(150, 0.06, 150),
+      new THREE.MeshStandardMaterial({ color: 0x272c34, roughness: 0.85, metalness: 0.3 }));
+    blanket.position.set(0, 0.03, 0);
+    blanket.receiveShadow = true;
+    group.add(blanket);
+    group.userData.deckOverlay = true;
+  }
+  // Docking mast at the relay ground (50,-52): pylon + ring +
+  // blue beacon. Collider: the mast base box.
+  {
+    const mat = new THREE.MeshStandardMaterial({ color: 0x9aa1a9, roughness: 0.5, metalness: 0.55 });
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.55, 11, 10), mat);
+    mast.position.set(50, 5.5, -52);
+    mast.castShadow = true;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.14, 8, 20), mat);
+    ring.position.set(50, 8.6, -52);
+    ring.rotation.x = Math.PI / 2;
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6),
+      new THREE.MeshStandardMaterial({ color: 0x0c1a33, emissive: 0x4da3ff, emissiveIntensity: 1.5, roughness: 0.4 }));
+    tip.position.set(50, 11.1, -52);
+    group.add(mast, ring, tip);
+    addedShootables.push(mast);
+    ctx.shootables.push(mast);
+    addBoxCollider(50, -52, 0.8, 0.8, 11);
+  }
+  // Observation dome (-30, 52): glass hemisphere, hard cover.
+  {
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(5.2, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0xbfd9e8, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.88 }));
+    dome.scale.y = 0.87;
+    dome.position.set(-30, 0, 52);
+    dome.castShadow = true;
+    group.add(dome);
+    addedShootables.push(dome);
+    ctx.shootables.push(dome);
+    addBoxCollider(-30, 52, 5.2, 5.2, 4.5);
+    group.userData.domePoi = { x: -30, z: 52 };
+  }
+  // Solar wing (24, 56): one post, one wide tilted panel.
+  {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.6, 8),
+      new THREE.MeshStandardMaterial({ color: 0x707a88, roughness: 0.5, metalness: 0.6 }));
+    post.position.set(24, 0.8, 56);
+    post.castShadow = true;
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(7.5, 0.12, 3.6),
+      new THREE.MeshStandardMaterial({ color: 0x1c3d6e, roughness: 0.35, metalness: 0.5 }));
+    panel.position.set(24, 2.1, 56);
+    panel.rotation.x = -0.5;
+    panel.castShadow = true;
+    group.add(post, panel);
+    addedShootables.push(panel);
+    ctx.shootables.push(panel);
+    addBoxCollider(24, 56, 0.5, 0.5, 1.6);
+  }
+  // Habitat drum (55, -20): horizontal pressure hull.
+  {
+    const drum = new THREE.Mesh(new THREE.CylinderGeometry(1.55, 1.55, 7.4, 14).rotateZ(Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0xe8e2d6, roughness: 0.55, metalness: 0.3 }));
+    drum.position.set(55, 1.55, -20);
+    drum.castShadow = true;
+    group.add(drum);
+    addedShootables.push(drum);
+    ctx.shootables.push(drum);
+    addBoxCollider(55, -20, 3.7, 1.7, 3.1);
+  }
+  // Cargo pods — instanced scatter; the big ones (>= 1.5 m)
+  // block movement (dressing-collider family rule).
+  {
+    const spots = [];
+    for (let tries = 0; spots.length < ORBITAL_POD_COUNT && tries < ORBITAL_POD_COUNT * 100; tries++) {
+      const band = BANDS[tries % BANDS.length];
+      const x = band.x0 + rng() * (band.x1 - band.x0);
+      const z = band.z0 + rng() * (band.z1 - band.z0);
+      if (!orbClear(x, z, 0.5)) continue;
+      let separated = true;
+      for (const p of spots) if (Math.hypot(x - p.x, z - p.z) < 2.6) { separated = false; break; }
+      if (!separated) continue;
+      spots.push({ x, z });
+    }
+    const pods = new THREE.InstancedMesh(new THREE.BoxGeometry(1.6, 1, 1.6),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0.35 }), spots.length);
+    const palette = [new THREE.Color(0xd8dde3), new THREE.Color(0xc96a26), new THREE.Color(0x7d8ea3), new THREE.Color(0xb9c0c7)];
+    spots.forEach((p, i) => {
+      const size = 0.5 + rng() * 1.6;
+      dummy.position.set(p.x, size * 0.45, p.z);
+      dummy.rotation.set(0, rng() * Math.PI * 2, 0);
+      dummy.scale.set(size, size * 0.9, size);
+      dummy.updateMatrix();
+      pods.setMatrixAt(i, dummy.matrix);
+      pods.setColorAt(i, palette[i % palette.length]);
+      if (size >= 1.5) addBoxCollider(p.x, p.z, size * 0.8, size * 0.8, size * 0.9);
+    });
+    if (pods.instanceColor) pods.instanceColor.needsUpdate = true;
+    pods.castShadow = true; pods.receiveShadow = true; pods.frustumCulled = false;
+    group.add(pods);
+    addedShootables.push(pods);
+    ctx.shootables.push(pods);
+    group.userData.podCount = spots.length;
+  }
+  ctx.scene.add(group);
+  return group;
+}
+
 export function applyBiome(id, ctx) {
   if (!ctx || !ctx.scene || !Array.isArray(ctx.colliders) || !Array.isArray(ctx.shootables)) return null;
   if (id === 'forest') return buildForest(ctx);
   if (id === 'snow') return buildSnow(ctx);
   if (id === 'mars') return buildMars(ctx);
+  if (id === 'orbital') return buildOrbital(ctx);
   return null;
 }
 
