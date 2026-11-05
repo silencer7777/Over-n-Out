@@ -57,6 +57,7 @@ const BOT_COLORS = { metal: 0x2b2f34, steel: 0x464c53, polymer: 0x191b1e, glass:
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const cylZ = (r, len, seg = 16) => new THREE.CylinderGeometry(r, r, len, seg).rotateX(Math.PI / 2); // U12: 16 seg — barrels read round, not polygonal
 const cylY = (r, len, seg = 14) => new THREE.CylinderGeometry(r, r, len, seg); // U12: 14 seg
+const cylX = (r, len, seg = 14) => new THREE.CylinderGeometry(r, r, len, seg).rotateZ(Math.PI / 2); // V7.23: side turrets
 // U12: tapered cylinder along Z (rRear at +Z, rFront at -Z) —
 // muzzle devices and forends that narrow toward the muzzle are
 // what separate a shaped gun silhouette from stacked blocks.
@@ -319,6 +320,26 @@ function attachmentParts(weaponId, attachmentIds, forBot) {
     P(L, cylZ(0.035, 0.018), 'metal', A.optic[0], A.optic[1] + 0.012, A.optic[2] - 0.148);  // sunshade lip
     P(L, cylZ(0.028, 0.006), 'glass', A.optic[0], A.optic[1] + 0.012, A.optic[2] - 0.140);  // objective lens
     P(L, cylY(0.015, 0.028), 'metal', A.optic[0], A.optic[1] + 0.040, A.optic[2] + 0.01);   // elevation turret
+  }
+  // V7.23 scopes mastery housings: each new optic reads at a
+  // glance — pinpoint is a nub, the 2× a short fat tube, the
+  // 8× the longest glass on the rail.
+  if (has('microdot') && A.optic) {
+    P(L, box(0.030, 0.026, 0.038), 'metal', A.optic[0], A.optic[1] - 0.004, A.optic[2]);   // pinpoint housing (low nub)
+    P(L, cylZ(0.010, 0.005), 'glass', A.optic[0], A.optic[1] - 0.002, A.optic[2] - 0.020); // pinpoint lens
+  }
+  if (has('optic2x') && A.optic) {
+    P(L, cylZ(0.024, 0.11), 'metal', A.optic[0], A.optic[1] + 0.008, A.optic[2]);           // 2x tube (short, fat)
+    P(L, cylZ(0.028, 0.024), 'metal', A.optic[0], A.optic[1] + 0.008, A.optic[2] - 0.058);  // 2x objective bell
+    P(L, cylZ(0.023, 0.006), 'glass', A.optic[0], A.optic[1] + 0.008, A.optic[2] - 0.068);  // 2x objective lens
+  }
+  if (has('longshot') && A.optic) {
+    P(L, cylZ(0.022, 0.31), 'metal', A.optic[0], A.optic[1] + 0.012, A.optic[2]);           // longrange tube (longest)
+    P(L, cylZ(0.036, 0.052), 'metal', A.optic[0], A.optic[1] + 0.012, A.optic[2] - 0.150);  // objective bell
+    P(L, cylZ(0.039, 0.022), 'metal', A.optic[0], A.optic[1] + 0.012, A.optic[2] - 0.188);  // sunshade lip
+    P(L, cylZ(0.031, 0.006), 'glass', A.optic[0], A.optic[1] + 0.012, A.optic[2] - 0.180);  // objective lens
+    P(L, cylY(0.016, 0.030), 'metal', A.optic[0], A.optic[1] + 0.042, A.optic[2] + 0.01);   // elevation turret
+    P(L, cylX(0.014, 0.026), 'metal', A.optic[0] + 0.030, A.optic[1] + 0.012, A.optic[2] + 0.01); // windage turret
   }
   if (has('laser') && A.under) {
     P(L, cylZ(0.011, 0.055), 'metal', A.under[0], A.under[1] - 0.018, A.under[2] - 0.06);  // laser unit
