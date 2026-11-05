@@ -530,6 +530,15 @@ body.touch-mode #landscape-btn:hover { border-color: rgba(182,255,176,.85); }
    touchcontrols.js): left edge, below PAUSE and STREAK. */
 .tc-orient { width: auto; height: 48px; padding: 0 15px; border-radius: 999px; left: calc(14px + env(safe-area-inset-left)); top: calc(136px + env(safe-area-inset-top)); font-size: 10px; }
 .tc-interact { width:54px; height:54px; left:calc(14px + env(safe-area-inset-left)); top:calc(198px + env(safe-area-inset-top)); font-size:9px; }
+/* V7.27: EMOTE touch button — left edge, below USE. */
+.tc-emote { width:54px; height:54px; left:calc(14px + env(safe-area-inset-left)); top:calc(260px + env(safe-area-inset-top)); font-size:9px; }
+
+/* V7.27: emote quick bar — bottom centre, above the touch
+   layer's home row; wraps on narrow screens. */
+#emote-bar { position:absolute; left:50%; bottom:118px; transform:translateX(-50%); display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:92vw; z-index:30; }
+#emote-bar.hidden { display:none; }
+#emote-bar button { background:rgba(10,16,24,.88); color:#cfe8ff; border:1px solid #35c4ff; border-radius:8px; padding:9px 12px; font:600 12px/1.2 system-ui, sans-serif; letter-spacing:.04em; cursor:pointer; }
+#emote-bar button:active { background:#35c4ff; color:#06121f; }
 
 /* U8-04 landscape phones (short landscape viewports): the
    portrait touch cluster is a tall right-edge stack (up to
