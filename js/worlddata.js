@@ -261,6 +261,26 @@ export const SOLIDS = [
   B(-88, 0, -60, -85.8, 1.15, -57.8), B(60, 0, -88, 62.2, 1.15, -85.8), B(88, 0, 60, 90.2, 1.15, 62.2), B(-60, 0, 84, -57.8, 1.15, 86.2),
   B(82, 0, -22, 83, 0.55, -19), // sandbags at the depot door
   B(101, 0, -18, 103.2, 1.15, -15.8), B(101, 0, -21, 103.2, 2.3, -18.8), // depot east crate-hop: second roof route (jump from the 2.3 stack, apex 1.6 -> plate 3.65)
+  // V7.24 SOUTH OUTPOST (Job 2 §3, less flat): a two-level
+  // strongpoint in the south-west ring at (-24, 66) — walled
+  // ground floor (door south) + roof deck reached by an east
+  // stair run and landing pier. Relay-tower discipline: every
+  // rise 0.57, walk-up only; the zone-reachability gate proves
+  // the roof. Mirrored 1:1 in js/world.js.
+  B(-29, 0, 62, -19, 2.6, 62.4),                 // north wall
+  B(-29, 0, 69.6, -24.8, 2.6, 70), B(-23.2, 0, 69.6, -19, 2.6, 70), // south wall (door x[-24.8,-23.2])
+  B(-29, 0, 62.4, -28.6, 2.6, 69.6),             // west wall
+  B(-19.4, 0, 62.4, -19, 2.6, 69.6),             // east wall
+  B(-29.2, 2.6, 61.8, -18.8, 2.85, 70.2),        // roof slab (top 2.85)
+  B(-29.2, 2.85, 61.8, -18.8, 3.4, 62.2),        // parapet N
+  B(-29.2, 2.85, 62.2, -28.8, 3.4, 70.2),        // parapet W
+  B(-29.2, 2.85, 69.8, -18.8, 3.4, 70.2),        // parapet S
+  B(-19.2, 2.85, 61.8, -18.8, 3.4, 66.5),        // parapet E (gap z[66.5,70.2] = roof entry)
+  B(-18.8, 0, 68.2, -15.4, 2.85, 70.2),          // landing pier (top 2.85)
+  B(-18.4, 0, 70.2, -15.4, 2.85, 71.3), B(-18.4, 0, 71.3, -15.4, 2.28, 72.4),
+  B(-18.4, 0, 72.4, -15.4, 1.71, 73.5), B(-18.4, 0, 73.5, -15.4, 1.14, 74.6),
+  B(-18.4, 0, 74.6, -15.4, 0.57, 75.7),          // east stair run (0.57 rises)
+  B(-26, 0, 64, -24.6, 1.15, 65.4),              // interior cover crate
 ];
 
 export const EXTRA_COLLIDERS = [
@@ -268,6 +288,15 @@ export const EXTRA_COLLIDERS = [
   B(-38.52, 0, -38.52, -37.48, 4.0, -37.48),
   B(39.55, 0, 37.55, 40.45, 3.52, 38.45),
   B(-40.41, 0, 15.59, -39.59, 3.04, 16.41),
+  // V7.24 (Job 2 glitch pass): the four OUTSIDE-ring trees get
+  // their trunk boxes too — world.js has collided them since
+  // the landscaping pass, but the data never did, so online
+  // players walked through trunks the client stops on.
+  // (r = 0.45*s, h = 3.2*sy — the world.js formula, verbatim.)
+  B(-58.5625, 0, -20.5625, -57.4375, 4.32, -19.4375),
+  B(57.505, 0, -34.495, 58.495, 3.84, -33.505),
+  B(19.46, 0, -62.54, 20.54, 4.16, -61.46),
+  B(-24.4725, 0, 59.5275, -23.5275, 3.68, 60.4725),
   // Big bushes (U6-11: all compound bushes grew past the
   // 1.1 m blocking rule — ±0.75·size, top 0.72·size; all 26
   // block now: the original 14, grown, + 6 ring bushes (U6-11)
