@@ -38,6 +38,7 @@ import { WEAPON_ORDER, getWeapon, coneOffset } from '../js/weapons.js';
 import { getMode } from '../js/modes.js';
 import { THROWABLES, effectiveWeapon, getPerk } from '../js/loadouts.js';
 import { XP_VALUES } from '../js/progression.js';
+import { sanitizeClanTag } from '../js/clans.js';
 import {
   EQUIPMENT, SPAWN_EXCLUSION, SMOKE_LOS, smokeDensity,
   losSmokeState, claymoreCone, claymoreDamage, tripDamage, segmentsDistanceXZ,
@@ -388,12 +389,12 @@ function initModeState(match) {
   return st;
 }
 
-export function addSimPlayer(match, id, name, cls = null) {
+export function addSimPlayer(match, id, name, cls = null, clanTag = '') {
   const mags = {};
   for (const wid of WEAPON_ORDER) mags[wid] = getWeapon(wid).mag;
   const sp = match.world.playerSpawn;
   const p = {
-    id, name: name || 'PLAYER', team: 'you',
+    id, name: name || 'PLAYER', team: 'you', clanTag: sanitizeClanTag(clanTag), // V7.19: self-asserted tag, stored for Stage 2 team assignment
     pos: { x: sp.x, y: match.world.groundHeightAt(sp.x, sp.z, 0), z: sp.z },
     vel: { x: 0, y: 0, z: 0 },
     yaw: 0, pitch: 0, hp: 100, alive: true, radius: PLAYER_RADIUS,
