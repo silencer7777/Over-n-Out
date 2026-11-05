@@ -244,6 +244,50 @@ body.touch-mode #stats-top { top:calc(10px + env(safe-area-inset-top)); right:ca
   border-radius: 50%; border: 2.5px solid rgba(15, 18, 20, .92);
   box-shadow: 0 0 18px rgba(0,0,0,.3);
 }
+/* --- V7.23 scopes mastery kinds: micro (pinpoint), tac
+   (Meridian 2× chevron), long (Longrange 8×) --- */
+#scope-overlay.kind-micro .scope-circle {
+  display: block; position: absolute; left: 50%; top: 50%;
+  width: 11vmin; height: 11vmin; transform: translate(-50%, -50%);
+  border-radius: 50%; border: 2px solid rgba(15, 18, 20, .92);
+  box-shadow: 0 0 12px rgba(0,0,0,.3);
+}
+#scope-overlay.kind-micro .scope-dot {
+  display: block; position: absolute; left: 50%; top: 50%;
+  width: 5px; height: 5px; border-radius: 50%; transform: translate(-50%, -50%);
+  background: #ff3524; box-shadow: 0 0 7px 1px rgba(255, 53, 36, .7);
+}
+#scope-overlay.kind-tac .scope-circle {
+  display: block; position: absolute; left: 50%; top: 50%;
+  width: 27vmin; height: 27vmin; transform: translate(-50%, -50%);
+  border-radius: 50%; border: 3px solid rgba(15, 18, 20, .92);
+  box-shadow: 0 0 18px rgba(0,0,0,.3), inset 0 0 22px rgba(0,0,0,.18);
+}
+#scope-overlay.kind-tac .sight-post {
+  display: block; position: absolute; left: 50%; top: 50%;
+  width: 2.6vmin; height: 2.6vmin;
+  border-top: 3.5px solid rgba(255, 53, 36, .95); border-left: 3.5px solid rgba(255, 53, 36, .95);
+  transform: translate(-50%, -32%) rotate(45deg);
+  filter: drop-shadow(0 0 5px rgba(255, 53, 36, .45));
+}
+#scope-overlay.kind-tac .scope-h {
+  display: block; position: absolute; left: 50%; top: 50%;
+  width: 13vmin; height: 1.5px; transform: translate(-50%, -50%);
+  background: linear-gradient(to right, rgba(8,8,8,.85) 0 34%, transparent 34% 66%, rgba(8,8,8,.85) 66% 100%);
+}
+#scope-overlay.kind-long .scope-circle {
+  display: block; position: absolute; left: 50%; top: 50%;
+  width: 46vmin; height: 46vmin; transform: translate(-50%, -50%);
+  border-radius: 50%; box-shadow: 0 0 0 999vmax rgba(2, 3, 4, 0.985), inset 0 0 60px rgba(0,0,0,.55);
+  border: 2px solid rgba(10, 10, 10, .9);
+}
+#scope-overlay.kind-long .scope-h, #scope-overlay.kind-long .scope-v { display: block; position: absolute; left: 50%; top: 50%; background: rgba(8, 8, 8, .88); }
+#scope-overlay.kind-long .scope-h { width: 46vmin; height: 3px; transform: translate(-50%, -50%); background-image: radial-gradient(circle, rgba(8,8,8,.9) 1.3px, transparent 1.9px); background-size: 4.5vmin 100%; background-position: center; background-repeat: repeat-x; background-color: transparent; border-top: 1px solid rgba(8,8,8,.88); }
+#scope-overlay.kind-long .scope-v { width: 1px; height: 46vmin; transform: translate(-50%, -50%); }
+#scope-overlay.kind-long .scope-mil { display: block; position: absolute; left: 50%; width: 3.5px; height: 3.5px; border-radius: 50%; background: rgba(8, 8, 8, .85); transform: translate(-50%, -50%); }
+#scope-overlay.kind-long .scope-mil-1 { top: calc(50% + 4.5vmin); }
+#scope-overlay.kind-long .scope-mil-2 { top: calc(50% + 9vmin); }
+#scope-overlay.kind-long .scope-mag { top: calc(50% + 19vmin); }
 /* --- iron sights (open: front post + rear wings, bottom centre) --- */
 #scope-overlay.kind-iron .sight-post {
   display: block; position: absolute; left: 50%; bottom: 0;
