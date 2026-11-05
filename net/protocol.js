@@ -155,6 +155,10 @@ export function validateHello(msg) {
       (typeof msg.session !== 'string' || msg.session.length > 1024)) {
     errors.push('session must be a string of at most 1024 characters');
   }
+  if (msg.character !== undefined &&
+      (typeof msg.character !== 'string' || msg.character.length > 20)) {
+    errors.push('character must be a string of at most 20 chars (a roster id)');
+  }
   if (msg.clan !== undefined &&
       (typeof msg.clan !== 'string' || msg.clan.length > 5 || !/^[A-Za-z0-9]*$/.test(msg.clan))) {
     errors.push('clan must be a string of at most 5 alphanumeric chars (the clan tag)');
