@@ -4,6 +4,7 @@ import { makeBarkTexture, makeFoliageTexture, makePlankTexture, makeConcreteText
 import * as FOREST from './worlddata-forest.js';
 import * as SNOW from './worlddata-snow.js';
 import * as MARS from './worlddata-mars.js';
+import * as ORBITAL from './worlddata-orbital.js';
 
 // ============================================================
 // mapbuilders.js — DISTINCT-MAP layout builders (V5, Atlas;
@@ -765,17 +766,109 @@ function buildMarsLayout(scene) {
 }
 
 // ============================================================
+// ORBITAL — "Meridian Orbital" (worlddata-orbital.js)
+// V7.25 (Job 2 §4): the station deck. Same builder contract:
+// data SOLIDS wear panel/metal surfaces, POIs are merged
+// dressing, cargo pods are one instanced scatter. Colliders
+// come from the data module only (box3List) — visuals never
+// invent collision.
+// ============================================================
+function buildOrbitalLayout(scene) {
+  const D = ORBITAL;
+  const group = new THREE.Group(); group.name = 'map-orbital';
+  const colliders = box3List(D);
+  const shootables = [];
+  const rng = makeRng(4177);
+
+  blanket(group, 0x272c34, [0x20242b, 0x39404c, 0x1b1f26], 7331);
+
+  solidsMeshes(D, { panel: 0x9aa4b1, metal: 0x707a88 }, group, shootables,
+    { panel: MAT_METALPANEL(), metal: MAT_METAL() });
+
+  // POIs (merged): spine pylon + crossarms, the docked pod,
+  // dock crane, habitat drums + connector, solar wings.
+  {
+    const P = [];
+    _p(P, new THREE.CylinderGeometry(0.5, 0.62, 7, 10), 0xb9c0c7, 0, 3.5, 0);
+    _p(P, _box(3.4, 0.16, 0.16), 0x9aa1a9, 0, 6.1, 0);
+    _p(P, _box(2.2, 0.14, 0.14), 0x9aa1a9, 0, 5.2, 0, 0, Math.PI / 2);
+    _p(P, new THREE.CylinderGeometry(1.12, 1.12, 6.8, 14).rotateZ(Math.PI / 2), 0xe8e2d6, 63, 2.27, -47);
+    _p(P, new THREE.CylinderGeometry(1.14, 1.14, 0.5, 14).rotateZ(Math.PI / 2), 0xc96a26, 60.2, 2.27, -47);
+    _p(P, new THREE.CylinderGeometry(1.14, 1.14, 0.5, 14).rotateZ(Math.PI / 2), 0xc96a26, 65.8, 2.27, -47);
+    _p(P, _box(0.7, 5.2, 0.7), 0x9aa1a9, 62, 2.6, -40);
+    _p(P, _box(0.5, 0.4, 6.4), 0x87919c, 62, 5.0, -43.4);
+    for (const hz of [-9, 5]) {
+      _p(P, new THREE.CylinderGeometry(1.3, 1.3, 7.2, 14).rotateZ(Math.PI / 2), 0xe8e2d6, -54, 1.8, hz);
+      _p(P, new THREE.CylinderGeometry(1.32, 1.32, 0.5, 14).rotateZ(Math.PI / 2), 0xc96a26, -56.5, 1.8, hz);
+      _p(P, new THREE.CylinderGeometry(1.32, 1.32, 0.5, 14).rotateZ(Math.PI / 2), 0xc96a26, -51.5, 1.8, hz);
+    }
+    _p(P, _box(2.4, 2.4, 10.6), 0xd8d2c6, -54, 1.2, -2);
+    for (const [px, pz] of [[30, 52], [36, 58], [42, 64]]) {
+      _p(P, _box(5.6, 0.12, 3.4), 0x1c3d6e, px, 2.3, pz, -0.5);
+    }
+    const m = merged(P, MAT_METALPANEL());
+    group.add(m); shootables.push(m);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6),
+      new THREE.MeshStandardMaterial({ color: 0x0c1a33, emissive: 0x4da3ff, emissiveIntensity: 1.4, roughness: 0.4 }));
+    tip.position.set(0, 7.15, 0);
+    group.add(tip); shootables.push(tip);
+  }
+  // Observation dome: a glass hemisphere on its platform
+  // (collider is the data's EXTRA box — the dome is cover,
+  // never a floor).
+  {
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(4.2, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0xbfd9e8, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.88 }));
+    dome.scale.y = 0.87;
+    dome.position.set(52, 0.575, 45);
+    dome.castShadow = true;
+    group.add(dome); shootables.push(dome);
+  }
+  // Gantry light strip: emissive, above head height under
+  // the overpass deck (visual only — no collider, honestly).
+  {
+    const strip = new THREE.Mesh(_box(30, 0.08, 0.5),
+      new THREE.MeshStandardMaterial({ color: 0x101418, emissive: 0xbfe0ff, emissiveIntensity: 1.1, roughness: 0.5 }));
+    strip.position.set(0, 2.52, -14);
+    group.add(strip);
+  }
+  // Cargo pods — one instanced mesh from the data scatter.
+  {
+    const podIM = new THREE.InstancedMesh(_box(1.6, 1, 1.6),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0.35 }), D.POD_SPOTS.length);
+    const dummy = new THREE.Object3D();
+    const palette = [new THREE.Color(0xd8dde3), new THREE.Color(0xc96a26), new THREE.Color(0x7d8ea3), new THREE.Color(0xb9c0c7)];
+    D.POD_SPOTS.forEach((p, i) => {
+      dummy.position.set(p.x, p.size * 0.45, p.z);
+      dummy.rotation.set(0, p.rot, 0);
+      dummy.scale.set(p.size, p.size * 0.9, p.size);
+      dummy.updateMatrix();
+      podIM.setMatrixAt(i, dummy.matrix);
+      podIM.setColorAt(i, palette[i % palette.length]);
+    });
+    if (podIM.instanceColor) podIM.instanceColor.needsUpdate = true;
+    podIM.castShadow = true; podIM.receiveShadow = true; podIM.frustumCulled = false;
+    group.add(podIM); shootables.push(podIM);
+  }
+
+  barrelMeshes(D, group, shootables);
+  scene.add(group);
+  return finishLayout(D, group, colliders, shootables);
+}
+
+// ============================================================
 // Registry-facing entry (Board §3.2): the Coordinator's
 // js/maps.js decides WHEN a layout serves; this is the single
 // builder it calls.
 // ============================================================
-export const LAYOUT_IDS = ['forest', 'snow', 'mars'];
+export const LAYOUT_IDS = ['forest', 'snow', 'mars', 'orbital'];
 export function buildMapLayout(id, scene) {
   if (!scene) return null;
   switch (id) {
     case 'forest': return buildForestLayout(scene);
     case 'snow': return buildSnowLayout(scene);
     case 'mars': return buildMarsLayout(scene);
+    case 'orbital': return buildOrbitalLayout(scene);
     default: return null;
   }
 }
