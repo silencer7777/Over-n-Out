@@ -387,6 +387,11 @@ function initModeState(match) {
     zones: match.world.zones.map(z => ({ ...z, owner: null, prog: 0 })),
     channel: 0, timeLeft: def.timeLimit || 0,
   };
+  // V7.26 MOVING CLAIM: the rotation state.
+  if (match.modeId === 'claim') {
+    st.claimIdx = 0;
+    st.claimT = def.rotateSeconds || 45;
+  }
   return st;
 }
 
@@ -2297,6 +2302,7 @@ function pickRosterTier(match, team) {
     return vets === 0 ? 'veteran' : 'standard';
   }
   if (match.modeId === 'domination') return match.rng() < 0.3 ? 'veteran' : 'standard';
+  if (match.modeId === 'claim') return match.rng() < 0.3 ? 'veteran' : 'standard';
   if (match.modeId === 'assault') {
     const share = match.mode.channel >= 50 ? 0.6 : match.mode.channel > 0 ? 0.4 : 0;
     return match.rng() < share ? 'veteran' : 'standard';
@@ -2516,11 +2522,69 @@ function stepAssault(match, dt, events) {
   if (m.timeLeft <= 0) endMode(match, 'lose', events);
 }
 
+// V7.26 MOVING CLAIM (Job 2 §6): Domination's capture brain
+// with ONE live point that rotates on the mode clock. Only
+// the live zone can be captured or score; owners persist
+// across rotations (holding the next claim when it lights is
+// a legitimate play). Bots steer to the live point.
+function stepClaim(match, dt, events) {
+  const def = getMode('claim');
+  const m = match.mode;
+  if (!m.zones.length) return;
+  m.claimT -= dt;
+  if (m.claimT <= 0) {
+    m.claimT = def.rotateSeconds || 45;
+    m.claimIdx = (m.claimIdx + 1) % m.zones.length;
+    events.push({ kind: 'claim_rotate', zone: m.zones[m.claimIdx].id });
+  }
+  const z = m.zones[m.claimIdx];
+  let youIn = 0, kesIn = 0;
+  const cappers = [];
+  for (const p of match.players.values()) {
+    if (p.alive && inZone(p.pos.x, p.pos.y, p.pos.z, z)) { youIn++; cappers.push(p.id); }
+  }
+  for (const b of match.bots) {
+    if (b.dead) continue;
+    if (inZone(b.pos.x, b.pos.y, b.pos.z, z)) { if (b.team === 'you') youIn++; else kesIn++; }
+  }
+  const side = youIn > 0 && kesIn === 0 ? 'you' : kesIn > 0 && youIn === 0 ? 'them' : null;
+  if (side && z.owner !== side) {
+    z.prog += dt / (def.captureSeconds || 4);
+    if (z.prog >= 1) {
+      z.owner = side;
+      z.prog = 0;
+      events.push({ kind: 'zone_capture', zone: z.id, owner: side, cappers: side === 'you' ? cappers : [] });
+    }
+  } else if (!side && z.owner === null) {
+    z.prog = Math.max(0, z.prog - dt / (def.captureSeconds || 4));
+  } else if (side && z.owner === side) {
+    z.prog = 0;
+  }
+  // Objective steering: every roster bot plays the live point.
+  for (const b of match.bots) {
+    if (b.dead || !b.roster) continue;
+    b.goalPos = { x: z.x, z: z.z };
+  }
+  if (z.owner) {
+    const f = (def.tickPoints || 1) * (dt / (def.tickSeconds || 2));
+    if (z.owner === 'you') m.scoreYouF += f; else m.scoreThemF += f;
+    const ny = Math.floor(m.scoreYouF), nt = Math.floor(m.scoreThemF);
+    if (ny !== m.scoreYou || nt !== m.scoreThem) {
+      m.scoreYou = ny;
+      m.scoreThem = nt;
+      events.push({ kind: 'mode_score', scoreYou: ny, scoreThem: nt });
+    }
+  }
+  if (m.scoreYou >= (def.targetScore || 150)) endMode(match, 'win', events);
+  else if (m.scoreThem >= (def.targetScore || 150)) endMode(match, 'lose', events);
+}
+
 function stepRoundMode(match, dt, events) {
   ensureRosters(match);
   processRespawnQueue(match, events);
   if (match.modeId === 'domination') stepDomination(match, dt, events);
   else if (match.modeId === 'assault') stepAssault(match, dt, events);
+  else if (match.modeId === 'claim') stepClaim(match, dt, events);
 }
 
 function stepWaveDirector(match, dt) {
@@ -2565,6 +2629,11 @@ function refreshObjectives(match) {
   const o = { scoreYou: m.scoreYou, scoreThem: m.scoreThem, target: modeTarget(match) };
   if (match.modeId === 'domination') {
     o.zones = m.zones.map(z => ({ id: z.id, owner: z.owner, progress: +z.prog.toFixed(2) }));
+  }
+  if (match.modeId === 'claim') {
+    o.zones = m.zones.map(z => ({ id: z.id, owner: z.owner, progress: +z.prog.toFixed(2) }));
+    o.claimIdx = m.claimIdx;
+    o.claimT = Math.ceil(m.claimT);
   }
   if (match.modeId === 'assault') {
     o.channel = +m.channel.toFixed(1);
@@ -2631,6 +2700,11 @@ export function buildSnapshot(match, forPlayerId) {
     if (match.modeId === 'assault') {
       mBlock.channel = +m.channel.toFixed(1);
       mBlock.timeLeft = Math.ceil(m.timeLeft);
+    }
+    if (match.modeId === 'claim') {
+      mBlock.zones = m.zones.map(z => ({ id: z.id, owner: z.owner, progress: +z.prog.toFixed(2) }));
+      mBlock.claimIdx = m.claimIdx;
+      mBlock.claimT = Math.ceil(m.claimT);
     }
   }
   const snap = {
