@@ -11,6 +11,7 @@ import { FpsMeter } from './perfmeter.js';
 import { QualityScaler } from './quality.js';
 import { applyBiome, clearBiome } from './biomes.js';
 import { getMode, objectiveText, TEAM } from './modes.js';
+import { EMOTES, getEmote } from './emotes.js'; // V7.27: emotes (Job 2 §7)
 import { STANCE } from './stance.js';
 import { SLOTS, attachmentsFor, getAttachment, effectiveWeapon, specSheet, THROWABLES, getPerk } from './loadouts.js';
 import {
@@ -172,7 +173,7 @@ function goLandscape() {
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
 // version tag — Brett reads "BUILD V7.2" in the menu footer.
-const BUILD_NO = 'V7.26';
+const BUILD_NO = 'V7.27';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -1003,6 +1004,58 @@ let killStreak = 0, streakTimer = 0;
 const STREAK_WINDOW = 5;
 let inspectT = 0;
 const INSPECT_LEN = 1.15;
+
+// ---------------- emotes (V7.27, Job 2 §7) ----------------
+// A gesture is presentation only: a gun motion for you, a
+// callout line in the feed, a puppet gesture online (the
+// server relays an allowlisted id — net/server.js), and in
+// solo a bot may answer on the radio. B (or the touch EMOTE
+// button) opens the quick bar; 1-6 or a tap fires.
+let emoteT = 0, emoteDur = 1, emoteGunKind = null, emoteCooldown = 0;
+let emoteBarOpen = false, emoteBarHideT = 0, botAnswerT = 0;
+const emoteBarEl = $('emote-bar');
+function setEmoteBar(open) {
+  emoteBarOpen = open;
+  if (emoteBarEl) emoteBarEl.classList.toggle('hidden', !open);
+  if (open) emoteBarHideT = 4; // seconds; the frame loop closes it
+}
+function toggleEmoteBar() { setEmoteBar(!emoteBarOpen); }
+function playEmote(id) {
+  const def = getEmote(id);
+  if (!def) return;
+  if (state !== 'playing' && state !== 'online') return;
+  if (emoteCooldown > 0) return;
+  emoteCooldown = 1.2;
+  setEmoteBar(false);
+  inspectT = 0; // the gesture owns the gun until it finishes
+  emoteT = def.dur; emoteDur = def.dur; emoteGunKind = def.gun;
+  if (state === 'online' && session) {
+    session.sendEmote(id); // the server's echo renders the line (hooks.onEmote)
+  } else {
+    appendChatLine(chatLogEl, { name: 'YOU', text: `${def.name} — ${def.callout}`, channel: null });
+    if (botAnswerT <= 0) botAnswerT = 0.7 + Math.random() * 0.9; // a bot answers, shortly
+  }
+}
+// Gun-motion curves per gesture kind (the inspect lever:
+// player.gun.rotation over a sin envelope).
+function emoteGunRotation(kind, p) {
+  const k = Math.sin(p * Math.PI);
+  switch (kind) {
+    case 'salute': return [-1.0 * k, 0, 0];
+    case 'wave': { const s = Math.sin(p * Math.PI * 4) * k; return [0, 0.55 * s, 0.22 * s]; }
+    case 'point': return [-0.22 * k * (0.5 + 0.5 * Math.sin(p * Math.PI * 4)), 0, 0];
+    case 'cheer': return [-0.55 * Math.abs(Math.sin(p * Math.PI * 2)), 0, 0];
+    case 'static': return [0.1 * Math.sin(p * 54) * k, 0.3 * Math.sin(p * 44) * k, 0.15 * Math.sin(p * 50) * k];
+    case 'dip': return [0.55 * k, 0, 0];
+    default: return [0, 0, 0];
+  }
+}
+if (emoteBarEl) {
+  emoteBarEl.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-emote]');
+    if (b) playEmote(b.dataset.emote);
+  });
+}
 const pickups = [];
 
 const explosionPool = [];
@@ -1985,6 +2038,14 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR' && state === 'playing') reload();
   if (e.code === 'KeyR' && state === 'online') edgeReload = true;
   if (e.code === 'KeyF' && state === 'playing' && inspectT <= 0) inspectT = INSPECT_LEN;
+  // V7.27 emotes: B toggles the quick bar; 1-6 fire from it
+  // (the bar's own keys take precedence over weapon slots
+  // while it is open — it hides on selection or timeout).
+  if (e.code === 'KeyB' && (state === 'playing' || state === 'online')) toggleEmoteBar();
+  if (emoteBarOpen && /^Digit[1-6]$/.test(e.code)) {
+    const def = EMOTES[Number(e.code.slice(5)) - 1];
+    if (def) { playEmote(def.id); e.preventDefault(); return; }
+  }
   if (e.code === 'KeyG' && state === 'playing' && !driving) useLethal();
   if (e.code === 'KeyT' && state === 'playing' && !driving) { if (placing) cancelPlacement(); else throwGear(deployedClass().tactical); }
   if (e.code === 'KeyX' && state === 'playing' && !driving) callStreak();
@@ -2058,6 +2119,7 @@ if (TOUCH_MODE) {
         else if (state === 'online') edgeThrowT = true;
       },
       streak: () => { if (state === 'playing' && !driving) callStreak(); },
+      emote: () => { if (state === 'playing' || state === 'online') toggleEmoteBar(); }, // V7.27
       interact: () => { if (state === 'playing') tryInteract(); else if (state === 'online') edgeInteract = true; }, // R2-1: USE button; R2-5: online edge
       stance: () => { pendingStanceTap = true; }, // U6-10
       weapon: i => {
@@ -2438,6 +2500,16 @@ async function joinOnline() {
       appendChatLine(chatLogEl, {
         name: msg.name, text: msg.text,
         self: msg.from === session?.playerId, channel: msg.channel,
+      });
+    },
+    // V7.27: emote relays render as callout lines (the puppet
+    // gesture itself is online.js's side of the relay).
+    onEmote: msg => {
+      const def = getEmote(msg.emote);
+      if (!def || chatMuted(msg.name)) return;
+      appendChatLine(chatLogEl, {
+        name: msg.name, text: `${def.name} — ${def.callout}`,
+        self: msg.from === session?.playerId, channel: null,
       });
     },
     // U6-15: voice signaling relay -> the mesh.
@@ -3218,7 +3290,31 @@ function tick() {
         pickups.splice(i, 1);
       }
     }
-    if (inspectT > 0) {
+    // V7.27 emote timers + the solo bot answer.
+    if (emoteCooldown > 0) emoteCooldown -= dt;
+    if (emoteBarOpen) { emoteBarHideT -= dt; if (emoteBarHideT <= 0) setEmoteBar(false); }
+    if (botAnswerT > 0) {
+      botAnswerT -= dt;
+      if (botAnswerT <= 0) {
+        const alive = bots.filter(b => !b.dead);
+        if (alive.length) {
+          const b = alive[Math.floor(Math.random() * alive.length)];
+          const def = EMOTES[Math.floor(Math.random() * EMOTES.length)];
+          const idx = bots.indexOf(b) + 1;
+          appendChatLine(chatLogEl, {
+            name: b.team === 'friendly' ? `MERIDIAN-${idx}` : `KESTREL-${idx}`,
+            text: `${def.name} — ${def.callout}`, channel: null,
+          });
+        }
+      }
+    }
+    if (emoteT > 0) {
+      emoteT -= dt;
+      const p = 1 - Math.max(0, emoteT) / emoteDur;
+      const [rx, ry, rz] = emoteGunRotation(emoteGunKind, p);
+      player.gun.rotation.set(rx, ry, rz);
+      if (emoteT <= 0) { player.gun.rotation.set(0, 0, 0); emoteGunKind = null; }
+    } else if (inspectT > 0) {
       inspectT -= dt;
       const p = 1 - Math.max(0, inspectT) / INSPECT_LEN;
       const k = Math.sin(p * Math.PI);
