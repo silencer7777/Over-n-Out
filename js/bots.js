@@ -4,6 +4,7 @@ import { getWeapon } from './weapons.js';
 import { mergeColoredParts } from './geo.js';
 import { buildBotGun } from './gunmodels.js';
 import { getCamo } from './camo.js';
+import { characterOutfit } from './characters.js';
 
 const _v = new THREE.Vector3();
 const _ray = new THREE.Raycaster();
@@ -344,7 +345,7 @@ export class Bot {
   // faction standard uniform (the shipped V4 look); a variant
   // swaps ONLY the uniform cloth tones — faction rig/visor/
   // armband are never overridden (readability floor).
-  constructor(scene, world, spawnPos, difficulty = 1, weaponId = 'ar', team = 'hostile', camoId = null) {
+  constructor(scene, world, spawnPos, difficulty = 1, weaponId = 'ar', team = 'hostile', camoId = null, characterId = null) {
     this.world = world;
     this.weapon = getWeapon(weaponId);
     this.weaponId = this.weapon.id;
@@ -413,7 +414,17 @@ export class Bot {
     // merged hit-region meshes + visor + the realistic merged gun
     // from js/gunmodels.js (scope included in the DMR geometry —
     // no separate scope mesh any more).
-    const pal = botVariantPalette(composePalette(team, camoId));
+    // V7.20: a roster character (js/characters.js) pins the
+    // outfit deterministically — its camo replaces camoId, and
+    // skin/kit tones land AFTER the wear jitter so the operator
+    // is recognisable. Palette-only: the CAMO VETO holds.
+    const charOutfit = characterId ? characterOutfit(characterId) : null;
+    const pal = botVariantPalette(composePalette(team, charOutfit ? charOutfit.camoId : camoId));
+    if (charOutfit) {
+      pal.skin = charOutfit.skin; pal.gear = charOutfit.gear; pal.gearLight = charOutfit.gearLight;
+      pal.dark = charOutfit.dark; pal.boot = charOutfit.boot;
+      this.characterId = characterId;
+    }
     this.team = team;
     this.camoId = camoId;
     const legs = buildBotLegs(pal);
