@@ -4,7 +4,7 @@ import { buildViewmodelGun, buildViewmodelArms } from './gunmodels.js';
 import { STANCE, createStanceState, stepStance } from './stance.js';
 import { stepLookAngles, easeK } from './lookfeel.js';
 
-const EYE = 1.66;
+export const EYE = 1.66;
 
 // Jump / gravity — hard ship constraint. Held-jump apex is
 // JUMP_VELOCITY^2 / (2 * GRAVITY) = 9.5^2 / 48 ~= 1.88m, which the
@@ -221,6 +221,10 @@ export class Player {
     this._prevYaw = this.yaw; this._prevPitch = this.pitch;
     this.aiming = false;
     this.aimBlend = 0;
+    // V7.16: a respawn always starts from the on-foot eye —
+    // the driving chase camera leaves the camera offset
+    // behind/above the rig and nothing else rewrites x/z.
+    this.camera.position.set(0, EYE, 0);
     if (this._scopeInner) {
       this._scopeInner = false;
       if (this.gunModel) this.gunModel.visible = true;
