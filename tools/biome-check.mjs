@@ -180,7 +180,7 @@ else fail('B0 mars registry status → ' + BIOMES.find(b => b.id === 'mars')?.st
   const THREE = await import(pathToFileURL(join(ROOT, 'vendor/three.module.js')).href);
   const { buildMapLayout, LAYOUT_IDS } = await import(pathToFileURL(join(ROOT, 'js/mapbuilders.js')).href);
 
-  if (LAYOUT_IDS.join(',') === 'forest,snow,mars') ok('L0 layout ids: forest, snow, mars');
+  if (LAYOUT_IDS.join(',') === 'forest,snow,mars,orbital') ok('L0 layout ids: forest, snow, mars, orbital');
   else fail('L0 layout ids → ' + LAYOUT_IDS.join(','));
 
   for (const id of LAYOUT_IDS) {
