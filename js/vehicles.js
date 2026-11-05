@@ -24,12 +24,18 @@ export const VEHICLE_SPEC = {
     maxSpeed: 17.5, reverseSpeed: 6.5, accel: 15, brakeDecel: 26,
     turnRate: 2.0, radius: 0.8, seatHeight: 1.12,
     runoverDamage: 70, armorShare: 0.25,
+    // V7.16 chase camera (rig-local metres): the camera rides
+    // camBack behind the vehicle and camLift above the seat —
+    // see poseDriveRig in main.js for why the old in-cab eye
+    // could not see the road.
+    camBack: 4.8, camLift: 1.5,
   },
   truck: {
     id: 'truck', name: 'PATROL TRUCK', hp: 420,
     maxSpeed: 13.5, reverseSpeed: 5.5, accel: 9.5, brakeDecel: 20,
     turnRate: 1.3, radius: 1.3, seatHeight: 1.55,
     runoverDamage: 110, armorShare: 0.55,
+    camBack: 6.2, camLift: 1.9,
   },
 };
 export const VEHICLE_IDS = Object.keys(VEHICLE_SPEC);
