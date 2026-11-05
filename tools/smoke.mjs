@@ -208,7 +208,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.7.23') fail(`M6 package.json version → ${pkg.version} (expected '0.7.23')`); else ok("M6 package.json version === '0.7.23'");   // V7.23 bump (Job 2: scopes mastery)
+  if (pkg.version !== '0.7.24') fail(`M6 package.json version → ${pkg.version} (expected '0.7.24')`); else ok("M6 package.json version === '0.7.24'");   // V7.24 bump (Job 2: glitch pass + outpost)
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -579,10 +579,10 @@ try {
   // EXTRA 22 -> 37 (+15: U6-11 grew all 14 compound bushes past
   // the blocking rule and planted 6 more (bushes 8 -> 20,
   // +12), fuel-depot tanks +3).
-  if (wd.SOLIDS.length === 250) ok('T1 worlddata SOLIDS === 250 (mirrors world.js solids; V7.22 tower-span wall split +1)');
-  else fail(`T1 worlddata SOLIDS → ${wd.SOLIDS.length} (expected 250 — mirror world.js!)`);
-  if (wd.EXTRA_COLLIDERS.length === 47) ok('T2 worlddata EXTRA_COLLIDERS === 47 (3 trees + 26 big bushes + 5 barrels + 3 wrecks + 3 drums + 3 depot tanks + V7.18 statue + 3 ring drums)');
-  else fail(`T2 worlddata EXTRA_COLLIDERS → ${wd.EXTRA_COLLIDERS.length} (expected 47)`);
+  if (wd.SOLIDS.length === 267) ok('T1 worlddata SOLIDS === 267 (mirrors world.js solids; V7.24 South Outpost +17)');
+  else fail(`T1 worlddata SOLIDS → ${wd.SOLIDS.length} (expected 267 — mirror world.js!)`);
+  if (wd.EXTRA_COLLIDERS.length === 51) ok('T2 worlddata EXTRA_COLLIDERS === 51 (3 trees + V7.24 4 outside-ring trunks + 26 big bushes + 5 barrels + 3 wrecks + 3 drums + 3 depot tanks + V7.18 statue + 3 ring drums)');
+  else fail(`T2 worlddata EXTRA_COLLIDERS → ${wd.EXTRA_COLLIDERS.length} (expected 51)`);
   if (wd.SPAWN_POINTS.length === 16) ok('T3 worlddata SPAWN_POINTS === 16 (V7.18: +4 ring spawns)');
   else fail(`T3 worlddata SPAWN_POINTS → ${wd.SPAWN_POINTS.length} (expected 16)`);
   if (wd.BARRELS.length === 5) ok('T4 worlddata BARRELS === 5');
