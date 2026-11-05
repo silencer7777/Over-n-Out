@@ -185,6 +185,7 @@ const MODULES = [
   ['forest', 'js/worlddata-forest.js'],
   ['snow', 'js/worlddata-snow.js'],
   ['mars', 'js/worlddata-mars.js'],
+  ['orbital', 'js/worlddata-orbital.js'],
 ];
 for (const [name, file] of MODULES) {
   const data = await imp(file);
@@ -248,6 +249,21 @@ for (const dressing of [null, ...BIOMES.filter(b => b.id !== 'compound').map(b =
     const w = walkableFrom(colliders, data.BOUNDS, starts);
     if (w.standsWithin(-24, 66, 2.85, 1.5)) pass(`compound/${setName} POI outpost roof: reachable on foot`);
     else fail(`compound/${setName} POI outpost roof (-24, 66): NOT REACHABLE on foot`);
+  }
+}
+
+// ---------- POIs on the orbital data model (V7.25) ----------
+// The space map's elevated play space: gantry overpass deck
+// and the docking-arm platform must stand step-only.
+{
+  const data = await imp('js/worlddata-orbital.js');
+  const starts = data.SPAWN_POINTS.map(s => ({ x: s[0], z: s[2] }));
+  for (const [setName, colliders] of [['sim', data.SOLIDS.concat(data.EXTRA_COLLIDERS || [])], ['canonical', data.allColliders()]]) {
+    const w = walkableFrom(colliders, data.BOUNDS, starts);
+    if (w.standsWithin(0, -14, 2.85, 1.5)) pass(`orbital/${setName} POI gantry deck: reachable on foot`);
+    else fail(`orbital/${setName} POI gantry deck (0, -14): NOT REACHABLE on foot`);
+    if (w.standsWithin(52, -46, 1.15, 1.5)) pass(`orbital/${setName} POI dock platform: reachable on foot`);
+    else fail(`orbital/${setName} POI dock platform (52, -46): NOT REACHABLE on foot`);
   }
 }
 
