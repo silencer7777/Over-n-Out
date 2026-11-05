@@ -140,7 +140,7 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   const touch = readFileSync(new URL('../js/touchcontrols.js', import.meta.url), 'utf8');
-  eq(html.includes('id="build-stamp"') && html.includes('BUILD V7.21'), true, 'T7 menu build stamp present (cache witness)'); // named re-pin: witness V7.16 -> V7.17 (playtest fix: auto-ADS on fire)
+  eq(html.includes('id="build-stamp"') && html.includes('BUILD V7.22'), true, 'T7 menu build stamp present (cache witness)'); // named re-pin: witness V7.21 -> V7.22 (Job 2: Domination C heart fix + zone-reachability gate)
   eq(html.includes('name="ono-build" content="V7"'), true, 'T7 ono-build meta present'); // V7 named re-pin: witness 15 -> V7
   eq(main.includes('__onoBuild'), true, 'T7 build number exposed for support reads');
   eq(main.includes("matchMedia('(orientation: portrait)')") && main.includes("'pageshow'"), true, 'T7 redundant iOS fit triggers present');
