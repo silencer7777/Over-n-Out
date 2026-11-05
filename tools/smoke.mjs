@@ -208,7 +208,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.7.26') fail(`M6 package.json version → ${pkg.version} (expected '0.7.26')`); else ok("M6 package.json version === '0.7.26'");   // V7.26 bump (Job 2: five new modes)
+  if (pkg.version !== '0.7.27') fail(`M6 package.json version → ${pkg.version} (expected '0.7.27')`); else ok("M6 package.json version === '0.7.27'");   // V7.27 bump (Job 2: emotes)
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -262,9 +262,9 @@ if (STORY && typeof briefingForWave === 'function' && typeof objectiveForWave ==
 }
 
 // 1e) Net protocol — real import + wire contract (MULTIPLAYER.md §5)
-let MSG, PROTOCOL_VERSION, validateHello, validateInput, validateChat, validateSignal, LIMITS, DEFAULT_MODE, isValidModeId;
+let MSG, PROTOCOL_VERSION, validateHello, validateInput, validateChat, validateSignal, validateEmote, LIMITS, DEFAULT_MODE, isValidModeId;
 try {
-  ({ MSG, PROTOCOL_VERSION, validateHello, validateInput, validateChat, validateSignal, LIMITS, DEFAULT_MODE, isValidModeId } = await import('../net/protocol.js'));
+  ({ MSG, PROTOCOL_VERSION, validateHello, validateInput, validateChat, validateSignal, validateEmote, LIMITS, DEFAULT_MODE, isValidModeId } = await import('../net/protocol.js'));
   if (!MSG || typeof MSG !== 'object') fail('N1 protocol import — MSG is not an object'); else ok('N1 MSG is an object');
   if (typeof validateHello !== 'function') fail('N1 protocol import — validateHello is not a function'); else ok('N1 validateHello is a function');
   if (typeof validateInput !== 'function') fail('N1 protocol import — validateInput is not a function'); else ok('N1 validateInput is a function');
@@ -278,8 +278,8 @@ if (MSG && typeof validateHello === 'function' && typeof validateInput === 'func
   // EXTENDED 8 -> 10 types (CHAT, SIGNAL) with PROTOCOL_VERSION
   // held at 1 — old peers drop unknown types per §5, and
   // neither new type carries an outcome. See protocol.js.
-  const EXPECTED_MSG = { HELLO: 'hello', WELCOME: 'welcome', ERROR: 'error', INPUT: 'input', SNAPSHOT: 'snapshot', EVENT: 'event', PING: 'ping', PONG: 'pong', CHAT: 'chat', SIGNAL: 'signal' };
-  if (!Object.isFrozen(MSG)) fail('N1 MSG is not frozen'); else if (Object.keys(MSG).length !== 10) fail(`N1 MSG key count → ${Object.keys(MSG).length} (expected 10 after the U6 extension): ${Object.keys(MSG).join(', ')}`); else if (JSON.stringify(MSG) !== JSON.stringify(EXPECTED_MSG)) fail(`N1 MSG → ${JSON.stringify(MSG)} (expected ${JSON.stringify(EXPECTED_MSG)})`); else ok('N1 MSG is frozen with exactly the 10 types (8 + U6 chat/signal extension, version still 1)');
+  const EXPECTED_MSG = { HELLO: 'hello', WELCOME: 'welcome', ERROR: 'error', INPUT: 'input', SNAPSHOT: 'snapshot', EVENT: 'event', PING: 'ping', PONG: 'pong', CHAT: 'chat', SIGNAL: 'signal', EMOTE: 'emote' };
+  if (!Object.isFrozen(MSG)) fail('N1 MSG is not frozen'); else if (Object.keys(MSG).length !== 11) fail(`N1 MSG key count → ${Object.keys(MSG).length} (expected 11 after the V7.27 emote extension): ${Object.keys(MSG).join(', ')}`); else if (JSON.stringify(MSG) !== JSON.stringify(EXPECTED_MSG)) fail(`N1 MSG → ${JSON.stringify(MSG)} (expected ${JSON.stringify(EXPECTED_MSG)})`); else ok('N1 MSG is frozen with exactly the 11 types (10 + V7.27 emote extension, version still 1)');
 
   // N2: PROTOCOL_VERSION === 1
   if (PROTOCOL_VERSION !== 1) fail(`N2 PROTOCOL_VERSION → ${PROTOCOL_VERSION} (expected 1)`); else ok('N2 PROTOCOL_VERSION === 1');
@@ -368,6 +368,21 @@ if (MSG && typeof validateHello === 'function' && typeof validateInput === 'func
     else if (badChan.ok || badLong.ok || badEmpty.ok) fail('N13 validateChat accepted a bad channel / 241 chars / blank text');
     else ok('N13 validateChat: channel enum + 1..240 char text, strict');
   } catch (e) { fail('N13 validateChat threw: ' + e.message); }
+
+  // N15 (V7.27): validateEmote — shape only (a short lowercase
+  // id); membership is the server's allowlist (js/emotes.js).
+  try {
+    const good = validateEmote({ t: 'emote', emote: 'salute' });
+    const badShape = validateEmote({ t: 'emote', emote: 'Salute!!' });
+    const badType = validateEmote({ t: 'emote', emote: 42 });
+    const EM = await import('../js/emotes.js');
+    const member = EM.isEmoteId('salute') && !EM.isEmoteId('salute!!') && EM.EMOTES.length === 6
+      && EM.EMOTES.every(e => e.id && e.name && e.callout && e.gun && e.puppet && e.dur > 0);
+    if (good.ok !== true) fail('N15 validateEmote rejected a valid gesture');
+    else if (badShape.ok || badType.ok) fail('N15 validateEmote accepted a bad id shape');
+    else if (!member) fail('N15 emotes.js: allowlist incomplete (6 gestures, full fields)');
+    else ok('N15 emotes: validateEmote shape-strict; js/emotes.js allowlist has 6 complete gestures');
+  } catch (e) { fail('N15 emote checks threw: ' + e.message); }
 
   // N14 (U6-15): validateSignal — kinds are an enum, per-kind
   // payload caps hold, target is a bounded string.
