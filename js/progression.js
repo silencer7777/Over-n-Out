@@ -17,6 +17,7 @@
 import { MAX_CLASSES, defaultClass, validateClass } from './loadouts.js';
 import { CREDITS_CAP, DEFAULT_EMBLEM, isEmblemId, isBadgeId, isDateStr, isShopItemId, getShopEmblem } from './meta.js';
 import { sanitizeClan } from './clans.js';
+import { isCharacterId, DEFAULT_CHARACTER } from './characters.js';
 
 export const PROFILE_KEY = 'ono-profile-v1';
 // U6-05: the countdown colour palette. Green is the shipped
@@ -188,6 +189,7 @@ export function createProfile() {
     meta: createMeta(),
     classes: Array.from({ length: MAX_CLASSES }, (_, i) => defaultClass(i)),
     activeClass: 0,
+    character: DEFAULT_CHARACTER, // V7.20: the operator you play as (js/characters.js)
     // V6 Update 5 (U5-08): the settings block grows up into the
     // full options menu — controls, screen, movement, audio.
     settings: {
@@ -217,6 +219,7 @@ export function sanitizeProfile(raw) {
       p.classes[i] = check.cls;
     }
   }
+  if (isCharacterId(raw.character)) p.character = raw.character;
   if (Number.isInteger(raw.activeClass) && raw.activeClass >= 0 && raw.activeClass < MAX_CLASSES) {
     p.activeClass = raw.activeClass;
   }
