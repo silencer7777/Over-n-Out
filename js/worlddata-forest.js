@@ -12,12 +12,12 @@
 // these spots and derives trunk/bush colliders from them, so
 // data and visuals share one source by construction.
 
-export const BOUNDS = 62;
+export const BOUNDS = 84; // V7.21 expansion (was 62)
 
 export const SPAWN_POINTS = [
-  [-52, 0, -52], [52, 0, -52], [-52, 0, 52], [52, 0, 52],
-  [0, 0, -56], [-56, 0, 0], [56, 0, 10], [0, 0, 58],
-];
+  [-74, 0, -74], [74, 0, -74], [-74, 0, 74], [74, 0, 74],
+  [0, 0, -78], [-78, 0, 0], [78, 0, 10], [0, 0, 78],
+]; // V7.21: pushed out with the bounds (was +-52/56/58)
 
 const B = (x0, y0, z0, x1, y1, z1) => ({ min: [x0, y0, z0], max: [x1, y1, z1] });
 
@@ -70,6 +70,19 @@ S('crate', 35.2, 0, 3.8, 36.4, 1.15, 5.0);        // interior crate
 S('timber', -6, 0, 52, -2, 0.95, 52.6);
 S('timber', 4, 0, 52, 8, 0.95, 52.6);
 
+// --- V7.21: SE Knoll (the expansion ring's high ground) — four
+// 0.575 terraces climbing south, footprint x 56..76, z 30..46,
+// with a watch shelter on the top terrace (mirrors the NW knoll).
+S('earth', 56, 0, 30, 76, 0.575, 34);
+S('earth', 56, 0, 34, 76, 1.15, 38);
+S('earth', 56, 0, 38, 76, 1.725, 42);
+S('earth', 56, 0, 42, 76, 2.3, 46);
+S('timber', 62.6, 2.3, 42.6, 62.8, 4.5, 42.8);
+S('timber', 69.4, 2.3, 42.6, 69.6, 4.5, 42.8);
+S('timber', 62.6, 2.3, 47.4, 62.8, 4.5, 47.6);
+S('timber', 69.4, 2.3, 47.4, 69.6, 4.5, 47.6);
+S('timber', 62.1, 4.5, 42.1, 70.1, 4.65, 48.1);
+
 // Fallen logs (long cylinders, AABB-approximated like the
 // compound's wreck colliders) + boulders + the fallen relay
 // mast + explosive barrels + the relay console.
@@ -120,14 +133,16 @@ function makeRng(seed) {
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 }
 const STANDS = [
-  { x0: -60, x1: 60, z0: -60, z1: -56, sep: 3.4 },   // north treeline
-  { x0: -60, x1: 60, z0: 56, z1: 60, sep: 3.4 },     // south treeline
-  { x0: -60, x1: -56, z0: -52, z1: 52, sep: 3.4 },   // west treeline
-  { x0: 56, x1: 60, z0: -52, z1: 52, sep: 3.4 },     // east treeline
+  { x0: -82, x1: 82, z0: -82, z1: -78, sep: 3.4 },   // north treeline (V7.21: was +-56..60)
+  { x0: -82, x1: 82, z0: 78, z1: 82, sep: 3.4 },     // south treeline
+  { x0: -82, x1: -78, z0: -74, z1: 74, sep: 3.4 },   // west treeline
+  { x0: 78, x1: 82, z0: -74, z1: 74, sep: 3.4 },     // east treeline
   { x0: -26, x1: -8, z0: -34, z1: -18, sep: 3.1 },   // NW stand
   { x0: 14, x1: 32, z0: 16, z1: 34, sep: 3.1 },      // SE stand
   { x0: -34, x1: -16, z0: 30, z1: 46, sep: 3.1 },    // SW stand
   { x0: 16, x1: 30, z0: -48, z1: -34, sep: 3.1 },    // NE stand
+  { x0: -72, x1: -54, z0: -70, z1: -54, sep: 3.1 },  // V7.21 NW ring stand
+  { x0: 36, x1: 54, z0: 52, z1: 68, sep: 3.1 },      // V7.21 SE ring stand
 ];
 function pointClear(x, z, pad) {
   for (const s of SOLIDS) {
@@ -138,7 +153,7 @@ function pointClear(x, z, pad) {
   }
   for (const [sx, sy, sz] of SPAWN_POINTS) if (Math.hypot(x - sx, z - sz) < 3.6 + pad) return false;
   for (const zn of Object.values(MODE_ZONES)) if (Math.hypot(x - zn.x, z - zn.z) < zn.r + pad) return false;
-  if (Math.abs(x) < 3.4 + pad && z > -62 && z < 62) return false; // central lane N-S
+  if (Math.abs(x) < 3.4 + pad && z > -84 && z < 84) return false; // central lane N-S (V7.21: full height)
   return true;
 }
 function scatter(count, pad, sepBase) {
@@ -156,11 +171,11 @@ function scatter(count, pad, sepBase) {
   }
   return out;
 }
-export const TREE_SPOTS = scatter(110, 0.6, 3.2);
+export const TREE_SPOTS = scatter(150, 0.6, 3.2); // V7.21: 110 -> 150 for the bigger field
 export const BUSH_SPOTS = (() => {
   const rng = makeRng(SEED + 7);
   const out = [];
-  for (let tries = 0; out.length < 90 && tries < 90 * 120; tries++) {
+  for (let tries = 0; out.length < 120 && tries < 120 * 120; tries++) { // V7.21: 90 -> 120 bushes
     const band = STANDS[tries % STANDS.length];
     const x = band.x0 + rng() * (band.x1 - band.x0);
     const z = band.z0 + rng() * (band.z1 - band.z0);
