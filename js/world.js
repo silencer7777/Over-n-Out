@@ -192,13 +192,13 @@ export function buildWorld(scene) {
     // the world-space Update 4 overlay carries the big variation
     // that must NOT repeat.
     const tex = new THREE.CanvasTexture(cv);
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(13, 13);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(17, 17); // V7.18: 13 -> 17 with the 232 plane
     // Frame cost: bumpMap reuses the same texture instance as map (no duplicate canvas / no extra GPU upload); per-frame cost is one extra texture sample in the ground shader.
     // V4 (Atlas): plane 110 -> 136 and repeat 8 -> 10, so the ±62
     // worlds sit on concrete at the same texel density as V3.
     // U6-12: plane 136 -> 176, repeat 10 -> 13 (same density rule)
     // for the ±80 expansion.
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(176, 176), new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 0.04, roughness: 0.95 }));
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(232, 232), new THREE.MeshStandardMaterial({ map: tex, bumpMap: tex, bumpScale: 0.04, roughness: 0.95 })); // V7.18: 176 -> 232 for the +-104 world
     ground.rotation.x = -Math.PI / 2;
     ground.name = 'ground';
     ground.receiveShadow = true;
@@ -421,8 +421,11 @@ export function buildWorld(scene) {
   // bounds ±62 -> ±80, outer wall at ±81 (inner face = 80). The
   // ±63 line is abandoned (the ground grew over it); the ±50
   // ruin line stays as the interior doors it already was.
-  solid(0, -81, 164, 7, 2, wallMat); solid(0, 81, 164, 7, 2, wallMat);
-  solid(-81, 0, 2, 7, 164, wallMat); solid(81, 0, 2, 7, 164, wallMat);
+  solid(0, -105, 208, 7, 2, wallMat); solid(0, 105, 208, 7, 2, wallMat);
+  solid(-105, 0, 2, 7, 208, wallMat); solid(105, 0, 2, 7, 208, wallMat);
+  // V7.18 EXPANSION: bounds +-80 -> +-104 (walls at +-105, inner
+  // face 104). The +-80 line becomes the SECOND RUIN LINE below
+  // (merged segments with road gaps, mirroring worlddata).
   const RUIN_SEGMENTS = [
     // north (z=-50): gaps [-30,-24], [-3,3], [21,27]; last segment dropped to 5.4 (ruin character)
     B(-40.5, -50, 21, 2, 7), B(-13.5, -50, 21, 2, 7), B(12, -50, 18, 2, 7), B(39, -50, 24, 2, 5.4),
@@ -434,6 +437,9 @@ export function buildWorld(scene) {
     B(-50, -36, 2, 30, 5.4), B(-50, 3, 2, 36, 7), B(-50, 39, 2, 24, 7),
   ];
   mergedBoxes(RUIN_SEGMENTS, wallMat);
+  // V7.18: the +-80 wall line also stands ruined in place; its
+  // segments are authored in the SECOND RING DISTRICTS block
+  // (material-grouped merging at the end of this builder).
 
   // ================= MULTI-FLOOR COURSE =================
   // MID LEVEL (top 2.3): north deck 32x16 + east deck 10x20, bridged by a
@@ -1585,10 +1591,160 @@ export function buildWorld(scene) {
     // V4 report has the numbers).
     new THREE.Vector3(0, 0, -58),      // ring N — centre gap
     new THREE.Vector3(0, 0, 58),       // ring S — centre gap
+    // V7.18 second-ring spawns (plaza / SE / NW / S ring roads).
+    new THREE.Vector3(0, 0, -88), new THREE.Vector3(92, 0, 40),
+    new THREE.Vector3(-92, 0, -40), new THREE.Vector3(66, 0, 92),
   ];
 
+  // ================= V7.18 SECOND RING DISTRICTS =================
+  // Mirrors js/worlddata.js SOLIDS/EXTRA additions box-for-box
+  // (smoke T1/T2 pin the counts). CALL DISCIPLINE: static meshes
+  // are grouped BY MATERIAL (one mergedBoxes call per material
+  // for the whole ring) — the naive one-call-per-district version
+  // measured +25 calls and pushed the forest client path to 175,
+  // over the 165 budget. Grouped: the ring costs ~13 calls.
+  mergedBoxes([
+    // ruin line at +-80 (wallMat)
+    B(-55, -80, 98, 2, 7), B(18, -80, 24, 2, 7), B(73, -80, 62, 2, 5.4), // N
+    B(-73, 80, 62, 2, 7), B(-18, 80, 24, 2, 7), B(55, 80, 98, 2, 7), // S
+    B(80, -65, 2, 78, 7), B(80, 1, 2, 30, 7), B(80, 66, 2, 76, 5.4), // E
+    B(-80, -54, 2, 100, 7), B(-80, 19, 2, 22, 7), B(-80, 73, 2, 62, 7), // W
+    // depot walls
+    B(92, -27.7, 16, 0.6, 3.4), // N wall
+    B(87, -12.3, 6, 0.6, 3.4), B(97.5, -12.3, 5, 0.6, 3.4), // S wall (loading gap)
+    B(99.7, -20, 0.6, 14.8, 3.4), // E wall
+    B(84.3, -24.7, 0.6, 5.4, 3.4), B(84.3, -15.8, 0.6, 6.4, 3.4), // W wall (door gap)
+    // depot parapets (stair-head gap on the north edge)
+    B(86.7, -28, 5.8, 0.4, 4.65, 3.65), B(96.8, -28, 6.8, 0.4, 4.65, 3.65),
+    B(92, -12, 16.4, 0.4, 4.65, 3.65), B(100, -20, 0.4, 15.6, 4.65, 3.65), B(84, -20, 0.4, 15.6, 4.65, 3.65),
+    // bridge rails (stand on the deck, yBase 1)
+    B(-93, 2.85, 18, 0.3, 2, 1), B(-93, 9.15, 18, 0.3, 2, 1),
+    // service passage walls
+    B(43, 85, 30, 0.4, 2.7), B(43, 91, 30, 0.4, 2.7),
+  ], wallMat);
+  mergedBoxes([
+    B(0, -94, 3, 3, 1.2), // statue plinth
+    B(87.6, -15.4, 1.2, 1.2, 4.45, 3.65), // depot roof vent
+    B(-93, -13.7, 18, 0.6, 0.3), B(-93, 29.7, 18, 0.6, 0.3), B(-84.3, 8, 0.6, 42.8, 0.3),
+    B(-101.7, -5.7, 0.6, 15.4, 0.3), B(-101.7, 19.7, 0.6, 19.4, 0.3), // reservoir curbs
+    B(43, 88, 30.4, 6.8, 2.95, 2.7), // passage roof
+    B(92, -20, 16.4, 16.4, 0.15), // depot floor slab
+  ], slabMat);
+  mergedBoxes([
+    B(-4, -88, 4, 1, 0.55), B(4, -88, 4, 1, 0.55), // plaza sandbags
+    B(-103, 6, 2, 6, 0.5), B(-93, 6, 18, 6, 1), B(-83, 6, 2, 6, 0.5), // bridge ramps + deck
+    B(20, -85.7, 4, 0.6, 0.8), B(-24, -85.7, 4, 0.6, 0.8), B(85.7, 22, 0.6, 4, 0.8),
+    B(85.7, -50, 0.6, 4, 0.8), B(-50, 85.7, 4, 0.6, 0.8), B(64, 85.7, 4, 0.6, 0.8), B(-85.7, -38, 0.6, 4, 0.8), // ring barriers
+  ], deckMat);
+  mergedBoxes([
+    B(-8, -92, 2, 2, 5), B(8, -92, 2, 2, 5), // gate pillars
+    B(96.25, -23.75, 2.5, 2.5, 4.85, 3.65), // depot roof HVAC
+  ], pillarMat);
+  mergedBoxes([B(92, -20, 16.4, 16.4, 3.65, 3.4)], roofTexMat); // depot roof plate
+  {
+    // The Gate Warden — a stone sentry over the north plaza
+    // (landmark/callout: "at the statue"). Boxes merged to ONE
+    // mesh; its collider is the worlddata EXTRA column (blocks,
+    // not standable).
+    const stoneMat = new THREE.MeshStandardMaterial({ color: 0x8b93a0, roughness: 0.75 });
+    const fig = mergeColoredParts([
+      { geo: new THREE.BoxGeometry(1.7, 0.18, 1.7), color: 0xffffff, x: 0, y: 1.29, z: -94 },
+      { geo: new THREE.BoxGeometry(0.8, 1.55, 0.5), color: 0xffffff, x: 0, y: 2.15, z: -94 },
+      { geo: new THREE.BoxGeometry(0.98, 1.3, 0.56), color: 0xffffff, x: 0, y: 3.55, z: -94 },
+      { geo: new THREE.BoxGeometry(1.35, 0.26, 0.26), color: 0xffffff, x: 0.6, y: 3.95, z: -94 },
+      { geo: new THREE.BoxGeometry(0.52, 0.56, 0.52), color: 0xffffff, x: 0, y: 4.45, z: -94 },
+    ]);
+    fig.deleteAttribute('color');
+    const statue = new THREE.Mesh(fig, stoneMat);
+    statue.matrixAutoUpdate = false; statue.updateMatrix();
+    statue.castShadow = true; statue.receiveShadow = true;
+    scene.add(statue); shootables.push(statue);
+    colliders.push(new THREE.Box3(new THREE.Vector3(-0.45, 1.2, -94.45), new THREE.Vector3(0.45, 4.6, -93.55)));
+  }
+  solid(91.5, -33.425, 3, 0.575, 0.95, deckMat); solid(91.5, -32.475, 3, 1.15, 0.95, deckMat);
+  solid(91.5, -31.525, 3, 1.725, 0.95, deckMat); solid(91.5, -30.575, 3, 2.3, 0.95, deckMat);
+  solid(91.5, -29.625, 3, 2.875, 0.95, deckMat); solid(91.5, -28.675, 3, 3.45, 0.95, deckMat); // exterior stair
+  elevated(97.6, 3.65, -14.4, 2.2, 1.15, 2.2, crateMat); // roof crate
+  solid(89.1, -22.9, 2.2, 1.15, 2.2, crateMat); solid(95.1, -15.9, 2.2, 1.15, 2.2, crateMat2);
+  solid(90.1, -14.4, 2.2, 2.3, 2.2, crateMat); // interior cover
+  solid(37.1, 87.1, 2.2, 1.15, 2.2, crateMat); solid(49.1, 88.9, 2.2, 1.15, 2.2, crateMat2); // passage crates
+  solid(-86.9, -58.9, 2.2, 1.15, 2.2, crateMat); solid(61.1, -86.9, 2.2, 1.15, 2.2, crateMat2);
+  solid(89.1, 61.1, 2.2, 1.15, 2.2, crateMat); solid(-58.9, 85.1, 2.2, 1.15, 2.2, crateMat2); // ring crates
+  solid(82.5, -20.5, 1, 0.55, 3, deckMat); // depot-door sandbags
+  solid(102.1, -16.9, 2.2, 1.15, 2.2, crateMat); solid(102.1, -19.9, 2.2, 2.3, 2.2, crateMat2); // depot east crate-hop (2nd roof route)
+  {
+    // Buildings realism touches (visual only, merged to ONE mesh
+    // each): glass window bands proud of the depot walls, and
+    // VINES climbing the west wall + the service passage
+    // (foliage-textured panels half-embedded in the wall face,
+    // no colliders, no shadow casting).
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0x9fc4d8, roughness: 0.12, metalness: 0.55 });
+    const bands = mergeColoredParts([
+      { geo: new THREE.BoxGeometry(0.08, 0.9, 10), color: 0xffffff, x: 83.92, y: 2.2, z: -20 },
+      { geo: new THREE.BoxGeometry(12, 0.9, 0.08), color: 0xffffff, x: 92, y: 2.2, z: -11.94 },
+    ]);
+    bands.deleteAttribute('color');
+    scene.add(new THREE.Mesh(bands, glassMat));
+    const vineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, map: makeFoliageTexture(), alphaTest: 0.42, side: THREE.DoubleSide });
+    const vineParts = [];
+    const vineSpots = [
+      { x: 83.98, y: 0.7, z: -26.5, h: 1.4, w: 1.1, face: 'z' }, { x: 83.98, y: 2.0, z: -25.2, h: 1.2, w: 1.0, face: 'z' },
+      { x: 83.98, y: 0.9, z: -14.2, h: 1.8, w: 0.9, face: 'z' }, { x: 83.98, y: 2.5, z: -13.4, h: 0.9, w: 0.8, face: 'z' },
+      { x: 35, y: 1.0, z: 91.22, h: 1.6, w: 1.1, face: 'x' }, { x: 41, y: 0.8, z: 91.22, h: 1.2, w: 0.9, face: 'x' },
+      { x: 52, y: 1.3, z: 91.22, h: 1.8, w: 1.2, face: 'x' },
+      { x: -78.98, y: 1.2, z: -60, h: 2.2, w: 1.4, face: 'z' },
+    ];
+    for (const s of vineSpots) {
+      vineParts.push({
+        geo: new THREE.BoxGeometry(s.face === 'z' ? 0.12 : s.w, s.h, s.face === 'z' ? s.w : 0.12),
+        color: 0xffffff, x: s.x, y: s.y, z: s.z,
+      });
+    }
+    const vines = new THREE.Mesh(mergeColoredParts(vineParts), vineMat);
+    vines.geometry.deleteAttribute('color');
+    vines.matrixAutoUpdate = false; vines.updateMatrix();
+    scene.add(vines);
+  }
+  // -- West reservoir + causeway bridge (road line z 3..9).
+  {
+    const wet = new THREE.Mesh(new THREE.PlaneGeometry(17, 43), new THREE.MeshStandardMaterial({ color: 0x2c3436, roughness: 1 }));
+    wet.rotation.x = -Math.PI / 2; wet.position.set(-93, 0.02, 8);
+    wet.receiveShadow = true; scene.add(wet);
+    const wcv = document.createElement('canvas'); wcv.width = wcv.height = 128;
+    const wc = wcv.getContext('2d');
+    wc.fillStyle = '#3d7ea6'; wc.fillRect(0, 0, 128, 128);
+    wc.strokeStyle = 'rgba(220,240,250,0.35)'; wc.lineWidth = 2;
+    for (let i = 0; i < 26; i++) {
+      const y = Math.random() * 128, x = Math.random() * 128, l = 12 + Math.random() * 30;
+      wc.beginPath(); wc.moveTo(x, y); wc.lineTo(x + l, y); wc.stroke();
+    }
+    const wtex = new THREE.CanvasTexture(wcv);
+    wtex.wrapS = wtex.wrapT = THREE.RepeatWrapping; wtex.repeat.set(2, 5);
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(16, 42), new THREE.MeshStandardMaterial({
+      map: wtex, color: 0xa8cede, transparent: true, opacity: 0.78, roughness: 0.12, metalness: 0.35,
+    }));
+    water.rotation.x = -Math.PI / 2; water.position.set(-93, 0.32, 8);
+    water.name = 'water-reservoir'; // main.js drifts its texture (stepWaterDrift)
+    water.userData.waterMap = wtex;
+    scene.add(water);
+  }
+  {
+    // Ring drums (one merged mesh; colliders mirror worlddata EXTRA).
+    const drumMat = new THREE.MeshStandardMaterial({ color: 0x5c6b76, roughness: 0.5, metalness: 0.4 });
+    const drumParts = [];
+    for (const [dx, dz] of [[101.5, -7.5], [88, 34], [-40, -88]]) {
+      drumParts.push({ geo: new THREE.CylinderGeometry(0.3, 0.3, 1.1, 10), color: 0xffffff, x: dx, y: 0.55, z: dz });
+      colliders.push(new THREE.Box3(new THREE.Vector3(dx - 0.3, 0, dz - 0.3), new THREE.Vector3(dx + 0.3, 1.1, dz + 0.3)));
+    }
+    const drums = new THREE.Mesh(mergeColoredParts(drumParts), drumMat);
+    drums.geometry.deleteAttribute('color');
+    drums.matrixAutoUpdate = false; drums.updateMatrix();
+    drums.castShadow = true;
+    scene.add(drums); shootables.push(drums);
+  }
+
   flushBoxBuckets();
-  return { colliders, shootables, spawnPoints, bounds: 80, groundHeightAt }; // U6-12: ±80
+  return { colliders, shootables, spawnPoints, bounds: 104, groundHeightAt }; // V7.18: +-104 // U6-12: ±80
 }
 
 // Push a point (with radius) out of every collider on the XZ plane.
