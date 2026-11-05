@@ -172,7 +172,7 @@ function goLandscape() {
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
 // version tag — Brett reads "BUILD V7.2" in the menu footer.
-const BUILD_NO = 'V7.22';
+const BUILD_NO = 'V7.23';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -204,7 +204,7 @@ const adsHintEl = $('ads-hint');
 let adsHintState = '';
 let adsHintDone = false;
 try { adsHintDone = localStorage.getItem('ono-ads-hint') === '1'; } catch { /* private mode */ }
-const ADS_KIND_LABEL = { iron: 'IRON SIGHTS', reddot: 'RED DOT', holo: 'HOLOGRAPHIC', mid: 'MID SCOPE', sniper: 'SNIPER SCOPE' };
+const ADS_KIND_LABEL = { iron: 'IRON SIGHTS', micro: 'PINPOINT DOT', reddot: 'RED DOT', holo: 'HOLOGRAPHIC', tac: 'MERIDIAN OPTIC', mid: 'MID SCOPE', sniper: 'SNIPER SCOPE', long: 'LONGRANGE' };
 // U10-01/02: minimap canvas + objective guidance pill.
 const minimapEl = $('minimap');
 const minimapCtx = minimapEl ? minimapEl.getContext('2d') : null;
