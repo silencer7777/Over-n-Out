@@ -10,12 +10,12 @@
 // LCG math) and exported as DRIFT_SPOTS — the builder renders
 // exactly these spots and derives colliders from them.
 
-export const BOUNDS = 62;
+export const BOUNDS = 84; // V7.21 expansion (was 62)
 
 export const SPAWN_POINTS = [
-  [-56, 0, -30], [56, 0, -30], [-56, 0, 30], [56, 0, 30],
-  [0, 0, -58], [-36, 0, 52], [36, 0, 52], [56, 0, 4],
-];
+  [-76, 0, -40], [76, 0, -40], [-76, 0, 40], [76, 0, 40],
+  [0, 0, -78], [-48, 0, 72], [48, 0, 72], [76, 0, 6],
+]; // V7.21: pushed out with the bounds
 
 const B = (x0, y0, z0, x1, y1, z1) => ({ min: [x0, y0, z0], max: [x1, y1, z1] });
 
@@ -109,13 +109,25 @@ export const TRANSMISSIONS = [
   { id: 'snowcat-cab', x: -8, y: 0, z: 13.5 },
 ];
 
+// --- V7.21: East Drift Ridge — three terraces climbing east
+// (0.575 steps), the ring's high ground; and a West Shelter
+// (4 posts + snowroof slab) on the west lane.
+S('drift', 66, 0, -20, 69, 0.575, 20);
+S('drift', 69, 0, -20, 72, 1.15, 20);
+S('drift', 72, 0, -20, 75, 1.725, 20);
+S('timber', -70.4, 0, -44.4, -70.2, 2.4, -44.2);
+S('timber', -63.6, 0, -44.4, -63.4, 2.4, -44.2);
+S('timber', -70.4, 0, -39.6, -70.2, 2.4, -39.4);
+S('timber', -63.6, 0, -39.6, -63.4, 2.4, -39.4);
+S('snowroof', -70.9, 2.4, -44.9, -62.9, 2.55, -38.9);
+
 // --- Seeded drift scatter (single source) --------------------
 const SEED = 20261103;
 function makeRng(seed) {
   let s = seed >>> 0;
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 }
-const FIELD = { x0: -58, x1: 58, z0: -40, z1: 50 };
+const FIELD = { x0: -80, x1: 80, z0: -56, z1: 70 }; // V7.21: scatter field grows with the bounds
 function pointClear(x, z, pad) {
   for (const s of SOLIDS) {
     if (x > s.min[0] - pad && x < s.max[0] + pad && z > s.min[2] - pad && z < s.max[2] + pad) return false;
@@ -130,7 +142,7 @@ function pointClear(x, z, pad) {
 export const DRIFT_SPOTS = (() => {
   const rng = makeRng(SEED);
   const out = [];
-  for (let tries = 0; out.length < 46 && tries < 46 * 160; tries++) {
+  for (let tries = 0; out.length < 62 && tries < 62 * 160; tries++) { // V7.21: 46 -> 62 drifts
     const x = FIELD.x0 + rng() * (FIELD.x1 - FIELD.x0);
     const z = FIELD.z0 + rng() * (FIELD.z1 - FIELD.z0);
     if (!pointClear(x, z, 0.5)) continue;
