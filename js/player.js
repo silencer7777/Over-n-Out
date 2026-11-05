@@ -269,9 +269,14 @@ export class Player {
     // everything else falls to iron sights (which now render a
     // real sight picture — see the overlay in main.js / css).
     const atts = attachments || [];
-    this.adsKind = atts.includes('sniper') ? 'sniper'
+    // V7.23: three more kinds (long 8× / tac 2× / micro) join
+    // the chain, highest glass first.
+    this.adsKind = atts.includes('longshot') ? 'long'
+      : atts.includes('sniper') ? 'sniper'
       : atts.includes('scope') ? 'mid'
+      : atts.includes('optic2x') ? 'tac'
       : atts.includes('holo') ? 'holo'
+      : atts.includes('microdot') ? 'micro'
       : atts.includes('reddot') ? 'reddot'
       : weapon.id === 'dmr' ? 'sniper' : 'iron';
     // Suppressor identity (Havoc §3): minimal muzzle flash.
@@ -576,7 +581,7 @@ export class Player {
     this.aimBlend += ((this.aiming ? 1 : 0) - this.aimBlend) * easeK(11, dt); // V7.15: exact-exp ease
     if (this.aimBlend < 0.001) this.aimBlend = 0;
     if (this.aimBlend > 0.999) this.aimBlend = 1;
-    const scopeInner = (this.adsKind === 'mid' || this.adsKind === 'sniper') && this.aimBlend > 0.55;
+    const scopeInner = (this.adsKind === 'mid' || this.adsKind === 'sniper' || this.adsKind === 'long') && this.aimBlend > 0.55;
     if (scopeInner !== this._scopeInner) {
       this._scopeInner = scopeInner;
       if (this.gunModel) this.gunModel.visible = !scopeInner;
