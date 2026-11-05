@@ -248,8 +248,8 @@ with a source commit/report. No lesson without evidence.
     comparison, not eyeballed literals. Scope note: one-off trim
     (`t_`) placements stay literal — some still share plane values
     (e.g. Ops north 39.97) and are build-session scope to fold in.
-    (Training, Nov 2, 2026; HQ west re-anchor Wed Nov 4, gate pin
-    Fri Nov 6)
+    (Training, Nov 2, 2026; HQ west re-anchor landed Nov 4, 2026
+    — see Lesson 33 for its collision history — gate pin Fri Nov 6)
 32. **Pin rebuild determinism pre-update, against literals and a
     fresh instance.** `elapsed` is instance-level and survives
     `teardown`/`build`, and sway reads it — so a rebuilt instance
@@ -262,6 +262,17 @@ with a source commit/report. No lesson without evidence.
     with twin-history — identical setMap + dt sequences.
     (Training, Nov 3, 2026; probe §K — tint perturbation fails
     exactly K1/K5)
+33. **A mid-session collision triggers the same stand-down as a
+    dirty start — and a saved patch + parsed proof make the
+    re-land mechanical.** Training's tree was clean at the start
+    check and its HQ-west fix was landed and proven (multiset:
+    exactly 12 parts, Δx −2.50) when a V7.10 build session took
+    the tree mid-metrics. The Lead saved the exact patch,
+    reverted (multiset re-verified identical to HEAD), and —
+    once that session committed (`0e8b92d`) and the tree was
+    clean again — re-landed byte-exact and re-proved in minutes.
+    Never commit into another session's flight, and never
+    re-derive a fix you can retain. (Training, Nov 4, 2026)
 
 ## Retired / do not carry forward (corrected Oct 25, 2026, Reviewer audit)
 
