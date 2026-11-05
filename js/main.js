@@ -21,6 +21,7 @@ import { CAMO_IDS, getCamo } from './camo.js';
 import { EMBLEMS, SHOP_EMBLEMS, getEmblem, isEmblemUnlocked, BADGES, getBadge, claimDailyReward, recordMatch, TIER_PACKAGES, SPECIAL_OFFERS, getShopItem, purchaseItem, priceFor, featuredOfferId } from './meta.js'; // U13 meta phase 1 + U14 phase 2 (shop)
 import { OnlineSession } from './online.js';
 import { sanitizeClan, taggedCallsign } from './clans.js';
+import { ROSTER, getCharacter, CHARACTER_IDS } from './characters.js';
 import { LobbyChat } from './chat.js';   // U6-14 menu chatroom
 import { VoiceChat } from './voice.js'; // U6-15 WebRTC voice
 import { TouchControls, isTouchDevice } from './touchcontrols.js';
@@ -171,7 +172,7 @@ function goLandscape() {
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
 // version tag — Brett reads "BUILD V7.2" in the menu footer.
-const BUILD_NO = 'V7.19';
+const BUILD_NO = 'V7.20';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -488,6 +489,31 @@ function renderCamoPickers() {
     camoPickersEl.appendChild(btn);
   }
 }
+
+// V7.20 operator picker (LOADOUT tab): fifteen roster
+// characters, all looks / no stats — the choice persists in the
+// profile, rides the online hello, and skins your puppet for
+// everyone else. Bots rotate the same roster (spawnBot below).
+const characterSelectEl = $('character-select'), characterLineEl = $('character-line');
+function renderCharacterPicker() {
+  if (!characterSelectEl) return;
+  characterSelectEl.textContent = '';
+  for (const c of ROSTER) {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = `${c.name} — ${c.role.toUpperCase()}`;
+    characterSelectEl.appendChild(opt);
+  }
+  characterSelectEl.value = profile.character;
+  const c = getCharacter(profile.character);
+  if (characterLineEl) characterLineEl.textContent = `${c.name} · ${c.role} — ${c.blurb}`;
+}
+if (characterSelectEl) characterSelectEl.addEventListener('change', () => {
+  profile.character = characterSelectEl.value;
+  persistProfile();
+  renderCharacterPicker();
+});
+renderCharacterPicker();
 
 // Meta panel (U13): the SERVICE RECORD — emblem picker, badge
 // line, Meridian Credits, and the daily-reward claim. Rendered
@@ -1216,7 +1242,7 @@ function spawnBot(tierOverride, team = 'hostile') {
     ? Math.min(1 + wave * 0.06, 1.7) : 1.0;
   const difficulty = Math.max(0.5, Math.min(2.0, ambient * (TIERS[tier]?.d || 1)));
   const weaponId = pickBotWeapon(wave);
-  const bot = new Bot(scene, world, sp.clone(), difficulty, weaponId, team);
+  const bot = new Bot(scene, world, sp.clone(), difficulty, weaponId, team, null, CHARACTER_IDS[spawnBot._charSeq = ((spawnBot._charSeq || 0) + 1) % CHARACTER_IDS.length]);
   bot._tier = tier;
   bots.push(bot);
   return bot;
@@ -2338,7 +2364,7 @@ async function joinOnline() {
     if (p && p.catch) p.catch(() => {});
   } catch (e) { /* pointer lock is a courtesy here; welcome decides */ }
   try {
-    const welcome = await session.connect(url, { name, room, mode: selectedMode, loadout, clan: profile.meta.clan.tag });
+    const welcome = await session.connect(url, { name, room, mode: selectedMode, loadout, clan: profile.meta.clan.tag, character: profile.character });
     bots.forEach(b => scene.remove(b.root));
     bots = [];
     player.reset();
