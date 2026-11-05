@@ -208,7 +208,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.7.22') fail(`M6 package.json version → ${pkg.version} (expected '0.7.22')`); else ok("M6 package.json version === '0.7.22'");   // V7.22 bump (Job 2: zone-reachability fix)
+  if (pkg.version !== '0.7.23') fail(`M6 package.json version → ${pkg.version} (expected '0.7.23')`); else ok("M6 package.json version === '0.7.23'");   // V7.23 bump (Job 2: scopes mastery)
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -692,6 +692,23 @@ try {
   const eff = L.effectiveWeapon(arBase, ['extmag', 'reddot']);
   if (eff.mag === 45 && eff.adsZoom === 1.35 && arBase.mag === 30) ok('LD2 effectiveWeapon: extmag 30→45, reddot zoom 1.35, base row untouched');
   else fail(`LD2 effectiveWeapon → mag ${eff.mag}, zoom ${eff.adsZoom}, base ${arBase.mag}`);
+  // LD2b (V7.23 scopes mastery): the full sight lineup — seven
+  // optic attachments, every one a distinct zoom, class fits as
+  // specced, and every optic resolving through effectiveWeapon.
+  const OPTICS = ['reddot', 'microdot', 'holo', 'optic2x', 'scope', 'sniper', 'longshot'];
+  const zooms = OPTICS.map(id => (L.getAttachment(id) || {}).mods?.adsZoom);
+  if (OPTICS.every(id => L.getAttachment(id)?.slot === 'optic') && new Set(zooms).size === 7 && zooms.every(z => z > 1))
+    ok(`LD2b scopes mastery: 7 optics, distinct zooms ${zooms.join('/')}`);
+  else fail(`LD2b lineup → ${JSON.stringify(zooms)}`);
+  if (L.attachmentFits(L.getAttachment('longshot'), 'dmr') && !L.attachmentFits(L.getAttachment('longshot'), 'ar')
+    && L.attachmentFits(L.getAttachment('optic2x'), 'smg') && !L.attachmentFits(L.getAttachment('optic2x'), 'pistol')
+    && L.attachmentFits(L.getAttachment('microdot'), 'pistol'))
+    ok('LD2c optic class fits: 8× DMR-only, 2× rifle/SMG/DMR, pinpoint universal');
+  else fail('LD2c optic class fits wrong');
+  const effLong = L.effectiveWeapon(W.getWeapon('dmr'), ['longshot']);
+  if (effLong.adsZoom === 8.0 && Math.abs(effLong.spreadAds - (W.getWeapon('dmr').adsMult * 0.55)) < 1e-9)
+    ok('LD2d effectiveWeapon: longshot on DMR → 8× zoom, spread composes');
+  else fail(`LD2d longshot eff → zoom ${effLong.adsZoom}, spreadAds ${effLong.spreadAds}`);
   const bad = L.validateClass({ primary: 'ar', attachments: ['reddot', 'holo'] });
   if (!bad.ok) ok('LD3 validateClass rejects two optics (one per slot)');
   else fail('LD3 validateClass accepted duplicate optic slot');
@@ -770,10 +787,15 @@ try {
   const P = await import('../js/progression.js');
   if (P.xpForLevel(2) === 400 && P.levelForXp(0) === 1 && P.levelForXp(400) === 2) ok('PG1 XP curve: level 2 at 400 XP (first-match unlock)');
   else fail(`PG1 curve → L2 ${P.xpForLevel(2)}, levelForXp(400) ${P.levelForXp(400)}`);
-  if (P.UNLOCKS.length === 27 && P.unlockedClassSlots(1) === 1 && P.unlockedClassSlots(18) === 5) ok('PG2 unlock ladder: 27 rungs (V4 15 + V5 8 perks + 3 attachments + U7-01 sniper scope), class slots 1→5 by L18');
+  if (P.UNLOCKS.length === 30 && P.unlockedClassSlots(1) === 1 && P.unlockedClassSlots(18) === 5) ok('PG2 unlock ladder: 30 rungs (27 + V7.23 three optics), class slots 1→5 by L18');
   else fail(`PG2 ladder → ${P.UNLOCKS.length} rungs, slots(18) ${P.unlockedClassSlots(18)}`);
   if (!P.isAttachmentUnlocked(1, 'reddot') && P.isAttachmentUnlocked(2, 'reddot')) ok('PG3 reddot gated until level 2');
   else fail('PG3 reddot gating wrong');
+  if (!P.isAttachmentUnlocked(12, 'microdot') && P.isAttachmentUnlocked(13, 'microdot')
+    && !P.isAttachmentUnlocked(19, 'optic2x') && P.isAttachmentUnlocked(20, 'optic2x')
+    && !P.isAttachmentUnlocked(23, 'longshot') && P.isAttachmentUnlocked(24, 'longshot'))
+    ok('PG3b V7.23 optic rungs: pinpoint L13, Meridian 2× L20, Longrange 8× L24');
+  else fail('PG3b V7.23 optic rung gating wrong');
   const prof = P.createProfile();
   const r = P.awardXp(prof, [{ source: 'kill', count: 4 }, { source: 'waveClear', count: 1 }]);
   if (r.gained === 550 && r.newLevel === 2 && r.unlocks.length === 1) ok('PG4 awardXp: 550 XP, level-up + unlock reported');
