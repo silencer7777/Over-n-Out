@@ -172,7 +172,7 @@ function goLandscape() {
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
 // version tag — Brett reads "BUILD V7.2" in the menu footer.
-const BUILD_NO = 'V7.25';
+const BUILD_NO = 'V7.26';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -832,13 +832,25 @@ let selectedMode = 'waves';
 const M = {
   scoreYou: 0, scoreThem: 0, zones: [], channel: 0, timeLeft: 0,
   respawnT: 0, scoreAcc: 0, channelAcc: 0, victory: false, over: false,
+  // V7.26 new-mode state (Job 2 §6).
+  claimIdx: 0, claimT: 0, rung: 0, carrying: false, coreState: 'pad',
+  corePos: null, corePad: 0, dropIdx: 0, deliveries: 0, integrity: 100,
 };
+let lastAttackerBot = null;   // V7.26: LONE SIGNAL credits the hunter who downed you
+let relayCoreMesh = null;     // V7.26: the relay core's world visual (lazy)
 function resetModeRuntime() {
   M.scoreYou = 0; M.scoreThem = 0; M.channel = 0; M.scoreAcc = 0; M.channelAcc = 0;
   M.respawnT = 0; M.victory = false; M.over = false;
   const mode = getMode(selectedMode);
   M.timeLeft = mode.timeLimit || 0;
   M.zones = (mode.zones || []).map(z => ({ ...z, owner: null, prog: 0, side: null }));
+  // V7.26: per-mode state.
+  M.claimIdx = 0; M.claimT = mode.rotateSeconds || 0; M.rung = 0;
+  M.carrying = false; M.coreState = 'pad'; M.corePad = 0; M.dropIdx = 0; M.deliveries = 0;
+  M.corePos = mode.pads ? { ...mode.pads[0] } : null;
+  M.integrity = mode.integrity || 100;
+  lastAttackerBot = null;
+  if (relayCoreMesh) { scene.remove(relayCoreMesh); relayCoreMesh = null; }
   guideObjectives = selectedMode === 'assault' ? [{ ...mode.point, id: '' }] : M.zones; // U10: fresh objectives, never last match's
   guideMode = selectedMode;
   if (scoreLineEl) scoreLineEl.textContent = '';
@@ -1054,13 +1066,13 @@ function onTeamBotKill(victim) {
       M.scoreThem++;
       queueBotRespawn('friendly');
       if (M.scoreThem >= getMode('tdm').targetKills) endMatch('lose');
-    } else if (selectedMode === 'domination') queueBotRespawn('friendly');
+    } else if (selectedMode === 'domination' || selectedMode === 'claim') queueBotRespawn('friendly');
   } else {
     if (selectedMode === 'tdm') {
       M.scoreYou++;
       queueBotRespawn('hostile');
       if (M.scoreYou >= getMode('tdm').targetKills) endMatch('win');
-    } else if (selectedMode === 'domination') queueBotRespawn('hostile');
+    } else if (selectedMode === 'domination' || selectedMode === 'claim') queueBotRespawn('hostile');
   }
 }
 
@@ -1074,7 +1086,7 @@ function onBotKilled(bot) {
       M.scoreThem++;
       queueBotRespawn('friendly');
       if (M.scoreThem >= getMode('tdm').targetKills) endMatch('lose');
-    } else if (state === 'playing' && selectedMode === 'domination') {
+    } else if (state === 'playing' && (selectedMode === 'domination' || selectedMode === 'claim')) {
       queueBotRespawn('friendly');
     }
     return;
@@ -1109,6 +1121,30 @@ function onBotKilled(bot) {
     if (M.scoreYou >= getMode('tdm').targetKills) endMatch('win');
   }
   if (selectedMode === 'domination' && state === 'playing') queueBotRespawn();
+  // V7.26 new-mode kill hooks.
+  if (state === 'playing' && selectedMode === 'claim') queueBotRespawn();
+  if (state === 'playing' && selectedMode === 'signal') {
+    // LONE SIGNAL: your kills are your score; hunters respawn.
+    M.scoreYou++;
+    queueBotRespawn();
+    if (M.scoreYou >= getMode('signal').targetKills) endMatch('win');
+  }
+  if (state === 'playing' && selectedMode === 'ladder') {
+    // UPGRADE PROTOCOL: a kill on the final rung wins the
+    // match; any other kill climbs one rung.
+    const lad = getMode('ladder');
+    if (M.rung >= lad.ladder.length - 1) { endMatch('win'); }
+    else {
+      forceRung(M.rung + 1);
+      if (contextLineEl) {
+        contextLineEl.textContent = `UPGRADED — RUNG ${M.rung + 1}/${lad.ladder.length}: ${getWeapon(lad.ladder[M.rung]).name}`;
+        contextLineEl.style.opacity = 1;
+        setTimeout(() => contextLineEl.style.opacity = 0, 2200);
+      }
+    }
+    queueBotRespawn();
+  }
+  if (state === 'playing' && selectedMode === 'relay') queueBotRespawn();
   maybeDropPickup(bot.root.position);
 }
 
@@ -1466,6 +1502,9 @@ function reload() {
 }
 
 function switchWeapon(id) {
+  // V7.26: UPGRADE PROTOCOL locks the player's hands to the
+  // current rung while a ladder match is live.
+  if (state === 'playing' && selectedMode === 'ladder' && id !== getMode('ladder').ladder[M.rung]) return;
   reloading = 0;
   triggerPressed = false;
   currentId = getWeapon(id).id;
@@ -1632,6 +1671,30 @@ function updateHealth() {
 // respawn the operator and score for the Kestrel squad.
 function playerDown() {
   if (driving) exitVehicle(true); // R2-1: a downed driver is out of the vehicle
+  // V7.26 new modes: redeploy rules per mode (waves-family
+  // LAST TRANSMISSION falls through to the waves rule below).
+  if (selectedMode === 'claim' || selectedMode === 'signal' || selectedMode === 'ladder' || selectedMode === 'relay') {
+    if (selectedMode === 'signal' && lastAttackerBot) {
+      lastAttackerBot.ffaKills = (lastAttackerBot.ffaKills || 0) + 1;
+      const best = Math.max(0, ...bots.filter(b => b.team !== 'friendly').map(b => b.ffaKills || 0));
+      M.scoreThem = Math.max(M.scoreThem, best);
+      if (M.scoreThem >= getMode('signal').targetKills) { endMatch('lose'); updateHealth(); return; }
+    }
+    if (selectedMode === 'ladder' && M.rung > 0) forceRung(M.rung - 1); // dying costs a rung
+    if (selectedMode === 'relay' && M.carrying) {
+      // The core drops where you fell — go get it back.
+      M.carrying = false;
+      M.coreState = 'dropped';
+      M.corePos = { x: player.position.x, y: player.position.y, z: player.position.z };
+    }
+    M.respawnT = getMode(selectedMode).respawnDelay || 3;
+    if (contextLineEl) {
+      contextLineEl.textContent = 'DOWN — REDEPLOYING…';
+      contextLineEl.style.opacity = 1;
+    }
+    updateHealth();
+    return;
+  }
   if (selectedMode === 'tdm' || selectedMode === 'domination') {
     M.scoreThem++;
     M.respawnT = getMode(selectedMode).respawnDelay || 2.5;
@@ -1785,7 +1848,7 @@ function startRun() {
 // GO by the countdown (U5-09). Identical rosters, identical order.
 function beginMatchSpawns() {
   spawnVehicles(); // R2-1: fresh quad + truck on the pads every match
-  if (selectedMode === 'waves' || selectedMode === 'assault') {
+  if (selectedMode === 'waves' || selectedMode === 'assault' || selectedMode === 'lastsignal') {
     startWave();
   } else {
     uiWave.textContent = '—';
@@ -1798,8 +1861,26 @@ function beginMatchSpawns() {
     // with a friendly squad (roster − 1 bots + the player = a
     // full side, mirroring the sim's 4v4). Before U6 the solo
     // player fought the whole enemy roster alone.
-    for (let i = 0; i < roster - 1; i++) spawnBot(undefined, 'friendly');
+    // V7.26: LONE SIGNAL / UPGRADE PROTOCOL / RELAY RUN are
+    // solo-operator modes — no friendly squad by design.
+    if (selectedMode === 'tdm' || selectedMode === 'domination' || selectedMode === 'claim') {
+      for (let i = 0; i < roster - 1; i++) spawnBot(undefined, 'friendly');
+    }
+    // V7.26: the ladder starts on rung 1, whatever the class says.
+    if (selectedMode === 'ladder') forceRung(0);
   }
+}
+
+// V7.26 (UPGRADE PROTOCOL): put the player on a ladder rung —
+// forced weapon, fresh mag. Manual switching is locked to the
+// rung while a ladder match runs (see switchWeapon's callers:
+// the number keys and wheel both land here via switchWeapon).
+function forceRung(rung) {
+  const mode = getMode('ladder');
+  M.rung = Math.max(0, Math.min(mode.ladder.length - 1, rung));
+  const wid = mode.ladder[M.rung];
+  mags[wid] = getWeapon(wid).mag;
+  switchWeapon(wid);
 }
 
 // ---------------- input ----------------
@@ -2285,6 +2366,12 @@ function buildOnlineSample(seq) {
 
 async function joinOnline() {
   if (session || joiningOnline) return;
+  // V7.26: solo-only missions have no online stepper yet —
+  // say so plainly instead of booting a broken room.
+  if (getMode(selectedMode).online === false) {
+    setOnlineStatus(`${getMode(selectedMode).name} is a solo mission for now — online rooms run WAVE DEFENSE, TDM, DOMINATION, RELAY ASSAULT or MOVING CLAIM.`);
+    return;
+  }
   sfx.ensure();
   const name = taggedCallsign((onlineNameEl?.value || '').trim() || 'BRETT', profile.meta.clan);
   let room = (onlineRoomEl?.value || '').trim().toUpperCase();
@@ -2541,18 +2628,36 @@ function tickModes(dt) {
     objectiveEl.textContent = objectiveText(selectedMode, {
       wave, scoreYou: M.scoreYou, scoreThem: M.scoreThem,
       zones: M.zones, channel: M.channel, timeLeft: M.timeLeft,
+      claimIdx: M.claimIdx, claimT: M.claimT, rung: M.rung,
+      deliveries: M.deliveries, carrying: M.carrying, integrity: M.integrity,
     });
   }
   // U10-02: guidance pill + minimap objectives (solo state).
   updateObjectiveGuide(selectedMode,
     selectedMode === 'domination' ? M.zones
     : selectedMode === 'assault' ? [{ ...mode.point, id: '' }]
+    : selectedMode === 'claim' ? [M.zones[M.claimIdx]]
+    : selectedMode === 'lastsignal' ? [{ ...mode.point, id: '' }]
+    : selectedMode === 'relay' ? [M.carrying ? M.zones[M.dropIdx] : { x: M.corePos.x, z: M.corePos.z, y: M.corePos.y || 0, id: 'CORE' }]
     : []);
   if (selectedMode === 'tdm' && scoreLineEl) {
     scoreLineEl.innerHTML = `<span style="color:${TEAM.you.color}">${TEAM.you.name} ${M.scoreYou}</span> · <span style="color:${TEAM.kestrel.color}">${TEAM.kestrel.name} ${M.scoreThem}</span> · FIRST TO ${mode.targetKills}`;
   }
   if (selectedMode === 'domination' && scoreLineEl) {
     scoreLineEl.innerHTML = `<span style="color:${TEAM.you.color}">${TEAM.you.name} ${M.scoreYou}</span> · <span style="color:${TEAM.kestrel.color}">${TEAM.kestrel.name} ${M.scoreThem}</span> · FIRST TO ${mode.targetScore}`;
+  }
+  if (selectedMode === 'claim' && scoreLineEl) {
+    const live = M.zones[M.claimIdx];
+    scoreLineEl.innerHTML = `<span style="color:${TEAM.you.color}">${TEAM.you.name} ${M.scoreYou}</span> · <span style="color:${TEAM.kestrel.color}">${TEAM.kestrel.name} ${M.scoreThem}</span> · CLAIM ${live.id} LIVE · FIRST TO ${mode.targetScore}`;
+  }
+  if (selectedMode === 'signal' && scoreLineEl) {
+    scoreLineEl.innerHTML = `<span style="color:${TEAM.you.color}">YOU ${M.scoreYou}</span> · <span style="color:${TEAM.kestrel.color}">BEST HUNTER ${M.scoreThem}</span> · FIRST TO ${mode.targetKills}`;
+  }
+  if (selectedMode === 'ladder' && scoreLineEl) {
+    scoreLineEl.textContent = `RUNG ${M.rung + 1}/${mode.ladder.length} — ${getWeapon(mode.ladder[M.rung]).name.toUpperCase()}`;
+  }
+  if (selectedMode === 'relay' && scoreLineEl) {
+    scoreLineEl.textContent = `DELIVERIES ${M.deliveries}/${mode.targetDeliveries} · DROP: ${M.zones[M.dropIdx].id} ${M.zones[M.dropIdx].name}${M.carrying ? ' · CARRYING' : ''}`;
   }
 
   // Bot respawn queue (TDM / Domination rosters).
@@ -2601,6 +2706,115 @@ function tickModes(dt) {
       }
       if (M.scoreYou >= mode.targetScore) endMatch('win');
       else if (M.scoreThem >= mode.targetScore) endMatch('lose');
+    }
+  }
+
+  // V7.26 — MOVING CLAIM: Domination's capture brain, one
+  // live point. The claim rotates on the mode clock; owners
+  // keep their points (holding the next claim when it lights
+  // is a legitimate play).
+  if (selectedMode === 'claim') {
+    const cap = mode.captureSeconds;
+    const zone = M.zones[M.claimIdx];
+    const youIn = (M.respawnT <= 0 && inZone(player.position, zone))
+      || bots.some(b => !b.dead && b.team === 'friendly' && inZone(b.root.position, zone));
+    const themIn = bots.some(b => !b.dead && b.team !== 'friendly' && inZone(b.root.position, zone));
+    let side = null;
+    if (youIn && !themIn) side = 'you';
+    else if (themIn && !youIn) side = 'kestrel';
+    if (side && zone.owner !== side) {
+      if (zone.side !== side) { zone.side = side; zone.prog = 0; }
+      zone.prog += dt / cap;
+      if (zone.prog >= 1) {
+        zone.owner = side;
+        zone.prog = 0;
+        if (side === 'you') xpAdd('capture', 1);
+      }
+    } else {
+      zone.prog = Math.max(0, zone.prog - dt / cap);
+      if (!side) zone.side = null;
+    }
+    M.claimT -= dt;
+    if (M.claimT <= 0) {
+      M.claimT = mode.rotateSeconds;
+      M.claimIdx = (M.claimIdx + 1) % M.zones.length;
+      const nz = M.zones[M.claimIdx];
+      if (contextLineEl) {
+        contextLineEl.textContent = `THE CLAIM MOVES — ${nz.id} (${nz.name}) IS LIVE`;
+        contextLineEl.style.opacity = 1;
+        setTimeout(() => contextLineEl.style.opacity = 0, 2400);
+      }
+    }
+    M.scoreAcc += dt;
+    if (M.scoreAcc >= mode.tickSeconds) {
+      M.scoreAcc -= mode.tickSeconds;
+      if (zone.owner === 'you') M.scoreYou += mode.tickPoints;
+      else if (zone.owner === 'kestrel') M.scoreThem += mode.tickPoints;
+      if (M.scoreYou >= mode.targetScore) endMatch('win');
+      else if (M.scoreThem >= mode.targetScore) endMatch('lose');
+    }
+  }
+
+  // V7.26 — RELAY RUN: fetch the core, run it to the drop.
+  if (selectedMode === 'relay') {
+    M.timeLeft -= dt;
+    if (M.timeLeft <= 0) { M.timeLeft = 0; endMatch('lose'); return; }
+    if (!relayCoreMesh) {
+      relayCoreMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(0.55, 0.55, 0.55),
+        new THREE.MeshStandardMaterial({ color: 0x0c2a33, emissive: 0x35c4ff, emissiveIntensity: 1.6, roughness: 0.4 }));
+      relayCoreMesh.castShadow = true;
+      scene.add(relayCoreMesh);
+    }
+    const bob = Math.sin(performance.now() / 300) * 0.15;
+    relayCoreMesh.rotation.y += dt * 1.6;
+    if (M.carrying) {
+      relayCoreMesh.position.set(player.position.x, player.position.y + 2.35, player.position.z);
+      const drop = M.zones[M.dropIdx];
+      if (M.respawnT <= 0 && inZone(player.position, drop)) {
+        M.deliveries++;
+        xpAdd('capture', 1);
+        M.carrying = false;
+        M.coreState = 'pad';
+        M.dropIdx = (M.dropIdx + 1) % M.zones.length;
+        M.corePad = (M.corePad + 1) % mode.pads.length;
+        M.corePos = { ...mode.pads[M.corePad] };
+        if (contextLineEl) {
+          contextLineEl.textContent = M.deliveries >= mode.targetDeliveries
+            ? 'RELAY COMPLETE'
+            : `DELIVERED — ${M.deliveries}/${mode.targetDeliveries}. NEXT DROP: ${M.zones[M.dropIdx].id}`;
+          contextLineEl.style.opacity = 1;
+          setTimeout(() => contextLineEl.style.opacity = 0, 2400);
+        }
+        if (M.deliveries >= mode.targetDeliveries) { endMatch('win'); return; }
+      }
+    } else if (M.corePos) {
+      relayCoreMesh.position.set(M.corePos.x, (M.corePos.y || 0) + 1.15 + bob, M.corePos.z);
+      const dx = player.position.x - M.corePos.x, dz = player.position.z - M.corePos.z;
+      if (M.respawnT <= 0 && dx * dx + dz * dz < 4 && Math.abs(player.position.y - (M.corePos.y || 0)) < 3.2) {
+        M.carrying = true;
+        M.coreState = 'carried';
+        if (contextLineEl) {
+          contextLineEl.textContent = `CORE TAKEN — RUN IT TO ${M.zones[M.dropIdx].id} (NO SPRINT)`;
+          contextLineEl.style.opacity = 1;
+          setTimeout(() => contextLineEl.style.opacity = 0, 2400);
+        }
+      }
+    }
+  }
+
+  // V7.26 — LAST TRANSMISSION: the ring is the relay. Hostiles
+  // standing in it unchallenged bleed the signal; holding it
+  // yourself patches it back up.
+  if (selectedMode === 'lastsignal') {
+    const pt = mode.point;
+    const youIn = M.respawnT <= 0 && inZone(player.position, pt);
+    const themIn = bots.some(b => !b.dead && inZone(b.root.position, pt));
+    if (themIn && !youIn) {
+      M.integrity -= mode.drainPerSecond * dt;
+      if (M.integrity <= 0) { M.integrity = 0; endMatch('lose'); return; }
+    } else if (youIn && !themIn) {
+      M.integrity = Math.min(mode.integrity, M.integrity + mode.regenPerSecond * dt);
     }
   }
 
@@ -2671,6 +2885,9 @@ function tick() {
   });
   Object.assign(effInput, input);
   effInput.aim = effAimNow;
+  // V7.26 RELAY RUN: carrying the core kills your sprint (the
+  // mode's stated rule — the run is a run, not a sprint).
+  if (selectedMode === 'relay' && M.carrying) effInput.sprint = false;
 
   // USABLE SCOPES (U6-01; every-kind U7-01): sight picture sync.
   // Shown while truly aimed for EVERY sight kind — iron
@@ -2756,6 +2973,7 @@ function tick() {
           snapMode === 'domination'
             ? (sm.zones || []).map(z => ({ ...z, owner: (snap.match.zones || []).find(sz => sz.id === z.id)?.owner ?? null }))
             : snapMode === 'assault' ? [{ ...sm.point, id: '' }]
+            : snapMode === 'claim' ? [{ ...(sm.zones || [])[snap.match.claimIdx ?? 0], owner: (snap.match.zones || []).find(sz => sz.id === (sm.zones || [])[snap.match.claimIdx ?? 0]?.id)?.owner ?? null }]
             : []);
       }
     }
@@ -2828,7 +3046,7 @@ function tick() {
     }
 
     // spawning (wave modes)
-    if (selectedMode === 'waves' || selectedMode === 'assault') {
+    if (selectedMode === 'waves' || selectedMode === 'assault' || selectedMode === 'lastsignal') {
       const aliveCap = Math.min(4 + wave, 9);
       if (toSpawn > 0) {
         spawnTimer -= dt;
@@ -2851,7 +3069,7 @@ function tick() {
       // modes there are no friendlies and every hostile hunts
       // the player, exactly as before.
       let targetPos = player.position;
-      let onShootFn = (d) => damagePlayer(d, b.root.position);
+      let onShootFn = (d) => { lastAttackerBot = b; damagePlayer(d, b.root.position); };
       if (b.team === 'friendly') {
         let best = null, bestD = Infinity;
         for (const h of bots) {
@@ -2889,7 +3107,7 @@ function tick() {
     stepVehiclesAmbient(dt); // R2-1: pose parked vehicles + proximity prompt
 
     // wave clear (wave modes only)
-    if ((selectedMode === 'waves' || selectedMode === 'assault') && toSpawn === 0 && alive === 0 && state === 'playing') {
+    if ((selectedMode === 'waves' || selectedMode === 'assault' || selectedMode === 'lastsignal') && toSpawn === 0 && alive === 0 && state === 'playing') {
       player.hp = Math.min(100, player.hp + 25);
       updateHealth();
       refillGear();
@@ -2898,6 +3116,12 @@ function tick() {
         contextLineEl.textContent = clearLine(wave);
         contextLineEl.style.opacity = 1;
         setTimeout(() => contextLineEl.style.opacity = 0, 2600);
+      }
+      // V7.26: LAST TRANSMISSION ends at the wave-8 clear —
+      // the signal got out. (Death before that is the waves
+      // fallthrough loss in playerDown.)
+      if (selectedMode === 'lastsignal' && wave >= getMode('lastsignal').victoryWave) {
+        endMatch('win');
       }
       if (selectedMode === 'waves' && wave >= getMode('waves').victoryWave && !M.victory) {
         M.victory = true;
