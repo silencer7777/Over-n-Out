@@ -39,6 +39,7 @@ import { getMode } from '../js/modes.js';
 import { THROWABLES, effectiveWeapon, getPerk } from '../js/loadouts.js';
 import { XP_VALUES } from '../js/progression.js';
 import { sanitizeClanTag } from '../js/clans.js';
+import { isCharacterId, CHARACTER_IDS } from '../js/characters.js';
 import {
   EQUIPMENT, SPAWN_EXCLUSION, SMOKE_LOS, smokeDensity,
   losSmokeState, claymoreCone, claymoreDamage, tripDamage, segmentsDistanceXZ,
@@ -389,12 +390,13 @@ function initModeState(match) {
   return st;
 }
 
-export function addSimPlayer(match, id, name, cls = null, clanTag = '') {
+export function addSimPlayer(match, id, name, cls = null, clanTag = '', characterId = '') {
   const mags = {};
   for (const wid of WEAPON_ORDER) mags[wid] = getWeapon(wid).mag;
   const sp = match.world.playerSpawn;
   const p = {
     id, name: name || 'PLAYER', team: 'you', clanTag: sanitizeClanTag(clanTag), // V7.19: self-asserted tag, stored for Stage 2 team assignment
+    characterId: isCharacterId(characterId) ? characterId : '', // V7.20: roster id, validated against js/characters.js
     pos: { x: sp.x, y: match.world.groundHeightAt(sp.x, sp.z, 0), z: sp.z },
     vel: { x: 0, y: 0, z: 0 },
     yaw: 0, pitch: 0, hp: 100, alive: true, radius: PLAYER_RADIUS,
@@ -546,6 +548,7 @@ function spawnBotSim(match, { team = 'kestrel', tier = null, weaponId = null, sp
   const aimJitter = 0.75 + ((botNum * 37) % 50) / 100;
   const bot = {
     id: 'b' + match.nextBotNum++,
+    characterId: CHARACTER_IDS[botNum % CHARACTER_IDS.length], // V7.20: deterministic roster rotation (ordinal-derived, no rng stream cost)
     team, tier: tier || null, roster,
     pos: { x: sp[0], y: sp[1], z: sp[2] },
     yaw: 0, hp: 100, dead: false, deathT: 0, deathBaseY: sp[1],
@@ -2651,6 +2654,7 @@ export function buildSnapshot(match, forPlayerId) {
     } : null,
     players: [...match.players.values()].map(p => ({
       id: p.id, team: p.team, pos: [r2(p.pos.x), r2(p.pos.y), r2(p.pos.z)],
+      char: p.characterId || null, // V7.20: operator for the puppet palette
       yaw: +p.yaw.toFixed(3), pitch: +p.pitch.toFixed(3),
       hp: Math.max(0, Math.ceil(p.hp)), weapon: p.weaponId, alive: p.alive,
       firing: !!(p.input && p.input.fire),
@@ -2660,6 +2664,7 @@ export function buildSnapshot(match, forPlayerId) {
       id: b.id, team: b.team, pos: [r2(b.pos.x), r2(b.pos.y), r2(b.pos.z)],
       yaw: +b.yaw.toFixed(3), hp: Math.max(0, Math.ceil(b.hp)),
       weapon: b.weaponId, dead: b.dead, flinch: b.flinchT > 0,
+      char: b.characterId || null, // V7.20: operator for the puppet palette
     })),
   };
   // V5 world entities ride compact arrays; fields appear only
