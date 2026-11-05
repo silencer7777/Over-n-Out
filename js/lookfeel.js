@@ -67,3 +67,24 @@ export function stepLookAngles(yaw, pitch, targetYaw, targetPitch, dt, aiming) {
 export function easeK(rate, dt) {
   return 1 - Math.exp(-rate * Math.max(0, dt));
 }
+
+// V7.17 AUTO-ADS (owner rule change, Brett, Nov 4: "when I fire
+// I want to automatically aim down the sight" — supersedes the
+// old ADS = hold-right-click-only rule). The single place the
+// frame's aim state is decided, kept pure so the gate suite
+// can pin the whole truth table:
+//   manual  — hold right-click (aim without firing; unchanged)
+//   touch   — the touch ADS toggle (aim without firing)
+//   firing  — trigger held: ADS engages for as long as the
+//             trigger is held, unless blocked (driving, down,
+//             not in a live match state — contexts where the
+//             walker isn't stepping and aiming is meaningless)
+// Releasing the trigger drops back to whichever manual channel
+// is still held (usually none) and the existing ~150 ms
+// aimBlend ease lowers the gun smoothly. Nothing here touches
+// damage, fire rate, or spread NUMBERS — engaging ADS engages
+// the same ADS state (zoom, blend, spreadAds) manual aim
+// always produced.
+export function resolveAim({ manual = false, touch = false, firing = false, blocked = false } = {}) {
+  return !!(manual || touch || (firing && !blocked));
+}
