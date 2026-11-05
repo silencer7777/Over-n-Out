@@ -21,6 +21,7 @@ import { createVehicleActor } from './equipment.js'; // R2-5: online vehicle act
 import { getCharacter, isCharacterId, KIT_STORIES } from './characters.js';
 import { getCamo } from './camo.js';
 import { VEHICLE_SPEC } from './vehicles.js';
+import { getEmote } from './emotes.js'; // V7.27: puppet emote gestures
 
 // --- puppet figures ------------------------------------------------
 // One merged mesh per remote entity (1 draw call), in the soldier
@@ -164,6 +165,13 @@ export class OnlineSession {
         // U6-14/U6-15: chat lines and voice signaling ride the
         // same socket (protocol extension) — routed to hooks.
         if (msg.t === 'chat') { this.hooks.onChat?.(msg); return; }
+        // V7.27: emote relays — the puppet gesture plays here;
+        // the callout line is main's (hooks.onEmote).
+        if (msg.t === 'emote') {
+          if (msg.from !== this.playerId) this.playPuppetEmote(msg.from, msg.emote);
+          this.hooks.onEmote?.(msg);
+          return;
+        }
         if (msg.t === 'signal') { this.hooks.onSignal?.(msg); return; }
         if (msg.t === 'ping') { try { ws.send(JSON.stringify({ t: 'pong', id: msg.id ?? null })); } catch {} }
       };
@@ -301,6 +309,11 @@ export class OnlineSession {
     const k = 1 - Math.exp(-12 * dt);
     for (const pup of this.puppets.values()) {
       const m = pup.mesh;
+      // V7.27: undo last frame's emote offsets before the
+      // interpolation reads the mesh (offsets never accumulate
+      // into the lerp), then re-apply fresh ones below.
+      if (pup._emoteYaw) { m.rotation.y -= pup._emoteYaw; pup._emoteYaw = 0; }
+      if (pup._emoteHop) { m.position.y -= pup._emoteHop; pup._emoteHop = 0; }
       m.position.x += (pup.tx - m.position.x) * k;
       m.position.y += (pup.ty - m.position.y) * k;
       m.position.z += (pup.tz - m.position.z) * k;
@@ -308,6 +321,28 @@ export class OnlineSession {
       while (dy > Math.PI) dy -= Math.PI * 2;
       while (dy < -Math.PI) dy += Math.PI * 2;
       m.rotation.y += dy * k;
+      // V7.27 emote root motion (presentation only).
+      if (pup.emoteT > 0) {
+        pup.emoteT -= dt;
+        const p = 1 - Math.max(0, pup.emoteT) / pup.emoteDur;
+        const env = Math.sin(p * Math.PI);
+        let yaw = 0, hop = 0, pitch = 0;
+        switch (pup.emoteKind) {
+          case 'bow': pitch = 0.38 * env; break;
+          case 'deepbow': pitch = 0.62 * env; break;
+          case 'wiggle': yaw = 0.4 * Math.sin(p * Math.PI * 4) * env; break;
+          case 'spin': yaw = p * Math.PI * 2; break;
+          case 'hop': hop = 0.22 * env; break;
+          case 'cheer': hop = 0.34 * Math.abs(Math.sin(p * Math.PI * 2)); break;
+          default: break;
+        }
+        m.rotation.y += yaw; pup._emoteYaw = yaw;
+        m.position.y += hop; pup._emoteHop = hop;
+        m.rotation.x = pitch;
+        if (pup.emoteT <= 0) { pup.emoteKind = null; m.rotation.x = 0; }
+      } else if (m.rotation.x !== 0) {
+        m.rotation.x = 0;
+      }
     }
     // R2-5: vehicle actors — interpolated toward the snapshot
     // pose, except the driver's own, which renders from the
@@ -354,6 +389,26 @@ export class OnlineSession {
   sendChat(channel, text) {
     if (!this.connected || !this.ws || this.ws.readyState !== 1) return false;
     try { this.ws.send(JSON.stringify({ t: 'chat', channel, text })); return true; } catch { return false; }
+  }
+
+  // V7.27: send an emote gesture (id from js/emotes.js; the
+  // server allowlists and rate-limits it).
+  sendEmote(emote) {
+    if (!this.connected || !this.ws || this.ws.readyState !== 1) return false;
+    try { this.ws.send(JSON.stringify({ t: 'emote', emote })); return true; } catch { return false; }
+  }
+
+  // V7.27: start a puppet's emote gesture (root motion — the
+  // puppets are merged meshes; the update loop composes the
+  // offset so interpolation is never contaminated).
+  playPuppetEmote(playerId, emoteId) {
+    const pup = this.puppets.get('p:' + playerId);
+    if (!pup) return;
+    const def = getEmote(emoteId);
+    if (!def) return;
+    pup.emoteKind = def.puppet;
+    pup.emoteT = def.dur;
+    pup.emoteDur = def.dur;
   }
 
   // U6-15: send a WebRTC signal relayed by the server.
