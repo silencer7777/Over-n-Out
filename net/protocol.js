@@ -37,6 +37,11 @@ export const MSG = Object.freeze({
   // and the change is named in the Update 6 report.
   CHAT: 'chat',
   SIGNAL: 'signal',
+  // V7.27: emotes (Job 2 §7) — a fixed-allowlist gesture relay.
+  // Presentation only, like chat: the id names a gesture from
+  // js/emotes.js; membership is the server's check (this module
+  // stays dependency-free and validates shape only).
+  EMOTE: 'emote',
 });
 
 // Chat channels (U6-14): 'lobby' = the room you are connected
@@ -316,6 +321,28 @@ export function validateChat(msg) {
   }
   if (typeof msg.text !== 'string' || msg.text.trim().length < 1 || msg.text.length > CHAT_MAX_CHARS) {
     errors.push(`text must be a string of 1-${CHAT_MAX_CHARS} characters`);
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+// validateEmote(msg) -> { ok, errors[] }  (V7.27)
+//
+// An emote gesture: { t: 'emote', emote }. The id is shape-
+// checked here (a short lowercase token); whether it names a
+// REAL emote is the server's allowlist check against
+// js/emotes.js, mirroring how bad_mode/bad_map membership is
+// owned outside this module. The server stamps from/name from
+// its own player record, exactly like chat.
+export function validateEmote(msg) {
+  const errors = [];
+  if (!isPlainObject(msg)) {
+    return { ok: false, errors: ['emote message must be an object'] };
+  }
+  if (msg.t !== MSG.EMOTE) {
+    errors.push(`t must be '${MSG.EMOTE}'`);
+  }
+  if (typeof msg.emote !== 'string' || !/^[a-z]{2,16}$/.test(msg.emote)) {
+    errors.push('emote must be a short lowercase id');
   }
   return { ok: errors.length === 0, errors };
 }
