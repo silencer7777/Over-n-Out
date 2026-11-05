@@ -1,1 +1,15 @@
-{"description":"OVER N' OUT — tactical browser FPS. Built in stages: playable core → accounts & cloud saves → store.","engines":{"node":">=18"},"name":"over-n-out","private":true,"scripts":{"guardian":"bash tools/guardian.sh","start":"node server/server.js","test":"node tools/smoke.mjs"},"type":"module","version":"0.7.17"}
+{
+  "description": "OVER N' OUT \u2014 tactical browser FPS. Built in stages: playable core \u2192 accounts & cloud saves \u2192 store.",
+  "engines": {
+    "node": ">=18"
+  },
+  "name": "over-n-out",
+  "private": true,
+  "scripts": {
+    "guardian": "bash tools/guardian.sh",
+    "start": "node server/server.js",
+    "test": "node tools/smoke.mjs"
+  },
+  "type": "module",
+  "version": "0.7.18"
+}
