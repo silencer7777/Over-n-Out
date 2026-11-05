@@ -21,10 +21,10 @@ mkdir -p "$LOG_DIR"
 : > "$LOG_DIR/results"
 run() { node "tools/$1" > "$LOG_DIR/$1.log" 2>&1; echo "$1:$?" >> "$LOG_DIR/results"; }
 lane1() { run smoke.mjs; run biome-check.mjs; }
-lane1 & run reachability.mjs & run reachability-maps.mjs & run mobile-check.mjs & run drivecam-check.mjs & run bridge-check.mjs & run tripwire-check.mjs &
+lane1 & run reachability.mjs & run reachability-maps.mjs & run mobile-check.mjs & run drivecam-check.mjs & run bridge-check.mjs & run tripwire-check.mjs & run characters-check.mjs &
 wait
 fail=0
-for g in smoke.mjs biome-check.mjs reachability.mjs reachability-maps.mjs mobile-check.mjs drivecam-check.mjs bridge-check.mjs tripwire-check.mjs; do
+for g in smoke.mjs biome-check.mjs reachability.mjs reachability-maps.mjs mobile-check.mjs drivecam-check.mjs bridge-check.mjs tripwire-check.mjs characters-check.mjs; do
   rc=$(grep "^$g:" "$LOG_DIR/results" | cut -d: -f2)
   if [ "$rc" = "0" ]; then echo "PASS $g"; else echo "FAIL $g (rc=$rc) — log: $LOG_DIR/$g.log"; fail=1; fi
 done
