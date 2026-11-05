@@ -208,7 +208,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.7.17') fail(`M6 package.json version → ${pkg.version} (expected '0.7.17')`); else ok("M6 package.json version === '0.7.17'");   // V7.17 bump (playtest fix: auto-ADS on fire)
+  if (pkg.version !== '0.7.18') fail(`M6 package.json version → ${pkg.version} (expected '0.7.18')`); else ok("M6 package.json version === '0.7.18'");   // V7.18 bump (second-ring expansion)
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -579,12 +579,12 @@ try {
   // EXTRA 22 -> 37 (+15: U6-11 grew all 14 compound bushes past
   // the blocking rule and planted 6 more (bushes 8 -> 20,
   // +12), fuel-depot tanks +3).
-  if (wd.SOLIDS.length === 178) ok('T1 worlddata SOLIDS === 178 (mirrors world.js solids)');
-  else fail(`T1 worlddata SOLIDS → ${wd.SOLIDS.length} (expected 178 — mirror world.js!)`);
-  if (wd.EXTRA_COLLIDERS.length === 43) ok('T2 worlddata EXTRA_COLLIDERS === 43 (3 trees + 26 big bushes + 5 barrels + 3 wrecks + 3 drums + 3 depot tanks)');   // V7: +6 ring bushes II
-  else fail(`T2 worlddata EXTRA_COLLIDERS → ${wd.EXTRA_COLLIDERS.length} (expected 43)`);
-  if (wd.SPAWN_POINTS.length === 12) ok('T3 worlddata SPAWN_POINTS === 12');
-  else fail(`T3 worlddata SPAWN_POINTS → ${wd.SPAWN_POINTS.length} (expected 12)`);
+  if (wd.SOLIDS.length === 249) ok('T1 worlddata SOLIDS === 249 (mirrors world.js solids; V7.18 second ring +71)');
+  else fail(`T1 worlddata SOLIDS → ${wd.SOLIDS.length} (expected 249 — mirror world.js!)`);
+  if (wd.EXTRA_COLLIDERS.length === 47) ok('T2 worlddata EXTRA_COLLIDERS === 47 (3 trees + 26 big bushes + 5 barrels + 3 wrecks + 3 drums + 3 depot tanks + V7.18 statue + 3 ring drums)');
+  else fail(`T2 worlddata EXTRA_COLLIDERS → ${wd.EXTRA_COLLIDERS.length} (expected 47)`);
+  if (wd.SPAWN_POINTS.length === 16) ok('T3 worlddata SPAWN_POINTS === 16 (V7.18: +4 ring spawns)');
+  else fail(`T3 worlddata SPAWN_POINTS → ${wd.SPAWN_POINTS.length} (expected 16)`);
   if (wd.BARRELS.length === 5) ok('T4 worlddata BARRELS === 5');
   else fail(`T4 worlddata BARRELS → ${wd.BARRELS.length} (expected 5)`);
   // groundHeightAt is step-relative (a top counts only within
