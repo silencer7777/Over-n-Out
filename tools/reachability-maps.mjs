@@ -20,7 +20,7 @@ let failures = 0;
 const fail = m => { failures++; console.error('✗ ' + m); };
 const ok = m => console.log('✓ ' + m);
 
-const CELL = 0.55, HALF = 62, N = Math.ceil((HALF * 2) / CELL);
+const CELL = 0.55;
 const STEP = 0.6, JUMP = 1.6, BODY = 1.75, EPS = 0.001;
 
 function floorsAt(D, colliders, x, z) {
@@ -41,6 +41,9 @@ function floorsAt(D, colliders, x, z) {
 }
 
 function proveMap(id, D) {
+  // V7.21: the grid derives from the map's own BOUNDS (was a
+  // hardcoded 62) so expanded maps are proven at their real size.
+  const HALF = D.BOUNDS, N = Math.ceil((HALF * 2) / CELL);
   const colliders = D.allColliders();
   // Precompute standable floors per cell.
   const cellFloors = new Array(N * N);
