@@ -179,6 +179,7 @@ export class TouchCore {
   pressWeapon(i) { this._noteFirstTouch(); if (this.hooks.weapon) this.hooks.weapon(i); }
   pressPause() { this._noteFirstTouch(); if (this.hooks.pause) this.hooks.pause(); }
   pressInteract() { this._noteFirstTouch(); if (this.hooks.interact) this.hooks.interact(); } // R2-1: vehicle enter/exit (USE button)
+  pressEmote() { this._noteFirstTouch(); if (this.hooks.emote) this.hooks.emote(); } // V7.27: opens the emote bar
   pressOrient() { this._noteFirstTouch(); if (this.hooks.orient) this.hooks.orient(); } // U8-02: fullscreen + landscape-lock request (main owns the platform calls)
 }
 
@@ -242,8 +243,10 @@ export class TouchControls {
       () => this.core.pressOrient());
     this.interactBtn = this._tapButton('tc-btn tc-interact', 'USE',
       () => this.core.pressInteract());
+    this.emoteBtn = this._tapButton('tc-btn tc-emote', 'EMOTE',
+      () => this.core.pressEmote());
     for (const b of [this.fireBtn, this.adsBtn, this.jumpBtn, this.reloadBtn,
-                     this.lethalBtn, this.tacticalBtn, this.streakBtn, this.pauseBtn, this.stanceBtn, this.orientBtn, this.interactBtn]) {
+                     this.lethalBtn, this.tacticalBtn, this.streakBtn, this.pauseBtn, this.stanceBtn, this.orientBtn, this.interactBtn, this.emoteBtn]) {
       root.appendChild(b);
     }
 
