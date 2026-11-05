@@ -208,7 +208,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.7.24') fail(`M6 package.json version → ${pkg.version} (expected '0.7.24')`); else ok("M6 package.json version === '0.7.24'");   // V7.24 bump (Job 2: glitch pass + outpost)
+  if (pkg.version !== '0.7.25') fail(`M6 package.json version → ${pkg.version} (expected '0.7.25')`); else ok("M6 package.json version === '0.7.25'");   // V7.25 bump (Job 2: Meridian Orbital)
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -767,10 +767,10 @@ try {
   const period = 2 * Math.PI * S.UAV_SPEC.orbitRadius / S.UAV_SPEC.speed;
   if (p1.x === p2.x && p1.z === p2.z && Math.abs(Math.hypot(p1.x, p1.z) - 30) < 0.01 && period > 13 && period < 14) ok(`ST3 drone circuit deterministic, r30, period ${period.toFixed(1)}s at 14 m/s`);
   else fail(`ST3 drone circuit wrong: ${JSON.stringify(p1)} period ${period}`);
-  // MP1 registry: 4 maps, contract exports on every data module.
+  // MP1 registry: 5 maps (V7.25 added Meridian Orbital), contract exports on every data module.
   const contract = ['BOUNDS', 'SPAWN_POINTS', 'MODE_ZONES', 'ASSAULT_TARGET', 'PICKUP_CACHES', 'TRANSMISSIONS'];
   const allHave = MP.MAPS.every(m => contract.every(k => m.data[k] !== undefined) && typeof m.data.groundHeightAt === 'function');
-  if (MP.MAPS.length === 4 && allHave && MP.getMap('compound').layout === 'distinct') ok('MP1 map registry: 4 levels, worlddata contract complete on all');
+  if (MP.MAPS.length === 5 && allHave && MP.getMap('compound').layout === 'distinct') ok('MP1 map registry: 5 levels, worlddata contract complete on all');
   else fail('MP1 map registry/contract incomplete');
   // MP2 R2/R4: assault attackers stage from the tower-unseen set.
   const unseen = MP.ASSAULT_ATTACKER_SPAWNS.compound;
