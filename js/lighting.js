@@ -37,6 +37,7 @@ export const ELEVATION_BANDS = {
   forest: [32, 42],
   snow: [40, 50],
   mars: [36, 48],
+  orbital: [30, 46],
 };
 
 // sRGB luma of a 0xRRGGBB colour (the proxy formula's weights).
@@ -144,6 +145,21 @@ export const LIGHTING_PROFILES = {
     // disc/glow hide here. One sun per sky.
     disc: false, discColor: 0xffe9c4, glowColor: 0xffd9a0, glowScale: 70, glowAlpha: 0.4,
     stars: 0, exposure: 1.06, shadowExtent: 86,
+  },
+  // MERIDIAN ORBITAL (V7.25, Job 2 §4): hard orbital sunlight
+  // over a near-black sky — Earthlight hemi, cold deck, stars
+  // full, no clouds (there is no weather in a hard vacuum).
+  orbital: {
+    id: 'orbital', name: 'Orbital Noon — hard vacuum light',
+    sunXZ: [-0.515, -0.858], elevationDeg: 38,
+    sunColor: 0xf4f7ff, sunIntensity: 2.9,
+    hemiSky: 0x5f7fb8, hemiGround: 0x141a24, hemiIntensity: 0.6,
+    fogColor: 0x11151f, fogNear: 50, fogFar: 240,
+    sky: { zenith: 0x02030a, mid: 0x0a0f1c, horizon: 0x11151f },
+    clouds: { tint: 0x000000, cover: 0.0, alpha: 0.0 },
+    dome: 'profile',
+    disc: true, discColor: 0xffffff, glowColor: 0xdfe9ff, glowScale: 60, glowAlpha: 0.5,
+    stars: 0.9, exposure: 1.08, shadowExtent: 86,
   },
 };
 
