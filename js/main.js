@@ -20,6 +20,7 @@ import {
 import { CAMO_IDS, getCamo } from './camo.js';
 import { EMBLEMS, SHOP_EMBLEMS, getEmblem, isEmblemUnlocked, BADGES, getBadge, claimDailyReward, recordMatch, TIER_PACKAGES, SPECIAL_OFFERS, getShopItem, purchaseItem, priceFor, featuredOfferId } from './meta.js'; // U13 meta phase 1 + U14 phase 2 (shop)
 import { OnlineSession } from './online.js';
+import { sanitizeClan, taggedCallsign } from './clans.js';
 import { LobbyChat } from './chat.js';   // U6-14 menu chatroom
 import { VoiceChat } from './voice.js'; // U6-15 WebRTC voice
 import { TouchControls, isTouchDevice } from './touchcontrols.js';
@@ -170,7 +171,7 @@ function goLandscape() {
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
 // version tag — Brett reads "BUILD V7.2" in the menu footer.
-const BUILD_NO = 'V7.18';
+const BUILD_NO = 'V7.19';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -366,6 +367,33 @@ let lobbyChat = null;              // LobbyChat — the menu chatroom socket
 const camoPickersEl = $('camo-pickers');
 const metaLineEl = $('meta-line'), emblemPickersEl = $('emblem-pickers'), badgeLineEl = $('badge-line');
 const dailyBtn = $('daily-btn'), dailyLineEl = $('daily-line');
+// V7.19 clan groundwork: name + tag live in the profile (RECORD
+// tab); the tag prefixes the online callsign and rides the hello
+// as a structured field. Clan WAR itself needs accounts (Stage
+// 2) — the PLAY-tab entry says so instead of faking a mode.
+const clanNameEl = $('clan-name'), clanTagEl = $('clan-tag'), clanLineEl = $('clan-line');
+function syncClanUI() {
+  const c = profile.meta.clan;
+  if (clanNameEl && document.activeElement !== clanNameEl) clanNameEl.value = c.name;
+  if (clanTagEl && document.activeElement !== clanTagEl) clanTagEl.value = c.tag;
+  if (clanLineEl) clanLineEl.textContent = c.tag
+    ? `Clan ${c.name || '(unnamed)'} — your callsign shows as [${c.tag}] online. Wars arrive with accounts.`
+    : 'No clan set. Clan wars arrive with accounts — tags are live now.';
+}
+function onClanInput() {
+  profile.meta.clan = sanitizeClan({ name: clanNameEl?.value, tag: clanTagEl?.value });
+  persistProfile();
+  syncClanUI();
+}
+if (clanNameEl) clanNameEl.addEventListener('change', onClanInput);
+if (clanTagEl) clanTagEl.addEventListener('change', onClanInput);
+syncClanUI();
+const clanwarBtn = $('clanwar-btn'), clanwarLineEl = $('clanwar-line');
+if (clanwarBtn) clanwarBtn.addEventListener('click', () => {
+  if (clanwarLineEl) clanwarLineEl.textContent = profile.meta.clan.tag
+    ? `Your clan [${profile.meta.clan.tag}] is registered locally — clan-vs-clan wars unlock with accounts (Stage 2). Tags already show online.`
+    : 'Set a clan name + tag in the RECORD tab first — tags already show online; clan-vs-clan wars unlock with accounts (Stage 2).';
+});
 const shopLineEl = $('shop-line'), packagePickersEl = $('package-pickers'), offerLineEl = $('offer-line'), offerPickersEl = $('offer-pickers'); // U14 shop
 const QUALITY_BY_MODE = { high: 0, medium: 2, low: 3 };
 
@@ -2183,7 +2211,7 @@ if (chatConnectBtn) chatConnectBtn.addEventListener('click', async () => {
     if (chatMenuStatusEl) chatMenuStatusEl.textContent = 'Chat disconnected.';
     return;
   }
-  const name = (onlineNameEl?.value || '').trim() || 'BRETT';
+  const name = taggedCallsign((onlineNameEl?.value || '').trim() || 'BRETT', profile.meta.clan);
   lobbyChat = new LobbyChat({
     onLine: (line) => { if (!chatMuted(line.name)) appendChatLine(chatMenuLogEl, line, { muteBtn: true }); },
     onStatus: (t) => { if (chatMenuStatusEl) chatMenuStatusEl.textContent = t; },
@@ -2232,7 +2260,7 @@ function buildOnlineSample(seq) {
 async function joinOnline() {
   if (session || joiningOnline) return;
   sfx.ensure();
-  const name = (onlineNameEl?.value || '').trim() || 'BRETT';
+  const name = taggedCallsign((onlineNameEl?.value || '').trim() || 'BRETT', profile.meta.clan);
   let room = (onlineRoomEl?.value || '').trim().toUpperCase();
   if (room && room.length !== 4) { setOnlineStatus('Room codes are 4 characters — or leave blank for the lobby.'); return; }
   if (!room) room = null;
@@ -2310,7 +2338,7 @@ async function joinOnline() {
     if (p && p.catch) p.catch(() => {});
   } catch (e) { /* pointer lock is a courtesy here; welcome decides */ }
   try {
-    const welcome = await session.connect(url, { name, room, mode: selectedMode, loadout });
+    const welcome = await session.connect(url, { name, room, mode: selectedMode, loadout, clan: profile.meta.clan.tag });
     bots.forEach(b => scene.remove(b.root));
     bots = [];
     player.reset();
