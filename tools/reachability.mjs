@@ -169,12 +169,12 @@ if (worldSrc) {
   else ok('V4 pin relay tower L2 exists in js/world.js (elevated(40, 2.3, -57.75, ...))');
   // U6-12 RE-PIN (named): the expansion moved the walls out —
   // bounds 62 -> 80 in both sources, by design.
-  if (!worldSrc.includes('bounds: 80')) fail('U6-12 pin — buildWorld bounds: 80 missing from js/world.js');
-  else ok('U6-12 pin buildWorld returns bounds: 80 in js/world.js (re-pinned from 62)');
+  if (!worldSrc.includes('bounds: 104')) fail('V7.18 pin — buildWorld bounds: 104 missing from js/world.js');
+  else ok('V7.18 pin buildWorld returns bounds: 104 in js/world.js (re-pinned from 80)');
 }
 if (worlddataSrc) {
-  if (!worlddataSrc.includes('export const BOUNDS = 80')) fail('U6-12 pin — worlddata BOUNDS = 80 missing (sim mirror)');
-  else ok('U6-12 pin worlddata BOUNDS === 80 (sim mirror agrees; re-pinned from 62)');
+  if (!worlddataSrc.includes('export const BOUNDS = 104')) fail('V7.18 pin — worlddata BOUNDS = 104 missing (sim mirror)');
+  else ok('V7.18 pin worlddata BOUNDS === 104 (sim mirror agrees; re-pinned from 80)');
 }
 for (const r of ROUTES) if (r.pass === 'PIN_RUIN') r.pass = ruinPin;
 
