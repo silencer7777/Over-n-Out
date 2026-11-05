@@ -9,9 +9,9 @@
 // objective that matters right now.
 //
 // Map frame: north-up. World -Z is up on the map, +X is right;
-// the playable square is ±MAP_BOUNDS (worlddata BOUNDS = 80).
+// the playable square is ±MAP_BOUNDS (worlddata BOUNDS = 104).
 
-export const MAP_BOUNDS = 80;
+export const MAP_BOUNDS = 104; // V7.18: matches worlddata BOUNDS
 
 // World (x, z) -> minimap pixel (px, py) on a square of `size`.
 // Out-of-bounds inputs are CLAMPED to the edge (anti-glitch law:
