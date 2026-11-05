@@ -37,7 +37,7 @@ import {
   DEFAULT_MODE,
 } from './protocol.js';
 import { WEAPONS } from '../js/weapons.js';
-import { MODE_ORDER } from '../js/modes.js';
+import { MODE_ORDER, ONLINE_MODE_IDS } from '../js/modes.js';
 import { validateClass } from '../js/loadouts.js';
 import { XP_VALUES } from '../js/progression.js';
 import { isMapId, DEFAULT_MAP_ID } from '../js/maps.js';
@@ -211,7 +211,7 @@ export class GameServer {
     if (this.rooms.size >= this.maxRooms) return null;
     const room = {
       code,
-      mode: MODE_ORDER.includes(mode) ? mode : DEFAULT_MODE,
+      mode: ONLINE_MODE_IDS.includes(mode) ? mode : DEFAULT_MODE,
       map: isMapId(map) ? map : DEFAULT_MAP_ID,
       players: new Map(),
       tick: 0,
