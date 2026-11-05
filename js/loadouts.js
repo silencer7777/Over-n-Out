@@ -45,6 +45,22 @@ export const ATTACHMENTS = [
   { id: 'sniper', name: 'SNIPER SCOPE 5×', slot: 'optic', weapons: ['dmr'],
     benefit: 'Aimed spread ×0.62, 5× aim zoom', tradeoff: 'Aim movement ×0.85 — a long-range tool only',
     mods: { spreadAds: 0.62, adsZoom: 5.0, moveAds: 0.85 } },
+  // V7.23 SCOPES MASTERY (Job 2 §1): the lineup completed —
+  // a red-dot VARIANT (pinpoint: smaller picture, dot only),
+  // the missing 2× rung (Meridian combat optic, chevron), and
+  // the high-power VARIANT above the 5× (Longrange 8×, DMR
+  // only). Each carries its own sight kind (player.js adsKind)
+  // and therefore its own reticle picture (css/style.css).
+  // Names are Over n' Out's own (Meridian house line), §5.
+  { id: 'microdot', name: 'PINPOINT DOT', slot: 'optic', weapons: 'all',
+    benefit: 'Aimed spread ×0.88, 1.25× aim zoom — the smallest, fastest picture', tradeoff: 'Dot only, no ring — easy to lose in clutter',
+    mods: { spreadAds: 0.88, adsZoom: 1.25 } },
+  { id: 'optic2x', name: 'MERIDIAN OPTIC 2×', slot: 'optic', weapons: ['ar', 'smg', 'dmr'],
+    benefit: 'Aimed spread ×0.75, 2× aim zoom, chevron reticle', tradeoff: 'Aim movement ×0.93',
+    mods: { spreadAds: 0.75, adsZoom: 2.0, moveAds: 0.93 } },
+  { id: 'longshot', name: 'LONGRANGE 8×', slot: 'optic', weapons: ['dmr'],
+    benefit: 'Aimed spread ×0.55, 8× aim zoom — the longest glass in the game', tradeoff: 'Aim movement ×0.78 — a prone-and-patient tool only',
+    mods: { spreadAds: 0.55, adsZoom: 8.0, moveAds: 0.78 } },
   { id: 'laser', name: 'LASER', slot: 'underbarrel', weapons: ['ar', 'smg', 'shotgun', 'pistol'],
     benefit: 'Hip spread ×0.75, visible beam', tradeoff: 'Aimed spread ×1.10 — the beam gives you away',
     mods: { spread: 0.75, spreadAds: 1.10 }, beam: true },
