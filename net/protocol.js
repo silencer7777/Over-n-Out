@@ -115,6 +115,11 @@ export const STREAK_CALL_IDS = Object.freeze(['uav', 'cuav', 'package', 'sentry'
 //   first hello to a fresh room sets the room's mode; later hellos
 //   join the room's mode whatever they ask for (welcome reports
 //   the room's actual mode).
+// - clan: the player's clan tag (V7.19 groundwork): a string of
+//   at most 5 alphanumeric chars, '' or absent for no clan. The
+//   server sanitizes it onto the player record (js/clans.js);
+//   it asserts NOTHING about membership — clan ownership needs
+//   Stage 2 signed sessions (docs/STAGE2-SESSIONS.md §9).
 // - loadout: ONE class object ({ name, primary, attachments,
 //   tactical, lethal }) — the class the player spawns with,
 //   validated server-side by js/loadouts.js validateClass()
@@ -149,6 +154,10 @@ export function validateHello(msg) {
   if (msg.session !== undefined &&
       (typeof msg.session !== 'string' || msg.session.length > 1024)) {
     errors.push('session must be a string of at most 1024 characters');
+  }
+  if (msg.clan !== undefined &&
+      (typeof msg.clan !== 'string' || msg.clan.length > 5 || !/^[A-Za-z0-9]*$/.test(msg.clan))) {
+    errors.push('clan must be a string of at most 5 alphanumeric chars (the clan tag)');
   }
   if (msg.mode !== undefined && !isValidModeId(msg.mode)) {
     errors.push('mode must be a mode id (lowercase, 1-32 chars)');
