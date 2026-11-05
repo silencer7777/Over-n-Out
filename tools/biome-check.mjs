@@ -187,7 +187,8 @@ else fail('B0 mars registry status → ' + BIOMES.find(b => b.id === 'mars')?.st
     const D = await import(pathToFileURL(join(ROOT, `js/worlddata-${id}.js`)).href);
     const tag = 'L-' + id;
     // Data contract (Board §3.2 shape, compound-identical).
-    const contractOk = D.BOUNDS === 62 && D.SPAWN_POINTS.length === 8
+    // V7.21 named re-pin: BOUNDS 62 -> 84 (the expansion).
+    const contractOk = D.BOUNDS === 84 && D.SPAWN_POINTS.length === 8
       && D.SOLIDS.length > 0 && D.STRUCTURE_STYLE.length === D.SOLIDS.length
       && D.MODE_ZONES.A && D.MODE_ZONES.B && D.MODE_ZONES.C && D.ASSAULT_TARGET
       && D.PICKUP_CACHES.length === 2 && D.TRANSMISSIONS.length === 3 && D.BARRELS.length >= 1;
