@@ -1295,3 +1295,152 @@ U6-12 facade drift, HQ west face slice only (windows → −24.69,
 parapet → −24.65, band → −24.66, corner boards → −24.5;
 coordinate-only in existing merged meshes, +0 calls / +0 tris /
 no casters, green-or-revert) per Sunday's focus list.
+
+---
+
+## Wed Nov 4, 2026 — FIX PRACTICE
+
+**Staff:** Training Lead (ran the session), REVIEWER (recent record,
+read-only), COACH (drill design + rubric; grading pass on the final
+files by a fresh Coach instance — the design instance had closed
+before grading — recorded below).
+
+**Pre-checks:** Tree clean on `main` at `443c574` before the
+session — full session allowed. Guardian Nov 4 08:07 PT Watch
+rotation: all-pass, SMOKE PASSED, mobile-check T1–T13 pass, live
+integrity byte-identical to HEAD, no Medic assignments. Baseline
+smoke (Lead, pre-drill): **PASSED, exit 0, 341 checks** (up from
+335 — the Lockdown pass added pins N16–N21). Baseline v6-metrics
+captured (below); the harness's `v6-metrics.json` writer
+side-effect was restored on every run, as in prior sessions.
+
+**Target (from Sunday's Nov 1 focus list, repeated as Tuesday's
+next-session line):** U6-12 facade drift, HQ west face slice
+only — windows → x −24.69, parapet → −24.65, band → −24.66,
+corner boards → −24.5. Coordinate-only in existing merged
+meshes, +0 calls / +0 tris / no casters, green-or-revert. Ops'
+four drifted faces are explicitly NOT this slice.
+
+**Reviewer findings (tree-verified by Lead where load-bearing):**
+- Since Tuesday's session: V7.6–V7.9 shipped and the Lockdown
+  pass landed (`479b3e4`) — the Oct 30 backend-defence list
+  (connection/room caps, non-input rate cap, violation logging,
+  re-hello refusal, signal cap reconciliation, Origin check,
+  status JSON room-code removal) is CLOSED by build-session
+  work, not training. Still open, not regressions: Stage 2
+  signed sessions (designed only, Brett's 3 decisions pending)
+  and the host Mac firewall checklist (Brett's half).
+- Ground truth for the fix: HQ west wall centre x −24.5,
+  thickness 0.3 → outer face −24.65, inner face −24.35
+  (`js/world.js:691,700`; mirrored `worlddata.js:163,167`).
+  The drifted windows at −22.19 floated 2.16 m INSIDE the room
+  from the inner face. Every target is exactly old value − 2.50
+  (the U6-12 growth delta), cross-checked against the aligned
+  faces (south windows = outer 46.65 + 0.04 = 46.69; parapet
+  centres sit on outer faces; bands sit 0.01 proud; corner
+  boards sit on wall centrelines).
+- Under-tested, unchanged: facade geometry has NO gate pin —
+  exactly why this drift survived since Oct 28; Friday Nov 6's
+  TEST CRAFT anchor pin is the remedy. ASSAULT U1–U3, VM2 §9
+  items 2–4, TTK re-baseline, and V7/V7.5–V7.9 playtest
+  verdicts all remain open.
+- Residual found, NOT in this slice (recorded, not improvised):
+  the HQ north/south parapets (centre −12, length 20.6, spanning
+  −22.3..−1.7) and floor-line bands (length 20.2) are also short
+  at their west ends against the widened walls (−24.5..−2) and
+  roof (−24.8..−1.7). Shifting them would break their correct
+  east ends; lengthening is a separate scoping decision for a
+  build session or a future drill.
+
+**Drill run (`js/world.js` facade block only, closed list):**
+- Via `FACADE_ANCHORS` (one line, two values): `hqWestWinX` and
+  `hqWestUpperWinX` −22.19 → **−24.69**. No call-site edits:
+  `win()`'s W-branch frame/sill/pane/mullion all take `cx`, so
+  all sub-parts move together. Table stays frozen, no new keys.
+- Hand-synced `t_()` literals (Lesson 31's predicted duty —
+  trim is NOT table-sourced, and the log states so plainly):
+  west parapet −22.15 → **−24.65**; west floor-line band
+  −22.16 → **−24.66**; corner-board loop west pair −22 →
+  **−24.5** (east pair −2 and all z untouched).
+- `FACADE_ANCHORS` header rewritten to the landed state (the
+  Oct 31 rule: a stale claim in the record is a defect): it now
+  states the windows came from the table, the parapet/band/
+  corners were hand-synced literals, and the table is the
+  single source for west WINDOWS only — not the whole face.
+
+**Proof (parsed, not eyeballed — Lesson 31):**
+- Facade geometry multiset (bucket, x, y, z, w, h, d, colour,
+  rotations — extracted by executing the facade bucket block
+  against a stub THREE): **165 parts before and after; exactly
+  12 parts differ, every one Δx = −2.50, Δy = Δz = Δsize =
+  Δbucket = 0** — P ×8 (2 window frames + 2 sills via `win()`,
+  1 parapet, 1 band, 2 corner boards), GC ×2 (ground west pane
+  + mullion), GW ×2 (upper west pane + mullion). Every other
+  part — all Ops, HQ N/S/E, Comms, interior panels — identical.
+- v6-metrics before/after, every field identical (§3.4 offset
+  named, Lesson 5: +0 calls / +0 tris / +0 casters, merged
+  meshes unchanged in count): compound sustained 135 calls /
+  98,436 tris, static 52 / 38,308, casters 30, shadow 190 /
+  82,102; forest 149 / 291,110, static 66 / 230,982, casters
+  38; snow 148 / 136,744, static 65 / 76,616, casters 40; mars
+  150 / 121,266, static 67 / 61,138, casters 40. The harness's
+  pre-existing warnings (lighting hash vs the stale V6
+  baseline, sun-disc flat strike, soldier bar, version note)
+  are unchanged and were not touched.
+
+**Mid-session collision + stand-down + re-land (honest record):**
+The first landing above was interrupted during the after-metrics
+run: a second session put a V7.10 slice into the same tree
+(touch rotate — `index.html`, `js/main.js`, `js/touchcontrols.js`,
+`package.json`, `tools/mobile-check.mjs`, `tools/smoke.mjs`,
+timestamps 17:01–17:02 UTC; the metrics gates line read smoke
+FAIL (340) mid-race, that session's own smoke was in flight
+minutes later, and no file overlapped `js/world.js`). Per the
+one-pen rule the Lead stood down: saved the exact patch,
+reverted `js/world.js`, and re-verified the facade multiset
+byte-identical to HEAD. That session then committed its slice
+(`0e8b92d studio(input): V7.10 touch rotate fix`) and the tree
+went clean, so the Lead re-landed in-session: patch applied
+byte-exact, multiset re-verified identical to the proven
+after-state, metrics re-run green (gates smoke PASS 341) with
+every map field identical to the morning baseline (the baseline
+was captured on the V7.9 tree and the after-state on the V7.10
+tree — V7.10 touched no scene geometry, so the comparison
+holds). New Lesson 33.
+
+**Close-out verification (Lead, personally run):**
+`node tools/smoke.mjs` → **SMOKE PASSED, exit 0** on the
+end-state tree (341 ✓ lines, same count as the morning
+baseline), after the records below were written.
+
+**Grade:** **PASS** (Coach grading pass on the final files —
+all eight rubric criteria C1–C8 verified independently: the
+working-tree `js/world.js` diff byte-identical to the saved
+proven patch; exact values confirmed live; multiset proof and
+metrics re-checked field-for-field; close-out smoke PASS at
+the 341 baseline count; header rewrite honest about the
+hand-sync. Coach's rulings: (b) the mid-session stand-down +
+revert was CORRECT at the time — "a correct decision is not
+retroactively wrong because the tree later freed up; the
+sequence — prove, stand down, revert, re-land byte-exact,
+re-verify — is Lesson 33 working as designed"; it also noted
+V7.10's own report explicitly disclaimed the `world.js` edit,
+confirming the two pens never entangled. (d) Friday Nov 6's
+gate pin proceeds as planned, pinning the landed values
+directly. One execution warning, acted on: a third session
+(V7.11 gunshot re-voice) was in flight during grading, so this
+commit is pathspec-scoped to `js/world.js` + `docs/training/`
+only — by commit time V7.11 had itself landed (`1db281c`) and
+the tree carried only the training files.)
+
+**Commits:** one local commit, `training: fix practice — HQ
+west facade re-anchored to post-U6-12 wall (12 parts, Δx −2.50)`.
+Not pushed.
+
+**New lessons:** 33 (a mid-session collision triggers the same
+stand-down as a dirty start; a saved patch + parsed proof make
+the re-land mechanical). Lesson 31's scope note updated to
+record the west re-anchor as landed. Next session: Thu Nov 5 —
+EFFICIENCY, Forest shadow-budget re-baseline per Sunday's focus
+list. Friday Nov 6's anchor gate pin proceeds as planned — it
+now has a landed west face to pin.
