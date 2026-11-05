@@ -427,8 +427,11 @@ export function buildWorld(scene) {
   // face 104). The +-80 line becomes the SECOND RUIN LINE below
   // (merged segments with road gaps, mirroring worlddata).
   const RUIN_SEGMENTS = [
-    // north (z=-50): gaps [-30,-24], [-3,3], [21,27]; last segment dropped to 5.4 (ruin character)
-    B(-40.5, -50, 21, 2, 7), B(-13.5, -50, 21, 2, 7), B(12, -50, 18, 2, 7), B(39, -50, 24, 2, 5.4),
+    // north (z=-50): gaps [-30,-24], [-3,3], [21,27]; last segment dropped to 5.4 (ruin character).
+    // V7.22: NO segment across the relay tower span x[33,47] — the tower body seals the
+    // line itself; the old 5.4 run cut the tower's L1 deck in two and made Domination C /
+    // the Assault console unreachable (mirror of js/worlddata.js; zone-reachability gate).
+    B(-40.5, -50, 21, 2, 7), B(-13.5, -50, 21, 2, 7), B(12, -50, 18, 2, 7), B(30, -50, 6, 2, 5.4), B(49, -50, 4, 2, 5.4),
     // south (z=50): gaps [-27,-21], [-3,3], [24,30]
     B(-39, 50, 24, 2, 7), B(-12, 50, 18, 2, 7), B(13.5, 50, 21, 2, 7), B(40.5, 50, 21, 2, 7),
     // east (x=50): gaps z [-33,-27] (tower lane), [15,21]
