@@ -12,12 +12,12 @@
 // (pure LCG math) and exported as ROCK_SPOTS — the builder
 // renders exactly these spots and derives colliders from them.
 
-export const BOUNDS = 62;
+export const BOUNDS = 84; // V7.21 expansion (was 62)
 
 export const SPAWN_POINTS = [
-  [-56, 0, -52], [56, 0, 52], [-56, 0, 52], [20, 0, -56],
-  [-20, 0, 56], [56, 0, -8], [-56, 0, -8], [8, 0, 56],
-];
+  [-76, 0, -72], [76, 0, 72], [-76, 0, 72], [28, 0, -76],
+  [-28, 0, 76], [76, 0, -10], [-76, 0, -10], [10, 0, 76],
+]; // V7.21: pushed out with the bounds
 
 const B = (x0, y0, z0, x1, y1, z1) => ({ min: [x0, y0, z0], max: [x1, y1, z1] });
 
@@ -82,6 +82,14 @@ export const TRANSMISSIONS = [
   { id: 'crater-survey', x: -30, y: 0, z: 52 },
 ];
 
+// --- V7.21: NE solar posts (second array, diagonal) + SW
+// regolith terraces — ring landmarks in the expansion band.
+S('metal', 58.8, 0, -40.2, 59.2, 1.5, -39.8);
+S('metal', 63.8, 0, -35.2, 64.2, 1.5, -34.8);
+S('metal', 68.8, 0, -30.2, 69.2, 1.5, -29.8);
+S('regolith', -76, 0, 44, -56, 0.575, 47);
+S('regolith', -76, 0, 47, -56, 1.15, 50);
+
 // --- Seeded rust-rock scatter (single source) -----------------
 const SEED = 20261111;
 function makeRng(seed) {
@@ -103,9 +111,9 @@ function pointClear(x, z, pad) {
 export const ROCK_SPOTS = (() => {
   const rng = makeRng(SEED);
   const out = [];
-  for (let tries = 0; out.length < 40 && tries < 40 * 160; tries++) {
-    const x = -58 + rng() * 116;
-    const z = -58 + rng() * 116;
+  for (let tries = 0; out.length < 54 && tries < 54 * 160; tries++) { // V7.21: 40 -> 54 rocks
+    const x = -80 + rng() * 160;
+    const z = -80 + rng() * 160; // V7.21: scatter square grows with the bounds
     if (!pointClear(x, z, 0.4)) continue;
     let okSep = true;
     for (const p of out) if (Math.hypot(x - p.x, z - p.z) < 5.2) { okSep = false; break; }
