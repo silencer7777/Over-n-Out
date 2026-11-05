@@ -445,7 +445,7 @@ export class GameServer {
           if (room.mode === 'waves') startWaveSim(room.match, room.pendingEvents);
         }
         if (!room.match.players.has(playerId)) {
-          addSimPlayer(room.match, playerId, msg.name, loadout, msg.clan);
+          addSimPlayer(room.match, playerId, msg.name, loadout, msg.clan, msg.character);
         }
         // Welcome (§5.1) — carrying the server's weapons table so
         // a client can catch version skew at the handshake, plus
