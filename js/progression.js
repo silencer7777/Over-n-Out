@@ -91,6 +91,12 @@ export const UNLOCKS = [
   { level: 17, kind: 'attachment', id: 'suppressor', label: 'SUPPRESSOR' },
   { level: 18, kind: 'classSlot', slot: 5, label: 'CLASS SLOT 5' },
   { level: 19, kind: 'attachment', id: 'sniper', label: 'SNIPER SCOPE 5×' },
+  // V7.23 scopes mastery rungs (Job 2 §1): the dot variant
+  // mid-ladder, then the two Meridian-house optics above the
+  // 5× rung — the ladder now tops out at the 8×.
+  { level: 13, kind: 'attachment', id: 'microdot', label: 'PINPOINT DOT' },
+  { level: 20, kind: 'attachment', id: 'optic2x', label: 'MERIDIAN OPTIC 2×' },
+  { level: 24, kind: 'attachment', id: 'longshot', label: 'LONGRANGE 8×' },
   // V5 perks (Board 005 Addendum 3 — Havoc's frame: sprinkled
   // L3–L17 beside the attachment rungs; rungs assigned by the
   // Coordinator). Perks are power-lane (bounded single-axis
