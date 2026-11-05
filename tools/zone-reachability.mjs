@@ -231,6 +231,61 @@ for (const dressing of [null, ...BIOMES.filter(b => b.id !== 'compound').map(b =
   const label = dressing ? `solo/${dressing}` : 'solo/plain';
   console.log(`[${label}] ${colliders.length} colliders`);
   checkObjectives(label, colliders, world.bounds, starts, soloZones, soloAssault);
+  if (!dressing) {
+    // POI: the V7.24 South Outpost roof must be walk-up
+    // reachable in the solo world too.
+    const w = walkableFrom(colliders, world.bounds, starts);
+    if (w.standsWithin(-24, 66, 2.85, 1.5)) pass('solo/plain POI outpost roof: reachable on foot');
+    else fail('solo/plain POI outpost roof (-24, 66): NOT REACHABLE on foot');
+  }
+}
+
+// ---------- POIs on data models (named high ground) ----------
+{
+  const data = await imp('js/worlddata.js');
+  const starts = data.SPAWN_POINTS.map(s => ({ x: s[0], z: s[2] }));
+  for (const [setName, colliders] of [['sim', data.SOLIDS.concat(data.EXTRA_COLLIDERS || [])], ['canonical', data.allColliders()]]) {
+    const w = walkableFrom(colliders, data.BOUNDS, starts);
+    if (w.standsWithin(-24, 66, 2.85, 1.5)) pass(`compound/${setName} POI outpost roof: reachable on foot`);
+    else fail(`compound/${setName} POI outpost roof (-24, 66): NOT REACHABLE on foot`);
+  }
+}
+
+// ---------- mirror check (Job 2 §2 remainder, V7.24) ----------
+// The compound lives twice: js/worlddata.js (sim) and the
+// hand-built js/world.js (client). The V7.22 bug class was
+// born in that gap, so the two collider sets must now MATCH
+// as multisets within 5 cm (data was extracted with rounding;
+// sub-5 cm deltas are representation, not drift). The four
+// outer perimeter walls are excluded: the two sides segment
+// the corners differently by design (same sealed line).
+{
+  const scene = new THREE.Scene();
+  const world = buildWorld(scene);
+  const data = await imp('js/worlddata.js');
+  const isPerimeter = (b) => (b.max[1] === 7) &&
+    (Math.abs(b.min[0]) >= 104 || Math.abs(b.max[0]) >= 104 || Math.abs(b.min[2]) >= 104 || Math.abs(b.max[2]) >= 104);
+  const dataBoxes = data.allColliders().filter(b => !isPerimeter(b));
+  const realBoxes = world.colliders
+    .map(b => ({ min: [b.min.x, b.min.y, b.min.z], max: [b.max.x, b.max.y, b.max.z] }))
+    .filter(b => !isPerimeter(b));
+  const TOL = 0.05;
+  const used = new Array(realBoxes.length).fill(false);
+  let unmatchedData = 0;
+  for (const d of dataBoxes) {
+    let found = -1;
+    for (let i = 0; i < realBoxes.length; i++) {
+      if (used[i]) continue;
+      const r = realBoxes[i];
+      if (Math.abs(d.min[0] - r.min[0]) <= TOL && Math.abs(d.min[1] - r.min[1]) <= TOL && Math.abs(d.min[2] - r.min[2]) <= TOL &&
+          Math.abs(d.max[0] - r.max[0]) <= TOL && Math.abs(d.max[1] - r.max[1]) <= TOL && Math.abs(d.max[2] - r.max[2]) <= TOL) { found = i; break; }
+    }
+    if (found >= 0) used[found] = true;
+    else { unmatchedData++; if (unmatchedData <= 5) console.log(`  mirror: data-only box ${JSON.stringify(d)}`); }
+  }
+  const unmatchedReal = used.filter(u => !u).length;
+  if (unmatchedData === 0 && unmatchedReal === 0) pass(`mirror: worlddata == world.js colliders (${dataBoxes.length} boxes, ±5 cm, perimeter excluded)`);
+  else fail(`mirror: ${unmatchedData} data-only + ${unmatchedReal} client-only collider(s) — the two compound mirrors have drifted`);
 }
 
 console.log(failures === 0 ? '\nZONE-REACHABILITY: PASS — every Domination point and Assault target on every map can be stood on / reached on foot.' : `\nZONE-REACHABILITY: FAIL — ${failures} objective(s) unreachable.`);
