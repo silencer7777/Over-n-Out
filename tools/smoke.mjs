@@ -208,7 +208,7 @@ if (Array.isArray(WEAPONS) && Array.isArray(WEAPON_ORDER) && typeof getWeapon ==
 // M6: package.json version
 try {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
-  if (pkg.version !== '0.7.25') fail(`M6 package.json version → ${pkg.version} (expected '0.7.25')`); else ok("M6 package.json version === '0.7.25'");   // V7.25 bump (Job 2: Meridian Orbital)
+  if (pkg.version !== '0.7.26') fail(`M6 package.json version → ${pkg.version} (expected '0.7.26')`); else ok("M6 package.json version === '0.7.26'");   // V7.26 bump (Job 2: five new modes)
 } catch (e) { fail('M6 package.json read/parse: ' + e.message); }
 
 // 1d) Story module — real import + narrative contract
@@ -662,8 +662,23 @@ for (const [label, script] of [['B-suite', 'tools/biome-check.mjs'], ['T-suite',
 // 1j) V4 data modules — modes / loadouts / progression (real imports)
 try {
   const M = await import('../js/modes.js');
-  if (M.MODES.length === 4 && JSON.stringify(M.MODE_ORDER) === JSON.stringify(['waves', 'tdm', 'domination', 'assault'])) ok('MD1 modes: 4 modes in ruled order');
+  if (M.MODES.length === 9 && JSON.stringify(M.MODE_ORDER) === JSON.stringify(['waves', 'tdm', 'domination', 'assault', 'claim', 'signal', 'ladder', 'relay', 'lastsignal'])) ok('MD1 modes: 9 modes in ruled order (V7.26 added five)');
   else fail(`MD1 modes → ${M.MODES.length} modes, order ${JSON.stringify(M.MODE_ORDER)}`);
+  // MD6 (V7.26): the five new modes carry complete win data and
+  // honest online scope; claim/relay zones mirror worlddata too.
+  const claim = M.getMode('claim'), relay = M.getMode('relay');
+  const domZ = M.getMode('domination').zones;
+  const zonesMirror = [claim.zones, relay.zones].every(zs => zs.every((z, i) => z.x === domZ[i].x && z.z === domZ[i].z && z.y === domZ[i].y && z.radius === domZ[i].radius));
+  const newOk = zonesMirror && claim.targetScore === 150 && claim.rotateSeconds === 45 && claim.zones.length === 3
+    && M.getMode('signal').targetKills === 12 && M.getMode('signal').online === false
+    && JSON.stringify(M.getMode('ladder').ladder) === JSON.stringify(['pistol', 'smg', 'shotgun', 'ar', 'dmr'])
+    && relay.targetDeliveries === 3 && relay.pads.length === 3 && relay.online === false
+    && M.getMode('lastsignal').victoryWave === 8 && M.getMode('lastsignal').online === false
+    && JSON.stringify(M.ONLINE_MODE_IDS) === JSON.stringify(['waves', 'tdm', 'domination', 'assault', 'claim'])
+    && M.objectiveText('claim', { zones: claim.zones, claimIdx: 1, claimT: 30 }).includes('CLAIM B')
+    && M.objectiveText('ladder', { rung: 2 }).includes('RUNG 3/5');
+  if (newOk) ok('MD6 new modes: claim/signal/ladder/relay/lastsignal data complete, online scope honest');
+  else fail('MD6 new-mode data incomplete');
   if (M.getMode('tdm').targetKills === 30 && M.getMode('domination').targetScore === 200 && M.getMode('assault').channelSeconds === 45) ok('MD2 mode targets: TDM 30 / DOM 200 / assault 45 s channel');
   else fail('MD2 mode targets drifted');
   const zones = M.getMode('domination').zones;
@@ -1040,6 +1055,40 @@ try {
     ok('DG4 solo dog gunfire wiring: pack meshes tagged, friendly packs excluded from targets, dogRef resolution in shoot()');
   else fail('DG4 solo dog wiring incomplete');
 } catch (e) { fail('DG dog-gunfire checks: ' + e.message); }
+
+// MC1 (V7.26): MOVING CLAIM sim stepper — capture the live
+// point, score on it, rotate on the clock. Outcome assertions,
+// fixed seed (the DG pattern).
+try {
+  const SIM = await import('../net/sim.js');
+  const m = SIM.createMatch(99, { modeId: 'claim', mapId: 'compound' });
+  const p = SIM.addSimPlayer(m, 'p1', 'Tester');
+  const ev = [];
+  for (let i = 0; i < 30 && !m.bots.length; i++) SIM.stepMatch(m, 1 / 30, ev);
+  const zA = m.mode.zones[m.mode.claimIdx];
+  // Park every bot far away; the player holds zone A alone.
+  for (const b of m.bots) { b.pos.x = -70; b.pos.y = 0; b.pos.z = 70; b.hp = 100000; }
+  p.pos.x = zA.x; p.pos.y = zA.y; p.pos.z = zA.z; p.hp = 100000;
+  for (let i = 0; i < 360; i++) { // 12 s: 4 s capture + tick scoring
+    p.input = { keys: {}, yaw: 0, pitch: 0, aim: false, fire: false, weapon: 1 };
+    for (const b of m.bots) { b.pos.x = -70; b.pos.y = 0; b.pos.z = 70; }
+    SIM.stepMatch(m, 1 / 30, ev);
+  }
+  const captured = zA.owner === 'you';
+  const scored = m.mode.scoreYou >= 1;
+  m.mode.claimT = 0.01;
+  SIM.stepMatch(m, 1 / 30, ev);
+  const rotated = m.mode.claimIdx === 1 && ev.some(e => e.kind === 'claim_rotate');
+  if (captured && scored && rotated) ok(`MC1 claim sim: live point captured, scored (${m.mode.scoreYou}), rotated A→B on the clock`);
+  else fail(`MC1 claim → owner ${zA.owner}, score ${m.mode.scoreYou}, claimIdx ${m.mode.claimIdx}`);
+  // MC2: the claim stepper runs on the orbital map's own zones.
+  const mo = SIM.createMatch(7, { modeId: 'claim', mapId: 'orbital' });
+  SIM.addSimPlayer(mo, 'p1', 'Tester');
+  const evo = [];
+  for (let i = 0; i < 60; i++) SIM.stepMatch(mo, 1 / 30, evo);
+  if (mo.mode.zones.length === 3 && mo.mode.claimIdx === 0) ok('MC2 claim sim on Meridian Orbital: per-map zones live');
+  else fail(`MC2 orbital claim → zones ${mo.mode.zones.length}, idx ${mo.mode.claimIdx}`);
+} catch (e) { fail('MC claim checks: ' + e.message); }
 
 // 1z3) Online vehicles (V7 Round 2, R2-5) — the R2-1 solo
 // vehicles adopted by the sim on the shared physics: protocol
