@@ -18,6 +18,8 @@ import * as THREE from 'three';
 import { mergeColoredParts } from './geo.js';
 import { getWeapon } from './weapons.js';
 import { createVehicleActor } from './equipment.js'; // R2-5: online vehicle actors
+import { getCharacter, isCharacterId, KIT_STORIES } from './characters.js';
+import { getCamo } from './camo.js';
 import { VEHICLE_SPEC } from './vehicles.js';
 
 // --- puppet figures ------------------------------------------------
@@ -29,9 +31,16 @@ const PUPPET_COLORS = {
   suit: 0x55613f, suitDark: 0x424c33, gear: 0x2e3238, dark: 0x23272c,
   skin: 0xc9a189, boot: 0x14161a, hostileVisor: 0xff2d20, friendlyVisor: 0x53c7ff,
 };
-function buildPuppetMesh(friendly, weaponId) {
+function buildPuppetMesh(friendly, weaponId, charId = null) {
   const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-  const C = PUPPET_COLORS;
+  // V7.20: a roster character re-skins the puppet (uniform +
+  // kit + skin from js/characters.js); the visor stays faction
+  // (readability law). Palette-only — same parts, same cost.
+  let C = PUPPET_COLORS;
+  if (charId && isCharacterId(charId)) {
+    const ch = getCharacter(charId), kit = KIT_STORIES[ch.kit], uni = getCamo(ch.camo).uniform;
+    C = { ...PUPPET_COLORS, suit: uni.camo, suitDark: uni.camoDark, gear: kit.gear, dark: kit.dark, skin: ch.skin, boot: kit.boot };
+  }
   const parts = [];
   const P = (geo, color, x, y, z) => parts.push({ geo, color, x, y, z });
   P(box(0.30, 0.62, 0.20), C.suitDark, -0.11, 0.31, 0);       // legs
@@ -209,9 +218,9 @@ export class OnlineSession {
 
   _upsert(key, friendly, ent) {
     let pup = this.puppets.get(key);
-    if (!pup || pup.weaponId !== ent.weapon) {
+    if (!pup || pup.weaponId !== ent.weapon || pup.charId !== (ent.char || null)) {
       if (pup) { this.scene.remove(pup.mesh); pup.mesh.geometry.dispose(); pup.mesh.material.dispose(); }
-      pup = { mesh: buildPuppetMesh(friendly, ent.weapon), weaponId: ent.weapon, friendly };
+      pup = { mesh: buildPuppetMesh(friendly, ent.weapon, ent.char || null), weaponId: ent.weapon, charId: ent.char || null, friendly };
       pup.mesh.position.set(ent.pos[0], ent.pos[1], ent.pos[2]);
       this.scene.add(pup.mesh);
       this.puppets.set(key, pup);
