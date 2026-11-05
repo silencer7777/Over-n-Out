@@ -33,11 +33,13 @@ import {
   validateInput,
   validateChat,
   validateSignal,
+  validateEmote,
   LIMITS,
   DEFAULT_MODE,
 } from './protocol.js';
 import { WEAPONS } from '../js/weapons.js';
 import { MODE_ORDER, ONLINE_MODE_IDS } from '../js/modes.js';
+import { isEmoteId } from '../js/emotes.js';
 import { validateClass } from '../js/loadouts.js';
 import { XP_VALUES } from '../js/progression.js';
 import { isMapId, DEFAULT_MAP_ID } from '../js/maps.js';
@@ -551,6 +553,38 @@ export class GameServer {
           this._reply(pid, out);
         }
         return null; // the sender got their echo via _reply above
+      }
+
+      case MSG.EMOTE: {
+        // V7.27 emote relay (Job 2 §7): protocol shape first,
+        // then the allowlist (js/emotes.js owns the ids — a
+        // client can only name a gesture that exists), hello
+        // check, and a chat-class rate limit in its own bucket.
+        // Presentation only: the relay carries no outcome.
+        const check = validateEmote(msg);
+        if (!check.ok) {
+          this._viol(playerId, room, 'bad_emote', check.errors[0] || '');
+          return this._error(playerId, 'bad_emote', check.errors.join('; '));
+        }
+        if (!isEmoteId(msg.emote)) {
+          this._viol(playerId, room, 'bad_emote', String(msg.emote));
+          return this._error(playerId, 'bad_emote', `unknown emote: ${msg.emote}`);
+        }
+        const sender = room.players.get(playerId);
+        if (!sender || !sender.name) {
+          this._viol(playerId, room, 'no_hello', 'emote before hello');
+          return this._error(playerId, 'no_hello', 'say hello before emoting');
+        }
+        const now = Date.now();
+        sender._emoteTimes = (sender._emoteTimes || []).filter(t => now - t < LIMITS.CHAT_WINDOW_MS);
+        if (sender._emoteTimes.length >= LIMITS.CHAT_MAX_PER_WINDOW) {
+          this._viol(playerId, room, 'emote_rate');
+          return this._error(playerId, 'emote_rate', 'slow down — emotes are rate limited');
+        }
+        sender._emoteTimes.push(now);
+        const out = { t: MSG.EMOTE, from: playerId, name: sender.name, emote: msg.emote, tick: room.tick };
+        for (const pid of room.players.keys()) this._reply(pid, out);
+        return null;
       }
 
       case MSG.SIGNAL: {
