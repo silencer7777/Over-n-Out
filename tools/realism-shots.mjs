@@ -46,11 +46,26 @@ await new Promise(r => server.listen(PORT, '127.0.0.1', r));
 // (it requires the browser-daemon's WebGL policy), so use a
 // Chrome-for-Testing headless shell. Override with ONO_CHROME.
 const CHROME_BIN = process.env.ONO_CHROME || '/home/hatch/workspace/ono-stage/browsers/chrome-headless-shell/linux-157.0.8103.38/chrome-headless-shell-linux64/chrome-headless-shell';
+// Pre-flight: a stale browser from a killed run may still own
+// the CDP port (this killed two series with EADDRINUSE on
+// 2026-11-06). Refuse to run if the port already answers.
+{
+  let alive = false;
+  try { const r = await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`); alive = r.ok; } catch { alive = false; }
+  if (alive) { console.error(`FATAL: CDP port ${CDP_PORT} already owned by a stale browser — kill it first.`); process.exit(2); }
+}
+// Fresh profile per run (same lesson: no cross-run state).
 const chrome = spawn(CHROME_BIN, [
   '--no-sandbox', '--disable-dev-shm-usage',
-  '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
+  // NOT ANGLE: under --use-gl=angle, pointer-lock acquisition
+  // emits a cursor-recentering mouse delta that the game eats
+  // as a ~38° look-up — every frame in three series stared at
+  // the sun before this was bisected (2026-11-06, probe1/2/3).
+  // Direct SwiftShader (--disable-gpu --use-gl=swiftshader)
+  // keeps the camera on the authored spawn heading.
+  '--disable-gpu', '--use-gl=swiftshader', '--enable-unsafe-swiftshader',
   '--ignore-gpu-blocklist', '--mute-audio', '--hide-scrollbars',
-  `--remote-debugging-port=${CDP_PORT}`, '--user-data-dir=/tmp/ono-shots-chrome',
+  `--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=/tmp/ono-shots-chrome-${process.pid}`,
   `--window-size=${WIDTH},${HEIGHT}`, '--force-device-scale-factor=1', 'about:blank',
 ], { stdio: 'ignore' });
 
@@ -119,22 +134,12 @@ try {
     await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: rect.x, y: rect.y, button: 'left', clickCount: 1 });
     await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: rect.x, y: rect.y, button: 'left', clickCount: 1 });
     await waitFor(() => evalJs(`(() => { const h = document.getElementById('hud'); return h && !h.classList.contains('hidden'); })()`), 25000, 'hud ' + map);
-    // Pointer lock re-centers the cursor — the warp from the
-    // button (below center) to screen center lands as one huge
-    // look-UP mouse delta and slams the camera into the sky
-    // (observed in the first series: every frame stared at the
-    // sun). Cancel it by walking the mouse from center back to
-    // the button position in small steps — the exact inverse
-    // delta — so the net look input is ~zero and the view
-    // stays on the authored level heading.
-    {
-      const dx = rect.x - WIDTH / 2, dy = rect.y - HEIGHT / 2;
-      const steps = 24;
-      for (let i = 1; i <= steps; i++) {
-        await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: WIDTH / 2 + dx * (i / steps), y: HEIGHT / 2 + dy * (i / steps) });
-        await sleep(16);
-      }
-    }
+    // NOTE (2026-11-06, bisected by probe1/2/3): with the
+    // direct-SwiftShader flags above, the camera stays on the
+    // authored spawn heading and synthetic mouseMoved events
+    // under pointer lock produce no look change (400px/800px
+    // batches were pixel-identical). Do NOT reintroduce ANGLE
+    // flags here — see the spawn comment.
     if (WIDE_ONLY) {
       // Scenery doesn't change during the countdown — one spawn
       // frame is the whole evidence set for this mode.
@@ -162,8 +167,36 @@ try {
     // Wall-clock gaps: game time runs ~0.2-0.5x under SwiftShader
     // (dt clamps at 0.05/frame), so bots need real minutes to
     // cross the map. Frames land far -> mid -> close as they come.
+    if (args.includes('--strafe')) {
+      // Step OUT from behind the spawn barricade into the lane:
+      // a player parked behind full cover draws no fire and no
+      // approaches (observed 2026-11-06: five frames, zero bots
+      // in view, zero damage). Exposure is what brings the wave
+      // into the frame.
+      await cdp('Input.dispatchKeyEvent', { type: 'keyDown', code: 'KeyD', key: 'd', windowsVirtualKeyCode: 68 });
+      await sleep(1500);
+      await cdp('Input.dispatchKeyEvent', { type: 'keyUp', code: 'KeyD', key: 'd', windowsVirtualKeyCode: 68 });
+    }
+    if (args.includes('--push')) {
+      // --strafe alone still parks the player against the
+      // barricade's face (collision slide). Pushing forward
+      // AFTER the strafe carries the player past its edge into
+      // the open lane, where roaming soldiers cross the view
+      // (the TDM minimap showed the whole fight happening on
+      // the far side of that one barricade).
+      await cdp('Input.dispatchKeyEvent', { type: 'keyDown', code: 'KeyW', key: 'w', windowsVirtualKeyCode: 87 });
+      await sleep(3000);
+      await cdp('Input.dispatchKeyEvent', { type: 'keyUp', code: 'KeyW', key: 'w', windowsVirtualKeyCode: 87 });
+    }
     const gaps = opt('--gaps', '9000,11000,13000,15000').split(',').map(Number);
     for (let i = 2; i <= 5; i++) { await sleep(gaps[i - 2] || 10000); await shot(`${map}-${i}-approach.png`); frames.push(`${map}-${i}-approach.png`); }
+    if (args.includes('--burst')) {
+      // Stride-phase pair: two extra frames ~0.7 s apart at the
+      // end — a moving bot's leg swing BETWEEN the pair is the
+      // walk-cycle evidence a single still can't give.
+      await sleep(700); await shot(`${map}-5b-burst.png`); frames.push(`${map}-5b-burst.png`);
+      await sleep(700); await shot(`${map}-5c-burst.png`); frames.push(`${map}-5c-burst.png`);
+    }
     manifest.maps[map] = frames;
     fs.writeFileSync(path.join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2));
    } catch (e) { console.log('MAP FAILED', map, e.message); errors.push('map ' + map + ': ' + e.message); }
