@@ -24,6 +24,8 @@ const TAG = opt('--tag', 'run');
 const MAPS = opt('--maps', 'compound,forest,snow,mars,orbital').split(',');
 const MODE = opt('--mode', 'waves');
 const WIDE_ONLY = args.includes('--wide-only');
+const QUALITY = opt('--quality', 'medium');
+const WIDTH = opt('--width', '1152'), HEIGHT = opt('--height', '648');
 const PORT = 8977, CDP_PORT = 9333;
 const OUT = path.join(ROOT, 'docs/sessions/realism-shots', TAG);
 fs.mkdirSync(OUT, { recursive: true });
@@ -49,7 +51,7 @@ const chrome = spawn(CHROME_BIN, [
   '--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
   '--ignore-gpu-blocklist', '--mute-audio', '--hide-scrollbars',
   `--remote-debugging-port=${CDP_PORT}`, '--user-data-dir=/tmp/ono-shots-chrome',
-  '--window-size=1152,648', '--force-device-scale-factor=1', 'about:blank',
+  `--window-size=${WIDTH},${HEIGHT}`, '--force-device-scale-factor=1', 'about:blank',
 ], { stdio: 'ignore' });
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -107,7 +109,7 @@ try {
     // 1.25) — AUTO would sink to shadows-off under SwiftShader's
     // frame rate and make frames incomparable; HIGH (4096 shadow
     // map) is too slow to reach gameplay in reasonable wall time.
-    await evalJs(`(() => { const q = document.getElementById('opt-quality'); q.value = 'medium'; q.dispatchEvent(new Event('change', { bubbles: true })); const b = document.getElementById('biome-select'); b.value = ${JSON.stringify(map)}; b.dispatchEvent(new Event('change', { bubbles: true })); const m = document.getElementById('mode-select'); m.value = ${JSON.stringify(MODE)}; m.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+    await evalJs(`(() => { const q = document.getElementById('opt-quality'); q.value = ${JSON.stringify(QUALITY)}; q.dispatchEvent(new Event('change', { bubbles: true })); const b = document.getElementById('biome-select'); b.value = ${JSON.stringify(map)}; b.dispatchEvent(new Event('change', { bubbles: true })); const m = document.getElementById('mode-select'); m.value = ${JSON.stringify(MODE)}; m.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
     // Trusted-gesture click: Pointer Lock refuses synthetic
     // element.click(), so press the button with real CDP input.
     await evalJs(`document.getElementById('play-btn').scrollIntoView({ block: 'center' })`);
@@ -132,7 +134,7 @@ try {
     // a beat after the HUD unhides — a single-phase wait races
     // past it), then wait for it to end.
     await waitFor(() => evalJs(`(() => { const b = document.getElementById('wave-banner'); return b && /^DEPLOY IN/.test(b.textContent); })()`), 30000, 'countdown-start ' + map);
-    await waitFor(() => evalJs(`(() => { const b = document.getElementById('wave-banner'); return b && !/^DEPLOY IN/.test(b.textContent); })()`), 240000, 'countdown ' + map);
+    await waitFor(() => evalJs(`(() => { const b = document.getElementById('wave-banner'); return b && !/^DEPLOY IN/.test(b.textContent); })()`), 300000, 'countdown ' + map);
     await sleep(1200);
     // Frame 0: spawn wide (scenery). Frame series: bots close in.
     await shot(`${map}-0-wide.png`); frames.push(`${map}-0-wide.png`);
@@ -144,8 +146,8 @@ try {
     // Wall-clock gaps: game time runs ~0.2-0.5x under SwiftShader
     // (dt clamps at 0.05/frame), so bots need real minutes to
     // cross the map. Frames land far -> mid -> close as they come.
-    const gaps = [9000, 11000, 13000, 15000];
-    for (let i = 2; i <= 5; i++) { await sleep(gaps[i - 2]); await shot(`${map}-${i}-approach.png`); frames.push(`${map}-${i}-approach.png`); }
+    const gaps = opt('--gaps', '9000,11000,13000,15000').split(',').map(Number);
+    for (let i = 2; i <= 5; i++) { await sleep(gaps[i - 2] || 10000); await shot(`${map}-${i}-approach.png`); frames.push(`${map}-${i}-approach.png`); }
     manifest.maps[map] = frames;
     fs.writeFileSync(path.join(OUT, 'manifest.json'), JSON.stringify(manifest, null, 2));
    } catch (e) { console.log('MAP FAILED', map, e.message); errors.push('map ' + map + ': ' + e.message); }
