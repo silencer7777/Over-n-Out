@@ -56,14 +56,22 @@ with a source commit/report. No lesson without evidence.
    hunting map code. Second proof Oct 31, 2026: facade panels +48 tris
    identical on all 4 maps, Δ0 calls/casters (shared buildWorld).
    (Rig first battery, `bde7c5d`; Training, Oct 31, 2026)
-7. **Caster tris are the shadow budget, not just caster counts.** Forest
-   remains the tightest map. Snapshot corrected Nov 1, 2026 (v6-metrics,
-   HEAD `9e746f6`, Lead-measured): Forest sustained 148 calls / 285,774
-   tris, static 65 calls / 226,510 tris, 38 casters, shadow-pass est.
-   211 calls / 250,088 tris — headroom is 148 vs the 165-call veto and
-   285,774 vs 300k tris. Name the instrument (static vs sustained);
-   the post-V6-3 figures (127 / 213,868) are retired. (Training,
-   Nov 1, 2026)
+7. **Caster tris are the shadow budget, not just caster counts.**
+   "Tightest map" must be split by instrument: Forest is tightest on
+   tris, Mars is tightest on calls. Snapshot corrected Nov 5, 2026
+   (v6-metrics, HEAD `9d643d1`, Lead-measured, three runs identical):
+   Forest CLIENT sustained 161 calls / 292,578 tris, static 78 calls /
+   232,450 tris, 45 casters / 201,120 caster tris, shadow-pass est.
+   231 calls / 255,840 tris — headroom is 4 calls vs the 165 veto and
+   7,422 tris vs 300k. Forest LAYOUT is a different instrument:
+   sustained 108 / 268,096, static 25 / 207,968, 16 casters / 197,608
+   caster tris, shadow 149 / 252,328 — never mix client and layout.
+   All five client maps now sit at 147–162 sustained calls (Mars 162
+   is closest to the call veto), so headroom is fleet-wide, not a
+   Forest-only fact. Name the instrument (static vs sustained,
+   client vs layout); the Nov 1 figures (148 / 285,774, 38 casters)
+   and the post-V6-3 figures (127 / 213,868) are retired. (Training,
+   Nov 1, 2026; corrected Training, Nov 5, 2026)
 30. **A lit window must read from both faces.** HQ's exterior panes
     glowed in the GW/GC buckets while their interior faces stayed
     bare wallMat at the same x/y — the rooms read windowless from
@@ -73,6 +81,19 @@ with a source commit/report. No lesson without evidence.
     spills no light. State panel arithmetic exactly: a comment's
     numbers are claims, and a 5 mm fudge in one failed a grade.
     (Training, Oct 31, 2026; compound +48 tris, calls/casters Δ0)
+40. **`castShadow` is per-mesh, not per-instance — an instanced
+    caster is already the efficiency win.** Forest's canopy is ONE
+    InstancedMesh (812 foliage masses, 113,680 tris, 56.5% of the
+    map's 201,120 caster tris at 1 draw call); there is no
+    sub-mesh caster toggle, and splitting an InstancedMesh to shed
+    shadow tris costs +1 sustained call per split — trading the
+    binding constraint (4 calls of headroom) for a non-binding one
+    (shadow-pass calls 231 vs the 340 advisory). The supplement /
+    second-ring foliage meshes already ship `castShadow = false`
+    by explicit build-session decision (`js/biomes.js`); what
+    remains casting is core canopy/bush/thicket/trunk, whose
+    removal is a visible realism decision for Verity/Brett, not a
+    training optimisation. (Training, Nov 5, 2026)
 
 ## C. Measurement honesty
 
