@@ -113,11 +113,16 @@ addEventListener('orientationchange', () => {
   // U9: iOS can take longer than 250 ms to settle the URL bar
   // after a turn — the refit series runs longer; every refit is
   // the same idempotent fit, so extra firings cost nothing.
+  // V7.33: one more pass at 1000 ms — on iPhone the landscape
+  // browser chrome can still be animating at 600 ms, and a fit
+  // taken mid-animation can stick until the next event (which
+  // iOS does not always send).
   fitRenderer();
   requestAnimationFrame(fitRenderer);
   setTimeout(fitRenderer, 120);
   setTimeout(fitRenderer, 300);
   setTimeout(fitRenderer, 600);
+  setTimeout(fitRenderer, 1000);
 });
 if (window.visualViewport) visualViewport.addEventListener('resize', fitRenderer);
 // U9 REDUNDANT ORIENTATION SIGNALS: iOS Safari does not fire
@@ -158,6 +163,33 @@ function goLandscape() {
   } catch (e) { /* fullscreen unsupported — the prompt guides instead */ }
 }
 
+// V7.33 IPHONE ROTATE TRUTH (owner bug report, Nov 6: "it still
+// doesn't rotate on my phone automatically — it does on the
+// tablet but not my phone"): two separate facts were stacked
+// into one symptom. (1) goLandscape was wired only to the
+// optional LANDSCAPE button/pill — DEPLOY never asked, so
+// "automatic" depended on finding a side button (fixed at the
+// play handler below). (2) On iPhone Safari NEITHER platform
+// API exists — no element requestFullscreen (iPad / desktop /
+// Android have it) and no screen.orientation.lock (all iOS) —
+// so on the phone the request is a silent no-op and the ONLY
+// rotation path is the physical turn, which iOS's own Rotation
+// Lock can veto with no web API able to override it. What the
+// game can honestly do there is SAY so: platforms with no
+// auto-rotate API get body.rotate-manual, and the rotate
+// prompt grows a Rotation Lock hint line (css/style.css) that
+// only those platforms ever see.
+const AUTO_ROTATE_OK = (() => {
+  try {
+    const el = document.documentElement;
+    return !!((el.requestFullscreen || el.webkitRequestFullscreen) ||
+      (typeof screen !== 'undefined' && screen.orientation && screen.orientation.lock));
+  } catch (e) { return false; }
+})();
+if (TOUCH_MODE && !AUTO_ROTATE_OK) {
+  try { document.body.classList.add('rotate-manual'); } catch (e) { /* body class is advisory only */ }
+}
+
 // U9 BUILD WITNESS (the stale-build tell): GitHub Pages serves
 // max-age=600 and iOS holds open tabs indefinitely, so a phone
 // can sit on the previous build's page while a new one is live
@@ -173,7 +205,7 @@ function goLandscape() {
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
 // version tag — Brett reads "BUILD V7.2" in the menu footer.
-const BUILD_NO = 'V7.32';
+const BUILD_NO = 'V7.33';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -2035,7 +2067,14 @@ playBtn.addEventListener('click', () => {
   sfx.ensure();
   // V6 mobile: touch devices have no pointer lock — DEPLOY starts
   // (or resumes) directly. Desktop keeps the lock flow unchanged.
-  if (TOUCH_MODE) touchStartOrResume();
+  // V7.33: DEPLOY itself now makes the U8-02 landscape request,
+  // synchronously inside the tap — the fullscreen API only
+  // honours requests made from a user gesture, and this is the
+  // one tap every player makes. Before, auto-rotate lived only
+  // on the optional LANDSCAPE button/pill. On iPhone the
+  // request is the documented harmless no-op (see AUTO_ROTATE_OK
+  // above); the rotate prompt + Rotation Lock hint guide there.
+  if (TOUCH_MODE) { goLandscape(); touchStartOrResume(); }
   else canvas.requestPointerLock();
 });
 document.addEventListener('pointerlockchange', () => {
