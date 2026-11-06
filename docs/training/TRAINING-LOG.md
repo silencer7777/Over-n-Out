@@ -1444,3 +1444,166 @@ record the west re-anchor as landed. Next session: Thu Nov 5 —
 EFFICIENCY, Forest shadow-budget re-baseline per Sunday's focus
 list. Friday Nov 6's anchor gate pin proceeds as planned — it
 now has a landed west face to pin.
+
+---
+
+## Thu Nov 5, 2026 — EFFICIENCY
+
+**Staff:** Training Lead (ran the session), REVIEWER (recent record,
+read-only), COACH (drill design + rubric per the Nov 1 focus table;
+grading pass on the final files recorded below).
+
+**Pre-checks:** Tree clean on `main` at `9d643d1` (V7.28, docs on
+`ba51e75`) before the session — full session allowed. (The
+Reviewer's first `git status` caught a transient
+`js/audio.js.<pid>.check.mjs` — the Lead's own baseline-smoke temp
+under Lesson 27's per-process naming, gone on re-check; not active
+development.) Guardian Nov 5 08:07 PT Watch rotation: all-pass,
+SMOKE PASSED, mobile-check incl. T17 pass, 0 TODO/FIXME, live
+integrity MATCH to V7.28, no Medic assignments. Baseline smoke
+(Lead, pre-drill): **PASSED, exit 0, 370 checks** (up from 341 —
+V7.22–V7.28 added the zone-reachability gate and new pins).
+
+**Target (from Sunday's Nov 1 focus list):** re-baseline the
+Forest shadow budget (follow-through on the Lesson 7 correction):
+static vs sustained + caster tris; optimise one caster
+bottleneck only if a merged/instanced win is measured, otherwise
+measurement-only is a pass. The focus list's "V7.5 tree" label is
+itself stale — the tree measured is V7.28, and the re-baseline
+covers all five maps (V7.25 added Meridian Orbital), client and
+layout paths separately.
+
+**Reviewer findings (tree-verified by Lead where load-bearing):**
+- Nothing is red. The real breaks since Wed were found by Job 2,
+  not the guardian — a gate-coverage class: V7.22's unreachable
+  Domination C / Snow A centre (new permanent zone-reachability
+  gate, red 14 pre-fix → 48/48 post) and V7.24's client/sim
+  collider mirror drifts (permanent mirror check, 308 boxes).
+  A prior phantom V7.22–V7.28 report was lost/never on disk;
+  Job 2 rebuilt that train for real — those commits exist here.
+- What moved Forest: V7.18 second ring (solo Forest inherits the
+  compound skeleton; ring statics merged by material, Lesson 35)
+  and V7.21 data expansion (`worlddata-forest.js` BOUNDS 62→84,
+  TREE_SPOTS 110→150, BUSH_SPOTS 90→120). In both Forest paths
+  the trees/bushes cast (`biomes.js` trunk/canopy/bush IMs;
+  `mapbuilders.js` layout equivalents), so V7.21 raises caster
+  TRIS at flat caster count and flat calls — Lesson 7's trap.
+- Under-tested / open, unchanged: no post-V7.21 caster-tris
+  figure existed in-tree before today (this drill is that
+  instrument); playtest verdicts owed on V7.16–V7.28; Stage 2
+  signed sessions (Brett's 3 decisions) and the host Mac
+  firewall checklist remain open; ASSAULT U1–U3, VM2 §9 items
+  2–4, TTK re-baseline, and Ops' drifted faces carried.
+  Fri Nov 6's facade anchor gate pin stands as planned.
+
+**Measurement (Lead, `tools/v6-metrics.mjs` on HEAD `9d643d1`,
+treeClean true; one full run + two `--fast` runs, all fields
+identical across the three — counts are deterministic, no timing
+is claimed, so no Lesson 24 A/B is owed; the harness's
+`v6-metrics.json` writer side-effect was restored after every
+run):**
+
+Client path (sustained / static / casters / caster tris /
+shadow-pass est. / headroom vs 165 calls + 300k tris):
+
+| Map | Sustained | Static | Casters | Shadow est. | Headroom |
+|---|---|---|---|---|---|
+| compound | 147 / 99,904 | 64 / 39,776 | 37 / 28,630 | 209 / 83,350 | 18 calls / 200,096 |
+| forest | 161 / 292,578 | 78 / 232,450 | 45 / 201,120 | 231 / 255,840 | **4 calls / 7,422** |
+| snow | 160 / 138,212 | 77 / 78,084 | 47 / 65,546 | 232 / 120,266 | 5 calls / 161,788 |
+| mars | 162 / 122,734 | 79 / 62,606 | 47 / 41,152 | 234 / 95,872 | **3 calls** / 177,266 |
+| orbital | 156 / 101,302 | 73 / 41,174 | 43 / 29,616 | 224 / 84,336 | 9 calls / 198,698 |
+
+Layout path (distinct scenes, not client-wired for these maps):
+forest sustained 108 / 268,096, static 25 / 207,968, 16 casters /
+197,608 caster tris, shadow 149 / 252,328; snow 108 / 74,238,
+static 25 / 14,110, 19 / 10,930, shadow 152 / 65,650; mars
+101 / 73,736, static 18 / 13,608, 12 / 10,742, shadow 138 /
+65,462. Compound and orbital have no layout path in the harness.
+
+**Comparison (dated, stale-by-design):** Lesson 7's Nov 1
+snapshot (HEAD `9e746f6`) claimed Forest 148 / 285,774, static
+65 / 226,510, 38 casters, shadow 211 / 250,088, headroom 17
+calls / 14,226 tris. Wed Nov 4's baseline was already 149 /
+291,110, casters 38. Today's rise is explained expansion cost,
+not a leak (Lesson 5): V7.18's ring + V7.21's +40 trees / +30
+bushes, all instanced — Forest's static instanced share is
+0.949, and no map crosses a veto. But the headroom Lesson 7
+quoted no longer exists: Forest has 4 calls / 7,422 tris, Mars
+has 3 calls, and every client map sits at 147–162 calls. Any
+future §3 work that spends calls needs a reclaim first — that
+reclaim is build-session scope, not a training scramble.
+Lesson 7 is corrected in place with today's snapshot, split
+client vs layout and tightest-by-instrument (Forest on tris,
+Mars on calls).
+
+**Caster bottleneck ranking (Forest client, parsed
+`topInstanced`/`topMeshes`, `castShadow: true` only):**
+- Displaced-sphere foliage casters combined: 1,294 instances ×
+  140 tris = **181,160 tris, 90.1%** of Forest's 201,120 caster
+  tris — canopy 812 × 140 = 113,680 (56.5%, 116 trees × 7 masses,
+  `biomes.js` canopy IM), bushes 276 × 140 = 38,640, shared-base
+  spheres 104 × 140 = 14,560 and 42 × 140 = 5,880, thicket
+  60 × 140 = 8,400 (30 thickets × 2 masses).
+- Trunks: 116 × 100 = 11,600 (5.8%). All other casters combined
+  (merged world meshes) are the remaining ~4%.
+
+**Decision — measurement-only (PASS per the focus list), Coach
+§3 rule applied as written:** the dominant group passes
+dominance (56.5% ≥ 10%) but fails the mechanism and projection
+conditions. The canopy is already ONE InstancedMesh at 1 draw
+call — there is no regrouping that saves a tri, and
+`castShadow` is per-mesh, not per-instance, so no sub-mesh
+toggle exists; splitting the mesh to shed shadow tris would
+cost +1 sustained call per split, spending the binding
+constraint (4 calls of headroom) to relieve a non-binding one
+(shadow-pass 231 vs the 340 advisory). The supplement and
+second-ring foliage meshes already ship `castShadow = false`
+by explicit build-session decision (comments at the R2 blocks
+in `biomes.js`); every remaining caster is core canopy / bush /
+thicket / trunk, and switching any whole mesh off is a visible
+canopy-shadow loss — a Verity/Brett realism call, not an
+efficiency win. A foliage segment cut (10×8 → lower) would be
+a geometry/quality change, not a merged/instanced win, and is
+likewise out of scope. No game code was edited; no optimisation
+is claimed. New Lesson 40 records the per-mesh rule.
+
+**Warnings, unchanged and not chased:** the harness's LIGHTING
+TOUCHED warning fires against the stale V6 baseline — expected
+post-U7, not a regression; no lighting was touched. (Staff-note
+correction, Lesson 17: the Coach's plan cited the Nov 1
+lighting sha `38cded1a…`; the tree-verified current sha is
+`e2f31ad6b7e9b4e3` — V7.25 added the Orbital profile to
+`js/lighting.js`. Lesson 1's sha is therefore stale and is
+flagged for Sun Nov 8 CONSOLIDATE, not edited in an EFFICIENCY
+session.) Sun-disc flat strike, soldier bar (8 vs 7 calls), and
+the version note are pre-existing harness warnings, identical
+in kind to prior sessions.
+
+**Close-out verification (Lead, personally run):**
+`node tools/smoke.mjs` → **SMOKE PASSED, exit 0** on the
+end-state tree (370 ✓ lines, same count as the baseline), after
+the records below were written. Diff scope: `docs/training/`
+only; `git status` shows no other file.
+
+**Grade:** **PASS** (Coach grading pass on the actual files —
+all 8 rubric criteria C1–C8 PASS, no deductions; Coach
+independently re-ran smoke exit 0 / 370 checks SMOKE PASSED
+and v6-metrics --fast with every client/layout row
+field-identical, canopy arithmetic verified 812×140=113,680=
+56.5% of 201,120, v6-metrics.json restored, diff =
+docs/training/ only).
+
+**Commits:** one local commit, `training: efficiency — Forest
+shadow-budget re-baseline on V7.28 (measurement-only, Lesson 7
+corrected)`. Not pushed.
+
+**New lessons:** 40 (`castShadow` is per-mesh, not per-instance;
+an instanced caster is already the win — splitting it trades
+the binding call budget for the non-binding shadow budget).
+Lesson 7 corrected in place (Nov 5 snapshot, client/layout
+split, tightest-by-instrument). Flagged for Sun Nov 8: Lesson
+1's lighting sha (`e2f31ad6b7e9b4e3` current). Next session:
+Fri Nov 6 — TEST CRAFT, facade anchor gate pin per Sunday's
+focus list (pin the landed HQ west face; negative test: shift
+one anchor → sole failure).
