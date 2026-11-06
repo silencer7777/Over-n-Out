@@ -44,10 +44,6 @@ function buildPuppetMesh(friendly, weaponId, charId = null) {
   }
   const parts = [];
   const P = (geo, color, x, y, z) => parts.push({ geo, color, x, y, z });
-  P(box(0.30, 0.62, 0.20), C.suitDark, -0.11, 0.31, 0);       // legs
-  P(box(0.30, 0.62, 0.20), C.suitDark, 0.11, 0.31, 0);
-  P(box(0.34, 0.16, 0.24), C.boot, -0.11, 0.05, -0.02);       // boots
-  P(box(0.34, 0.16, 0.24), C.boot, 0.11, 0.05, -0.02);
   P(box(0.56, 0.62, 0.32), C.suit, 0, 0.93, 0);              // torso
   P(box(0.50, 0.40, 0.10), C.gear, 0, 0.98, 0.18);           // chest rig
   P(box(0.44, 0.50, 0.16), C.gear, 0, 0.95, -0.22);          // pack
@@ -59,16 +55,49 @@ function buildPuppetMesh(friendly, weaponId, charId = null) {
   const tint = getWeapon(weaponId).tint;
   P(box(0.07, 0.11, 0.62), tint, 0.18, 1.02, -0.28);         // gun body (weapon-tinted)
   P(box(0.04, 0.04, 0.30), C.dark, 0.18, 1.06, -0.70);       // barrel
-  const mesh = new THREE.Mesh(
-    mergeColoredParts(parts),
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0.1, emissive: 0x180505 })
-  );
-  mesh.frustumCulled = false;
-  return mesh;
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0.1, emissive: 0x180505 });
+  const body = new THREE.Mesh(mergeColoredParts(parts), mat);
+  body.frustumCulled = false;
+  // V7.31 WALK CYCLE: puppets were one merged mesh — remote
+  // players GLIDED. The legs are now separate hip-pivot meshes
+  // (same split as the solo bots, V7.29), swung by the update
+  // loop from the puppet's actual interpolated travel. +2 draw
+  // calls per remote entity; puppets are not part of the solo
+  // per-map budget, and the geometry is unchanged.
+  const HIP_Y = 0.62;
+  const group = new THREE.Group();
+  group.add(body);
+  for (const s of [-1, 1]) {
+    const lp = [];
+    const LP = (geo, color, x, y, z) => lp.push({ geo, color, x, y, z });
+    LP(box(0.30, 0.62, 0.20), C.suitDark, s * 0.11, 0.31, 0);   // leg
+    LP(box(0.34, 0.16, 0.24), C.boot, s * 0.11, 0.05, -0.02);   // boot
+    const legGeo = mergeColoredParts(lp);
+    legGeo.translate(-s * 0.11, -HIP_Y, 0);
+    const leg = new THREE.Mesh(legGeo, mat);
+    leg.position.set(s * 0.11, HIP_Y, 0);
+    leg.frustumCulled = false;
+    group.add(leg);
+    if (s < 0) group.userData.legL = leg; else group.userData.legR = leg;
+  }
+  group.frustumCulled = false;
+  return group;
 }
 
 const _from = new THREE.Vector3();
 const _to = new THREE.Vector3();
+
+// V7.31: a puppet is a small Group (body + two leg meshes
+// sharing one material) — disposal walks the group and frees
+// each geometry once and the shared material once.
+function disposePuppet(root) {
+  const mats = new Set();
+  root.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) mats.add(o.material);
+  });
+  for (const m of mats) m.dispose();
+}
 
 export class OnlineSession {
   // hooks: { onStatus(text), onShot(ev), onBotShot(ev), onHit(ev),
@@ -217,8 +246,7 @@ export class OnlineSession {
     for (const [key, pup] of this.puppets) {
       if (!seen.has(key)) {
         this.scene.remove(pup.mesh);
-        pup.mesh.geometry.dispose();
-        pup.mesh.material.dispose();
+        disposePuppet(pup.mesh);
         this.puppets.delete(key);
       }
     }
@@ -227,8 +255,8 @@ export class OnlineSession {
   _upsert(key, friendly, ent) {
     let pup = this.puppets.get(key);
     if (!pup || pup.weaponId !== ent.weapon || pup.charId !== (ent.char || null)) {
-      if (pup) { this.scene.remove(pup.mesh); pup.mesh.geometry.dispose(); pup.mesh.material.dispose(); }
-      pup = { mesh: buildPuppetMesh(friendly, ent.weapon, ent.char || null), weaponId: ent.weapon, charId: ent.char || null, friendly };
+      if (pup) { this.scene.remove(pup.mesh); disposePuppet(pup.mesh); }
+      pup = { mesh: buildPuppetMesh(friendly, ent.weapon, ent.char || null), weaponId: ent.weapon, charId: ent.char || null, friendly, walkPhase: 0, walkAmp: 0, lx: ent.pos[0], lz: ent.pos[2] };
       pup.mesh.position.set(ent.pos[0], ent.pos[1], ent.pos[2]);
       this.scene.add(pup.mesh);
       this.puppets.set(key, pup);
@@ -321,6 +349,25 @@ export class OnlineSession {
       while (dy > Math.PI) dy -= Math.PI * 2;
       while (dy < -Math.PI) dy += Math.PI * 2;
       m.rotation.y += dy * k;
+      // V7.31 WALK CYCLE: swing the hip-pivot legs from the
+      // puppet's actual interpolated travel (same 2.42 rad/m
+      // cadence as the solo bots). Amplitude eases with speed —
+      // a standing puppet's legs settle instead of freezing
+      // mid-stride.
+      const pdx = m.position.x - (pup.lx ?? m.position.x);
+      const pdz = m.position.z - (pup.lz ?? m.position.z);
+      pup.lx = m.position.x; pup.lz = m.position.z;
+      const pDist = Math.hypot(pdx, pdz);
+      const pSpeed = dt > 0 ? pDist / dt : 0;
+      pup.walkPhase = (pup.walkPhase || 0) + pDist * 2.42;
+      const targetAmp = m.visible ? 0.5 * Math.min(1, pSpeed / 6) : 0;
+      pup.walkAmp = (pup.walkAmp || 0) + (targetAmp - (pup.walkAmp || 0)) * Math.min(1, dt * 10);
+      const legL = m.userData.legL, legR = m.userData.legR;
+      if (legL && legR) {
+        const sw = Math.sin(pup.walkPhase) * pup.walkAmp;
+        legL.rotation.x = sw;
+        legR.rotation.x = -sw;
+      }
       // V7.27 emote root motion (presentation only).
       if (pup.emoteT > 0) {
         pup.emoteT -= dt;
