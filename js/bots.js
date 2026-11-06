@@ -214,28 +214,74 @@ function _part(list, geo, color, x, y, z, rx = 0, ry = 0, rz = 0, sx, sy, sz) {
   list.push({ geo, color, x, y, z, rx, ry, rz, sx, sy, sz });
 }
 
-function buildBotLegs(pal = BOT_PALETTES.hostile) {
+// V7.29 WALK-CYCLE SPLIT (owner, Nov 6: "they don't look like
+// they're walking"): the legs used to be ONE merged mesh — a
+// statue's lower half that could only bob. Each leg is now its
+// OWN mesh, geometry baked relative to its hip point
+// (LEG_HIP_Y) with the mesh origin sitting exactly on that
+// hip, so update() can swing it around the hip like a leg.
+// Same parts, same coordinates, same hit core (the leg box is
+// translated, never reshaped) — the merged pair costs the same
+// triangles as the old single mesh; the +1 draw call is paid
+// back by the HP-bar merge in the constructor (one canvas
+// sprite instead of two), so a soldier still costs 8 calls.
+const LEG_HIP_Y = 0.90;
+function buildBotLeg(pal = BOT_PALETTES.hostile, s = 1) {
   const L = [];
-  for (const s of [-1, 1]) {
-    _part(L, _box(0.21, 0.78, 0.25), pal.camoDark, s * 0.145, 0.48, 0);           // leg (camo trouser) — HIT CORE, byte-identical
-    _part(L, _box(0.22, 0.15, 0.37), pal.boot, s * 0.145, 0.075, -0.045);         // boot
-    _part(L, _sph(0.105, 9, 6), pal.boot, s * 0.145, 0.0525, -0.175, 0, 0, 0, 0.95, 0.5, 0.86); // boot toe (V6-3: rounded foot; front reach matched to the old block, -0.265) (U12: 9x6)
-    _part(L, _sph(0.105, 10, 7), pal.gear, s * 0.145, 0.52, -0.13, 0, 0, 0, 0.82, 0.95, 0.45);   // knee pad (V6-3: domed; front reach matched to the old pad) (U12: 10x7)
-    _part(L, _box(0.19, 0.30, 0.05), pal.gear, s * 0.145, 0.30, -0.135);           // shin guard (V4 kit)
-    _part(L, _box(0.22, 0.10, 0.25), pal.camo, s * 0.145, 0.90, 0);                 // thigh pocket block (V5: trimmed)
-    _part(L, _cylT(0.128, 0.104, 0.44, 14), pal.camo, s * 0.145, 0.66, 0);          // thigh (U5-05: tapered overlay — the leg reads as a limb, not a crate; the hit-core box inside is untouched) (U9: 11 seg) (U12: 14 seg)
-    _part(L, _cylT(0.100, 0.080, 0.34, 14), pal.camoDark, s * 0.145, 0.27, 0);      // shin (U5-05: tapered overlay, slim to the boot) (U9: 11 seg) (U12: 14 seg)
+  _part(L, _box(0.21, 0.78, 0.25), pal.camoDark, s * 0.145, 0.48, 0);           // leg (camo trouser) — HIT CORE, byte-identical
+  _part(L, _box(0.22, 0.15, 0.37), pal.boot, s * 0.145, 0.075, -0.045);         // boot
+  _part(L, _sph(0.105, 9, 6), pal.boot, s * 0.145, 0.0525, -0.175, 0, 0, 0, 0.95, 0.5, 0.86); // boot toe (V6-3: rounded foot; front reach matched to the old block, -0.265) (U12: 9x6)
+  _part(L, _sph(0.105, 10, 7), pal.gear, s * 0.145, 0.52, -0.13, 0, 0, 0, 0.82, 0.95, 0.45);   // knee pad (V6-3: domed; front reach matched to the old pad) (U12: 10x7)
+  _part(L, _box(0.19, 0.30, 0.05), pal.gear, s * 0.145, 0.30, -0.135);           // shin guard (V4 kit)
+  _part(L, _box(0.22, 0.10, 0.25), pal.camo, s * 0.145, 0.90, 0);                 // thigh pocket block (V5: trimmed)
+  _part(L, _cylT(0.128, 0.104, 0.44, 14), pal.camo, s * 0.145, 0.66, 0);          // thigh (U5-05: tapered overlay — the leg reads as a limb, not a crate; the hit-core box inside is untouched) (U9: 11 seg) (U12: 14 seg)
+  _part(L, _cylT(0.100, 0.080, 0.34, 14), pal.camoDark, s * 0.145, 0.27, 0);      // shin (U5-05: tapered overlay, slim to the boot) (U9: 11 seg) (U12: 14 seg)
+  if (s > 0) {
+    _part(L, _box(0.10, 0.22, 0.09), pal.dark, 0.265, 0.86, -0.02);               // thigh holster, right (V4 kit)
+    _part(L, _box(0.235, 0.035, 0.27), pal.dark, 0.145, 0.90, 0);                 // holster thigh strap, right (V7.6: the drop-leg rig is strapped to the leg, not floating beside it)
+  } else {
+    _part(L, _box(0.17, 0.20, 0.06), pal.gear, -0.145, 0.80, -0.145);              // drop-leg pouch, left (U6-06v: kit asymmetry — soldiers are not mirrored)
   }
-  _part(L, _box(0.10, 0.22, 0.09), pal.dark, 0.265, 0.86, -0.02);                 // thigh holster, right (V4 kit)
-  _part(L, _box(0.235, 0.035, 0.27), pal.dark, 0.145, 0.90, 0);                   // holster thigh strap, right (V7.6: the drop-leg rig is strapped to the leg, not floating beside it)
-  _part(L, _box(0.17, 0.20, 0.06), pal.gear, -0.145, 0.80, -0.145);                // drop-leg pouch, left (U6-06v: kit asymmetry — soldiers are not mirrored)
-  for (const s of [-1, 1]) {
-    _part(L, _cylT(0.082, 0.068, 0.16, 12), pal.camoDark, s * 0.145, 0.17, 0);     // ankle taper (U6-06v: the shin narrows into the boot — no peg legs) (U9: 10 seg) (U12: 12 seg)
-    _part(L, _cylT(0.100, 0.108, 0.09, 12), pal.gear, s * 0.145, 0.155, 0);     // boot collar (U12: the boot cuffs over the ankle taper — footwear, not a peg in a block)
-    _part(L, _sph(0.115, 11, 8), pal.camo, s * 0.145, 0.93, 0, 0, 0, 0, 1.0, 0.85, 1.05); // hip joint (U9: the leg balls into the pelvis — no shelf joint) (U12: 11x8)
-    _part(L, _sph(0.095, 10, 7), pal.camoDark, s * 0.145, 0.30, 0.05, 0, 0, 0, 0.95, 1.5, 0.95); // calf mass (U9: muscle behind the shin, not a peg) (U12: 10x7)
+  _part(L, _cylT(0.082, 0.068, 0.16, 12), pal.camoDark, s * 0.145, 0.17, 0);     // ankle taper (U6-06v: the shin narrows into the boot — no peg legs) (U9: 10 seg) (U12: 12 seg)
+  _part(L, _cylT(0.100, 0.108, 0.09, 12), pal.gear, s * 0.145, 0.155, 0);     // boot collar (U12: the boot cuffs over the ankle taper — footwear, not a peg in a block)
+  _part(L, _sph(0.115, 11, 8), pal.camo, s * 0.145, 0.93, 0, 0, 0, 0, 1.0, 0.85, 1.05); // hip joint (U9: the leg balls into the pelvis — no shelf joint) (U12: 11x8)
+  _part(L, _sph(0.095, 10, 7), pal.camoDark, s * 0.145, 0.30, 0.05, 0, 0, 0, 0.95, 1.5, 0.95); // calf mass (U9: muscle behind the shin, not a peg) (U12: 10x7)
+  const geo = mergeColoredParts(L);
+  geo.translate(-s * 0.145, -LEG_HIP_Y, 0); // bake relative to the hip point
+  const mesh = new THREE.Mesh(geo, BOT_BODY_MAT);
+  mesh.position.set(s * 0.145, LEG_HIP_Y, 0);
+  return mesh;
+}
+
+// V7.29: the HP bar is ONE canvas-painted sprite (bed + fill on
+// a single 128x16 canvas, redrawn only when damage lands)
+// instead of two sprites — the draw call this frees pays for
+// the second leg mesh above. Headless tools get a plain colour
+// sprite (no document there), same as the fabric texture rule.
+function makeHpBar() {
+  let cv = null, ctx = null, tex = null;
+  if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
+    try {
+      cv = document.createElement('canvas');
+      cv.width = 128; cv.height = 16;
+      ctx = cv.getContext('2d');
+      if (ctx) tex = new THREE.CanvasTexture(cv);
+    } catch { cv = null; ctx = null; tex = null; }
   }
-  return new THREE.Mesh(mergeColoredParts(L), BOT_BODY_MAT);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: 0xffffff, depthTest: false }));
+  if (!tex) sprite.material.color.set(0x51ff7a); // tools fallback: solid bar
+  sprite.scale.set(1.0, 0.13, 1);
+  sprite.position.y = 2.05;
+  const draw = (frac) => {
+    if (!ctx) return;
+    ctx.fillStyle = '#14181c';
+    ctx.fillRect(0, 0, 128, 16);
+    ctx.fillStyle = `hsl(${Math.round(120 * Math.max(0, Math.min(1, frac)))}, 100%, 55%)`;
+    ctx.fillRect(4, 4, Math.round(120 * Math.max(0, Math.min(1, frac))), 8);
+    if (tex) tex.needsUpdate = true;
+  };
+  draw(1);
+  return { sprite, draw };
 }
 
 function buildBotTorso(pal = BOT_PALETTES.hostile) {
@@ -407,6 +453,7 @@ export class Bot {
     this.faceYaw = null;               // eased facing (seeds on first update)
     this.strafeBlend = this.strafeDir; // eased strafe direction (-1..1)
     this.bobPhase = Math.random() * Math.PI * 2;
+    this.walkPhase = Math.random() * Math.PI * 2; // V7.29: leg-swing phase (advances with distance)
     this.bobY = 0; this.leanX = 0; this.rollZ = 0;
 
     const root = new THREE.Group();
@@ -427,12 +474,14 @@ export class Bot {
     }
     this.team = team;
     this.camoId = camoId;
-    const legs = buildBotLegs(pal);
+    const legL = buildBotLeg(pal, -1);
+    const legR = buildBotLeg(pal, 1);
+    this.legL = legL; this.legR = legR;
     const torso = buildBotTorso(pal);
     const head = buildBotHead(pal);
     // Caster discipline (Board 005 §2.4): soldier meshes cast —
     // grounded figures with moving shadows read as people.
-    legs.castShadow = true; torso.castShadow = true; head.castShadow = true;
+    legL.castShadow = true; legR.castShadow = true; torso.castShadow = true; head.castShadow = true;
     const visor = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.09, 0.02),
       new THREE.MeshStandardMaterial({ color: pal.visor, emissive: pal.visorEmissive }));
     visor.position.set(0, 1.70, -0.185);
@@ -452,22 +501,21 @@ export class Bot {
       new THREE.MeshBasicMaterial({ color: team === 'friendly' ? 0x35c4ff : 0xff5340 })
     );
     this.teamMarker.position.y = 2.30;
-    root.add(legs, torso, head, visor, gun, this.teamMarker);
+    root.add(legL, legR, torso, head, visor, gun, this.teamMarker);
     root.traverse(o => { o.userData.botRef = this; });
-    this.hitMeshes = [legs, torso, head];
+    this.hitMeshes = [legL, legR, torso, head];
     this.root = root;
 
-    // HP bar (sprites always face the camera)
-    const bg = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x14181c, depthTest: false }));
-    bg.scale.set(1.0, 0.13, 1); bg.position.y = 2.05;
-    this.hpBg = bg; // U9: hidden with hpFg when the bot dies
-    this.hpFg = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x51ff7a, depthTest: false }));
-    this.hpFg.scale.set(0.94, 0.09, 1); this.hpFg.position.y = 2.05;
-    root.add(bg, this.hpFg);
+    // HP bar: one canvas sprite (V7.29 — see makeHpBar; the call
+    // it saves pays for the split legs). Hidden when the bot dies.
+    const hp = makeHpBar();
+    this.hpSprite = hp.sprite;
+    this._hpDraw = hp.draw;
+    root.add(hp.sprite);
     // V6-3: stride-bob registry — every visual child rides the bob
     // together (offsets from these base heights; root position is
     // the sim truth and never bobs).
-    this._bobKids = [legs, torso, head, visor, gun, bg, this.hpFg, this.teamMarker];
+    this._bobKids = [legL, legR, torso, head, visor, gun, hp.sprite, this.teamMarker];
     this._bobBase = this._bobKids.map(o => o.position.y);
 
     root.position.copy(spawnPos);
@@ -485,8 +533,7 @@ export class Bot {
     if (this.dead) return true;
     this.hp -= amount * (isHead ? 2 : 1);
     const frac = Math.max(0, this.hp / 100);
-    this.hpFg.scale.x = 0.94 * frac;
-    this.hpFg.material.color.setHSL(0.33 * frac, 1, 0.55);
+    if (this._hpDraw) this._hpDraw(frac); // V7.29: single canvas HP bar
     if (this.hp <= 0) {
       this.dead = true; this.deathT = 0;
       this.deathBaseY = this.root.position.y;
@@ -584,8 +631,7 @@ export class Bot {
     this.deathVisorPos = this.visorMesh ? this.visorMesh.position.clone() : null;
     // HUD furniture dies with the bot — a floating HP bar or a
     // spinning team diamond over a corpse breaks the read.
-    if (this.hpFg) this.hpFg.visible = false;
-    if (this.hpBg) this.hpBg.visible = false;
+    if (this.hpSprite) this.hpSprite.visible = false;
     if (this.teamMarker) this.teamMarker.visible = false;
   }
 
@@ -666,15 +712,23 @@ export class Bot {
     // not folded past flat.
     const alpha = (0.16 * b + 0.40 * Math.pow(c, 1.3)) * (1 - 0.85 * s01((t - 0.7) / 0.45)) * (0.45 + 0.55 * c);
     _deathQ2.setFromAxisAngle(_deathAxis, alpha);
-    this._pivotMesh(this.hitMeshes[1], _deathQ2, _deathHip);
+    this._pivotMesh(this.hitMeshes[2], _deathQ2, _deathHip);
 
     // --- legs: lag a few degrees at the hip (knees give
     // first). (An earlier cut folded the legs further during
     // the pivot migration — the audit showed folding LOWERS
     // the feet when the hip is held; the hip floor does the
     // protecting instead.)
+    // V7.29: the legs are two hip-pivot meshes — the lag turns
+    // each about its OWN hip (its origin), positions pinned to
+    // the hip points, which is the same rotation the merged
+    // mesh got about the centre hip, one hip per leg.
     _deathQ3.setFromAxisAngle(_deathAxis, -0.10 * b);
-    this._pivotMesh(this.hitMeshes[0], _deathQ3, _deathHip);
+    for (const leg of [this.legL, this.legR]) {
+      if (!leg) continue;
+      leg.quaternion.copy(_deathQ3);
+      leg.position.set(leg === this.legL ? -0.145 : 0.145, LEG_HIP_Y, 0);
+    }
 
     // --- head + visor: the torso's pitch, then a loll around
     // the neck — extra tip plus a slight roll along the fall.
@@ -684,7 +738,7 @@ export class Bot {
     _deathQ4.setFromAxisAngle(_deathFall, roll);
     _deathQ3.multiply(_deathQ4); // q_loll
     _deathQ4.copy(_deathQ2).multiply(_deathQ3); // q_head = q_upper * q_loll
-    const head = this.hitMeshes[2];
+    const head = this.hitMeshes[3];
     head.quaternion.copy(_deathQ4);
     // position = (hip - qU*hip) + qU*(neck - qL*neck): the
     // upper pitch about the hip, with the loll about the neck
@@ -866,6 +920,27 @@ export class Bot {
     for (let i = 0; i < this._bobKids.length; i++) this._bobKids[i].position.y = this._bobBase[i] + this.bobY;
     this.root.rotation.z = this.rollZ;
     this.root.rotation.x = this.leanX;
+    // --- V7.29 WALK CYCLE: the split legs swing about their
+    // hips in opposite phase. Cadence is locked to distance
+    // travelled (2π per ~2.6 m — a running stride at bot top
+    // speed, a walker's stride at patrol speed), amplitude
+    // scales with the speed fraction (a creep barely swings;
+    // a charge strides ±0.52 rad ≈ 30°), and the leg that is
+    // swinging forward lifts up to 3.5 cm — the foot-clearance
+    // read that sells the step. The bob loop above has just
+    // reset both legs to base height, so the lift never
+    // accumulates. Visual only; _updateCorpse owns the legs
+    // once dead (it pins them every frame).
+    if (this.legL && this.legR) {
+      this.walkPhase += dt * hSpeed * 2.42;
+      const sw = Math.sin(this.walkPhase);
+      const amp = 0.52 * speedFrac;
+      this.legL.rotation.x = sw * amp;
+      this.legR.rotation.x = -sw * amp;
+      const lift = 0.035 * speedFrac;
+      this.legL.position.y += Math.max(0, Math.cos(this.walkPhase)) * lift;
+      this.legR.position.y += Math.max(0, -Math.cos(this.walkPhase)) * lift;
+    }
     if (this.teamMarker) this.teamMarker.rotation.y += dt * 2.2; // U6-07
     // U6-06v: visor scan sway — a slow ±1 cm lateral drift while
     // the bot has no target lock; a scanning soldier, not a
