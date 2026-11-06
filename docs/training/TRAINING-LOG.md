@@ -1607,3 +1607,229 @@ split, tightest-by-instrument). Flagged for Sun Nov 8: Lesson
 Fri Nov 6 — TEST CRAFT, facade anchor gate pin per Sunday's
 focus list (pin the landed HQ west face; negative test: shift
 one anchor → sole failure).
+
+---
+
+## Fri Nov 6, 2026 — TEST CRAFT (review-and-lessons-only)
+
+**Staff:** Training Lead (ran the session), REVIEWER (recent
+record, read-only), COACH (drill design + rubric C1–C8; grading
+pass on the final files recorded below).
+
+**Pre-checks — DIRTY TREE, session reclassified before any
+edit:** Tree dirty on `main` at `920d3be` (V7.30) before the
+session: ` M js/online.js` (+61/−14 — the V7.31 puppet walk
+cycle in flight) and `?? docs/sessions/realism-shots/`.
+Per the standing rule and Lesson 33, a dirty start means a
+**review-and-lessons-only session — no code edits**, even
+though today's planned drill (the facade anchor gate pin)
+edits `tools/smoke.mjs`, not `online.js`: the pin's negative
+test mutates `js/world.js`, and a build session has edited
+`tools/smoke.mjs` mid-flight before (V7.10, Nov 4 record).
+Guardian Nov 6 08:07 PT Watch rotation was itself
+detection-only for the same reason (tree dirty, HEAD moved
+mid-run), all-pass on V7.28, SMOKE PASSED, 0 TODO/FIXME, no
+Medic assignments — and it predates V7.29/V7.30, which are
+guardian-unseen as of this session.
+
+**Mid-session movement (Lesson 33 again, from the other
+side):** while this session ran, the build session committed
+its own work as `7479ed5` (V7.31 puppets walk — the in-flight
+`online.js` diff landed byte-for-byte by its own pen: the
+commit's `online.js` change is the same 61/14 the start check
+saw, across `index.html` / `js/main.js` / `js/online.js` /
+`tools/mobile-check.mjs`). End-of-session `git status`
+therefore differs from the start check — solely because the
+other pen landed, not because training touched anything; the
+untracked `docs/sessions/realism-shots/` remains. A tree
+freeing up mid-session does not retroactively lift a
+stand-down (Coach ruling, Nov 4): the pin was NOT attempted.
+
+**Reviewer findings (tree-verified by Lead where
+load-bearing):**
+- Nothing is red. Since Thu Nov 5 (`9745ff6`): V7.29 walk
+  cycle (`9d54395`), V7.30 recoil + shooting FX + security
+  logs (`920d3be`), six iterations of the realism-shots
+  evidence harness, and V7.31 (above). The struggles were
+  instrument friction (realism-shots: /tmp-wiped browser
+  binary, countdown waits, rAF warm-up), not gate breaks.
+- The planned pin does not exist yet: `grep FACADE
+  tools/smoke.mjs` = 0 hits. `FACADE_ANCHORS` sits at
+  `js/world.js:929` (header at :914–928 states "Fri Nov 6
+  pins these anchors in smoke"), and the landed HQ west
+  values are in the tree: `hqWestWinX` / `hqWestUpperWinX`
+  both −24.69 (:947), `hqWestZ 42`, `hqWestUpperZ 40`.
+- Under-tested, new since Nov 5: V7.29's solo gait
+  (`js/bots.js` LEG_HIP_Y 0.90, walkPhase cadence 2.42) has
+  no smoke pin; V7.30's recoil split/cant (`js/player.js`)
+  is unpinned (smoke checks weapon-data `recoil >= 0` only);
+  `tools/security-log-check.mjs` (V7.30) is thorough but
+  standalone — its own header says "NOT part of the
+  11-gate release battery — run manually."
+- Carried opens, unchanged: playtest verdicts owed on
+  V7.16→; Stage 2 signed sessions (Brett's 3 decisions);
+  host firewall Mac half; ASSAULT U1–U3; VM2 §9 items 2–4;
+  TTK re-baseline; Ops drifted faces (build-session scope).
+
+**Drill run — the facade anchor gate pin, designed to
+landing-ready spec (no code written today):**
+
+*Mechanism (decided, with alternatives rejected):*
+`FACADE_ANCHORS` is a block-scoped `const` inside
+`buildWorld()`; `js/world.js` exports only `buildWorld` and
+`collide`, and the module imports THREE — it cannot be
+imported like T1 imports `wd.SOLIDS`.
+- **A — Source-text pin in `tools/smoke.mjs` (CHOSEN).** The
+  established smoke pattern (G1–G5, D9, L5–L7 source
+  contracts); zero product-code change; training-sized.
+- B — Export the table from `world.js`: widens the module
+  surface — a build-session decision, not a training pin.
+  Rejected.
+- C — Stub-THREE geometry multiset inside smoke: proves
+  geometry, not the table; heavy/fragile in the gate. That
+  proof already exists in the Nov 2/4 records. Rejected.
+
+*FA1 — table pin.* New block in `tools/smoke.mjs`
+immediately after §1h (T1–T5 worlddata, lines 573–613), own
+`try/catch` ending `fail('FA facade anchor checks threw: '
++ e.message)`. New prefix FA (smoke already carries two
+different N15s; no third collision). Extract the slice from
+`const FACADE_ANCHORS = Object.freeze({` to its closing
+`});`; assert the freeze is present; per key, extract and
+compare — scalars `===`, arrays `JSON.stringify`; assert
+the extracted key set equals the expected key set (a
+renamed/dropped key fails, it does not silently unpin);
+collect ALL mismatches into ONE fail line, so FA1 is exactly
+one ✓/✗ line. Pin against literals, never self-consistency
+(Lesson 32). Expected literals — the complete table as
+re-derived from the live file today (Lesson 37: the landing
+session re-verifies them against the live file first):
+heights `winY 1.7, hqUpperY 4.6, hqPanelY 4.825, commsY
+1.5`; Ops `opsNorthZ 39.97, opsWestX -37.04, opsSouthZ
+48.04, opsNorthX [-35,-32,-29], opsWestZ [42,46],
+opsSouthX [-34.5,-28.4]`; HQ `hqSouthZ 46.69, hqNorthZ
+37.31, hqSouthX [-19,-5.5], hqNorthX [-17,-11], hqWestWinX
+-24.69, hqEastWinX -1.81, hqWestUpperWinX -24.69, hqWestZ
+42, hqWestUpperZ 40, hqEastZ 42, hqPanelSouthZ 46.34,
+hqPanelNorthZ 37.66`; Comms `commsNorthZ 53.47,
+commsNorthX [22.6,25.4]`. Header comment states the origin
+(U6-12 drift survived because no gate pinned a facade
+coordinate), the Wed Nov 4 landing (−22.19 → −24.69 = west
+outer face −24.65 − 0.04), and the Lessons 28/31 basis.
+
+*FA2 — west trim literals.* FA1 covers only table-sourced
+windows + the 4 interior panels; the rest of the landed
+west face is hand-synced `t_()` literals (Lesson 31 scope
+note), so a "west face pinned" claim without FA2 would be
+dishonest. FA2 source-asserts exactly (all verified live
+today): west parapet `trimA, -24.65, 6.39, 42`
+(`js/world.js:1019`); west floor-line band `trimB, -24.66,
+3.02, 42` (:1028); corner-board loop (:1022) containing
+`[-24.5, 37.5]` and `[-24.5, 46.5]`. Separate ID so a trim
+failure never masquerades as a table failure.
+
+*Scope honesty (part of the design, not a footnote):* the
+pin is a **drift alarm, not a correctness proof** (Lesson
+36). Ops anchors are pinned at their known pre-growth
+values (`opsNorthZ 39.97` vs the wall at z 39): when the
+build session re-anchors Ops, FA1's expected values change
+in the same commit — a named re-pin, the T1 precedent
+(Lesson 41). The pin proves no geometry, rendering, or
+reachability — only that the named source values did not
+move unannounced.
+
+*Negative-test protocol (for the landing session):*
+1. Solo smoke on the landed pin → PASS, count = baseline +2
+   (FA1, FA2).
+2. Mutate ONE anchor, key-targeted (`-24.69` occurs twice;
+   a global replace invalidates the test):
+   `hqWestWinX: -24.69 → -24.19`, nothing else.
+3. Solo smoke → exit 1, `SMOKE FAILED (1)`, sole ✗ is FA1
+   naming `hqWestWinX`, got −24.19 / expected −24.69.
+4. Restore `git checkout -- js/world.js`; verify
+   `git diff -- js/world.js` is empty; re-run smoke → PASS
+   at the new count.
+5. FA2 attribution: shift the parapet literal
+   `-24.65 → -24.15` → sole failure FA2 only; restore as 4.
+6. Retain evidence as `.txt` (never `.mjs` — the syntax
+   walk would count it) at
+   `scratch/training-testcraft-2026-11-06/results.txt`.
+
+**Gap triage — ordered queue for the next clean TEST CRAFT
+session(s):**
+1. **Facade pin FA1/FA2** (above) — promised since Oct 31;
+   closes the U6-12 drift class. Lands first, mechanically.
+2. **Security-log wiring** — `tools/security-log-check.mjs`
+   already exists and is thorough (sanitiser 512-cap, hash
+   chain, restart resume, tamper `brokenAt`, rotation,
+   `_viol` flattening); the gap is wiring, not design: add
+   it to smoke §1i's subprocess list alongside the B/T/W
+   suites. A textbook Lesson 28 case — a verified fix whose
+   check sits outside the battery is unguarded.
+3. **Walk-cycle pins** — for the landed V7.29 solo gait and
+   (now landed) V7.31 puppet gait, designed from the landed
+   files, not today's in-flight shape: the cadence `2.42`
+   rad/m is a duplicated literal (`js/bots.js:936` and
+   `js/online.js:362`), plus `HIP_Y 0.62`, `legL/legR`, and
+   `disposePuppet`'s free-each-geometry-once /
+   shared-material-once contract.
+4. VM2 §9 items 2–4 — still open, still behind the above.
+
+**Baseline smoke (Lead, personally run):** `node
+tools/smoke.mjs` → **SMOKE PASSED, exit 0, 373 ✓ lines** —
+with the caveat stated plainly: it ran on the dirty, moving
+tree and straddled V7.31's landing (started at `920d3be` +
+uncommitted V7.31, ended at `7479ed5`), so it is evidence
+the tree was green around the session, not a HEAD-pure
+baseline. The 370 → 373 rise vs Thu Nov 5 came from the
+V7.29/V7.30 train, not from training (no training code
+exists today).
+
+**At close, a third pen is in flight:** after V7.31 landed,
+the tree went dirty again behind this session — `js/world.js`
+(V7.32 horizon shoulder ring) and `tools/realism-shots.mjs`
+(pointer-lock look fix) are modified by the build session,
+untouched by training. The training commit below is
+pathspec-scoped to `docs/training/` only for exactly this
+reason.
+
+**Close-out verification (Lead, personally run):**
+`node tools/smoke.mjs` → **SMOKE PASSED, exit 0** on the
+end-state tree (373 ✓ lines, same count as the baseline),
+after the records below were written — green even with the
+V7.32 pen's in-flight `js/world.js` in the tree. Training's
+own diff scope is `docs/training/` only; the tree also
+carries the build session's V7.32 modifications and the
+pre-existing untracked `docs/sessions/realism-shots/`,
+neither of them training's.
+
+**Grade:** **PASS** (Coach grading pass on the actual
+files — all 8 rubric criteria C1–C8 PASS, no deductions.
+Coach independently re-ran smoke: exit 0, 373 checks,
+SMOKE PASSED, count reproduced even across V7.32's landing;
+verified all 24 FA1 literal-map keys against the live table
+and the FA2 literals at `js/world.js:1019/1022/1028`
+field-for-field; C2 judged on intent as briefed — training's
+diff is `docs/training/` only and the log states the tree's
+movement honestly. Coach noted V7.32 landed as `74f06ee`
+during grading, leaving the end status as training's two
+files + the pre-existing untracked realism-shots dir. One
+procedural note, not a deduction: land the scoped commit
+exactly as specified — done below.)
+
+**Commits:** one local commit, pathspec-scoped to
+`docs/training/` only, `training: test craft — facade
+anchor gate pin designed (FA1/FA2, review-only, dirty
+tree)`. Not pushed.
+
+**New lessons:** 41 (pinning known-stale values is a drift
+alarm, not an endorsement — label it with its named re-pin
+obligation, or don't pin it). Lesson 31's scope note
+updated: the Fri Nov 6 gate pin was designed today and
+deferred by the dirty tree, landing next clean session.
+The Lesson 1 lighting-sha correction stays queued for Sun
+Nov 8 CONSOLIDATE, as flagged Nov 5. Next session: Sat
+Nov 7 — REALISM (Verity-led review; land at most one small
+in-budget improvement, tree permitting). The FA1/FA2 pin
+lands at the next clean TEST CRAFT opportunity, or sooner
+if a clean day's drill is displaced by Brett's order.
