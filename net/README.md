@@ -145,6 +145,25 @@ running the supported setup:
    `docs/STAGE2-SESSIONS.md`) — until it lands, posture 1–3
    are what keep the server private.
 
+**Security-log hardening (2026-11-06).** The `[violation]`
+lines themselves are now defended. `_viol` flattens every
+interpolated value to a single length-capped line at the
+source (several details are client-shaped strings — a hostile
+client must not be able to forge log entries with embedded
+newlines). Set `ONO_VIOLATION_LOG=/path/outside/the/webroot.log`
+to also persist the lines to an append-only, **hash-chained**
+file (`net/violation-log.js`): each entry carries the SHA-256
+of the previous entry plus its own text, so edits, deletions
+or reordering are detectable with
+`verifyViolationLog(path)` (see `tools/security-log-check.mjs`,
+which exercises the chain, restart resume, tamper detection
+and rotation). Rotation keeps one `.1` generation at 5 MB with
+an explicit marker line at the seam. The log records player
+ids, room codes, violation kinds and short numeric details —
+never tokens, credentials, chat text or message bodies. Keep
+the file outside the repo and the Pages web root: a fetchable
+violation log is a recon gift.
+
 ## Verification (M0, Oct 24, 2026)
 
 - `node --check` passes on both modules (checked via temporary
