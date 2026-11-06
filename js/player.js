@@ -77,6 +77,8 @@ export class Player {
     this.bobT = 0;
     this.recoil = 0;
     this.recoilYaw = 0;          // V7: horizontal recoil-pattern offset (decays like recoil)
+    this.recoilSettle = 0;       // V7.30: slow residue of the recoil split — sustained fire keeps a little climb that eases back over ~0.3 s (the "recovery" half of recoil feel)
+    this.recoilRoll = 0;         // V7.30: per-shot camera cant tied to the horizontal wander sign — the gun torques, the view torques a whisper with it
     this.baseFov = camera.fov;   // 75 from main.js; sprint eases toward 82
     this.landDip = 0;            // current landing-dip camera offset (<= 0)
     this.landDipMax = 0;         // dip depth captured at touchdown
@@ -216,6 +218,7 @@ export class Player {
     this.stanceState = createStanceState();
     this.stance = 'stand'; this.eyeCur = EYE; this.spreadMult = 1;
     this.gunKick = 0;
+    this.recoil = 0; this.recoilYaw = 0; this.recoilSettle = 0; this.recoilRoll = 0; // V7.30: a respawn starts from a settled gun
     this.bobAmp = 0; this.leanZ = 0; this.swayX = 0; this.swayY = 0;
     this.lookLean = 0; this.runLean = 0; this._lookPrevYaw = this.yaw;
     this._prevYaw = this.yaw; this._prevPitch = this.pitch;
@@ -317,10 +320,20 @@ export class Player {
 
     // Orientation
     this.rig.rotation.y = this.yaw;
-    this.camera.rotation.x = this.pitch + this.recoil;
+    this.camera.rotation.x = this.pitch + this.recoil + this.recoilSettle;
     this.camera.rotation.y = this.recoilYaw || 0;   // V7: horizontal recoil-pattern wander
-    this.recoil *= Math.pow(0.0001, dt); // fast decay
+    this.recoil *= Math.pow(0.0001, dt); // fast decay — the pop
     if (this.recoil < 0.0005) this.recoil = 0;
+    // V7.30: the settle residue recovers ~30x slower than the
+    // pop — long enough that a held trigger keeps a visible,
+    // pull-against-able climb, short enough that a DMR shot
+    // (0.55 s cadence) is fully recovered before the next round.
+    this.recoilSettle *= Math.pow(0.002, dt);
+    if (this.recoilSettle < 0.0005) this.recoilSettle = 0;
+    if (this.recoilRoll) {
+      this.recoilRoll *= Math.pow(0.0001, dt);
+      if (Math.abs(this.recoilRoll) < 0.0004) this.recoilRoll = 0;
+    }
     if (this.recoilYaw) {
       this.recoilYaw *= Math.pow(0.0001, dt);
       if (Math.abs(this.recoilYaw) < 0.0005) this.recoilYaw = 0;
@@ -571,7 +584,7 @@ export class Player {
     const leanTarget = this.onGround
       ? Math.max(-0.011, Math.min(0.011, -latVel * 0.0016)) : 0;
     this.leanZ += (leanTarget - this.leanZ) * easeK(8, dt); // V7.15: exact-exp ease
-    this.camera.rotation.z = this.leanZ + (this.lookLean || 0);
+    this.camera.rotation.z = this.leanZ + (this.lookLean || 0) + (this.recoilRoll || 0); // V7.30: + per-shot recoil cant
     // V7.8 RUN LEAN (Brett's vision queue: walking locomotion
     // feel): at a full sprint the camera tips a whisper forward
     // (0.006 rad, eased both ways) — the lean-into-the-run that
@@ -620,6 +633,11 @@ export class Player {
     this.gun.position.x += (gx - this.gun.position.x) * gk;
     this.gun.position.y += (gy - this.gun.position.y) * gk;
     this.gun.position.z = (this.aiming ? -0.42 : -0.45) + this.gunKick;
+    // V7.30: the viewmodel's muzzle RISES with the kick (up to
+    // ~6° on the hardest-kicking gun) and settles on the same
+    // gunKick recovery curve — before, the gun only slid back
+    // on Z, which read as a pump, not a recoil impulse.
+    this.gun.rotation.x = this.gunKick * 1.4;
 
     // Muzzle flash decay
     if (this.flash.material.opacity > 0) this.flash.material.opacity = Math.max(0, this.flash.material.opacity - dt * 14);
@@ -634,10 +652,27 @@ export class Player {
     // pattern the player can learn and pull against, instead of
     // the pre-V7 pure vertical pop. Attachments that mod recoil
     // scale all three (see effectiveWeapon).
-    this.recoil = Math.min(this.recoil + (recoilV ?? strength), 0.09);
+    // V7.30 RECOIL SPLIT: the per-shot climb divides 72/28
+    // between the fast pop (this.recoil — recovers almost
+    // instantly, as before) and the settle residue
+    // (this.recoilSettle — recovers over ~0.3 s). Total climb
+    // per shot is UNCHANGED (the weapon table is untouched);
+    // what changes is the shape of the recovery: a single shot
+    // still settles dead-level, but sustained fire now carries
+    // a learnable residual climb instead of resetting to zero
+    // between rounds. Pattern totals stay bounded (0.09 fast
+    // cap as before; settle capped at 0.05).
+    const climb = recoilV ?? strength;
+    this.recoil = Math.min(this.recoil + climb * 0.72, 0.09);
+    this.recoilSettle = Math.min(this.recoilSettle + climb * 0.28, 0.05);
     if (recoilH) {
+      const wander = recoilH * (Math.random() * 2 - 1);
       this.recoilYaw = Math.max(-0.035, Math.min(0.035,
-        (this.recoilYaw || 0) + recoilH * (Math.random() * 2 - 1)));
+        (this.recoilYaw || 0) + wander));
+      // V7.30: the same wander draw cants the camera a whisper
+      // (max ~±0.4°) — torque you can see, tied to the pattern.
+      this.recoilRoll = Math.max(-0.007, Math.min(0.007,
+        (this.recoilRoll || 0) + wander * 0.55));
     }
     // Gun kickback scales mildly with the weapon's recoil strength
     // (the AR's 0.021 reproduces the original 0.03 kick exactly).
@@ -646,6 +681,10 @@ export class Player {
     const dim = this.flashDim === undefined ? 1 : this.flashDim;
     this.flash.material.opacity = dim;
     this.flash.rotation.z = Math.random() * Math.PI;
+    // V7.30: flash size pops per shot (±20%) — a real muzzle
+    // flash is never the same silhouette twice.
+    const fp = 0.85 + Math.random() * 0.4;
+    this.flash.scale.set(fp, fp, 1);
     this.flashLight.intensity = 26 * dim;
   }
 
