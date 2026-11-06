@@ -37,9 +37,10 @@ import { pathToFileURL } from 'node:url';
 import { GameServer } from './server.js';
 import { WebSocketTransport } from './ws-transport.js';
 import { PROTOCOL_VERSION, LIMITS } from './protocol.js';
+import { createViolationLogger } from './violation-log.js';
 
-export function createOnlineServer({ port = 8081, host = '127.0.0.1', allowedOrigins = null, maxConnections, maxPerIp } = {}) {
-  const game = new GameServer();
+export function createOnlineServer({ port = 8081, host = '127.0.0.1', allowedOrigins = null, maxConnections, maxPerIp, logger = null } = {}) {
+  const game = new GameServer({ logger });
   const transportOpts = { allowedOrigins };
   if (maxConnections !== undefined) transportOpts.maxConnections = maxConnections;
   if (maxPerIp !== undefined) transportOpts.maxPerIp = maxPerIp;
@@ -100,9 +101,19 @@ if (isDirectRun) {
   const allowedOrigins = process.env.ONO_ALLOWED_ORIGINS
     ? process.env.ONO_ALLOWED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
     : null;
-  const { game, httpServer, close } = createOnlineServer({ port, host, allowedOrigins });
+  // Security-log hardening (Nov 6, 2026): ONO_VIOLATION_LOG
+  // points the anti-cheat violation lines at an append-only,
+  // hash-chained file (net/violation-log.js) in ADDITION to the
+  // console. Keep the path OUTSIDE this repo / the served web
+  // root — a log the players can fetch is a recon gift. Unset =
+  // console only, the pre-existing behaviour.
+  const violationLogPath = process.env.ONO_VIOLATION_LOG || null;
+  const fileLogger = violationLogPath ? createViolationLogger(violationLogPath) : null;
+  const logger = fileLogger ? (line) => { fileLogger(line); console.warn(line); } : null;
+  const { game, httpServer, close } = createOnlineServer({ port, host, allowedOrigins, logger });
   game.start();
   httpServer.listen(port, host, () => {
+    if (violationLogPath) console.log(`[game-server] violation log → ${violationLogPath} (append-only, hash-chained; keep it outside the web root)`);
     const addr = httpServer.address();
     console.log(`[game-server] Over n' Out online server → ws://${addr.address}:${addr.port}/play`);
     console.log(`[game-server] status JSON → http://${addr.address}:${addr.port}/`);
