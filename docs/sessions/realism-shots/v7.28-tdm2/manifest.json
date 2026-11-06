@@ -1,0 +1,18 @@
+{
+  "tag": "v7.28-tdm2",
+  "mode": "tdm",
+  "build": "V7.28",
+  "maps": {
+    "compound": [
+      "compound-0-wide.png",
+      "compound-1-lane.png",
+      "compound-2-approach.png",
+      "compound-3-approach.png",
+      "compound-4-approach.png",
+      "compound-5-approach.png",
+      "compound-5b-burst.png",
+      "compound-5c-burst.png"
+    ]
+  },
+  "errors": []
+}
