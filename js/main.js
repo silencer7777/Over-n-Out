@@ -173,7 +173,7 @@ function goLandscape() {
 // shipped witness; see the U9 report.
 // V7: the witness switches from the V6 update count to the
 // version tag — Brett reads "BUILD V7.2" in the menu footer.
-const BUILD_NO = 'V7.29';
+const BUILD_NO = 'V7.30';
 try { window.__onoBuild = BUILD_NO; } catch (e) { /* non-window host */ }
 
 // ---------------- DOM ----------------
@@ -1395,6 +1395,95 @@ function showTracer(from, to, color, velocity = 880) {
   slot.line.visible = true;
 }
 
+// ---------------- V7.30 IMPACT FX ----------------
+// Owner (Nov 6): "work on recoil and shooting fx." Until now a
+// bullet that hit the world simply stopped — no dust, no mark,
+// nothing at the hit point — and a bullet that hit a soldier
+// had only the 2D hitmarker. This pool puts a brief physical
+// puff AT the hit point: dust for world surfaces, a dark red
+// puff for a soldier hit — and it doubles as the muzzle-flash
+// source for bot guns (below). Pooled sprites, invisible when
+// idle (zero draw calls at rest), one shared procedural
+// radial texture, per-sprite materials for independent fades.
+const IMPACT_POOL_SIZE = 16;
+const impacts = [];
+let impactCursor = 0;
+function makeImpactTexture() {
+  if (typeof document === 'undefined' || typeof document.createElement !== 'function') return null;
+  try {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 64;
+    const c = cv.getContext('2d');
+    if (!c) return null;
+    const g = c.createRadialGradient(32, 32, 2, 32, 32, 31);
+    g.addColorStop(0, 'rgba(255,255,255,0.9)');
+    g.addColorStop(0.45, 'rgba(255,255,255,0.42)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, 64, 64);
+    const tex = new THREE.CanvasTexture(cv);
+    if ('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  } catch { return null; }
+}
+const IMPACT_TEX = makeImpactTexture();
+for (let i = 0; i < IMPACT_POOL_SIZE; i++) {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: IMPACT_TEX, transparent: true, opacity: 0, depthWrite: false }));
+  sp.visible = false;
+  sp.frustumCulled = false;
+  scene.add(sp);
+  impacts.push({ sp, t: 0, dur: 0, from: 0.1, to: 0.4, o0: 0.5, rise: 0.2 });
+}
+const IMPACT_KINDS = {
+  dust: { color: 0xcbbfa5, from: 0.10, to: 0.55, dur: 0.34, o0: 0.50, rise: 0.35 },
+  hit: { color: 0x8a2323, from: 0.08, to: 0.34, dur: 0.22, o0: 0.65, rise: 0.10 },
+  flash: { color: 0xffc766, from: 0.30, to: 0.42, dur: 0.06, o0: 0.95, rise: 0 },
+};
+function spawnImpact(point, kind = 'dust') {
+  const K = IMPACT_KINDS[kind] || IMPACT_KINDS.dust;
+  const s = impacts[impactCursor];
+  impactCursor = (impactCursor + 1) % IMPACT_POOL_SIZE;
+  s.t = 0; s.dur = K.dur; s.from = K.from; s.to = K.to; s.o0 = K.o0; s.rise = K.rise;
+  s.sp.position.copy(point);
+  s.sp.material.color.set(K.color);
+  s.sp.material.opacity = K.o0;
+  s.sp.scale.set(K.from, K.from, 1);
+  s.sp.visible = true;
+}
+function stepImpacts(dt) {
+  for (const s of impacts) {
+    if (!s.sp.visible) continue;
+    s.t += dt;
+    if (s.t >= s.dur) { s.sp.visible = false; s.sp.material.opacity = 0; continue; }
+    const p = s.t / s.dur;
+    const sc = s.from + (s.to - s.from) * p;
+    s.sp.scale.set(sc, sc, 1);
+    s.sp.position.y += s.rise * dt;
+    s.sp.material.opacity = s.o0 * (1 - p);
+  }
+}
+
+// V7.30: solo bot fire presentation (bots.js Bot.onFireVisual):
+// a tracer from the bot's gun to its target — the target point
+// itself on a hit, a near-miss offset on a miss — plus a pooled
+// muzzle flash at the gun. Mirrors what online players already
+// see from server shot events; solo bots were invisible firers.
+const _bfFrom = new THREE.Vector3();
+const _bfTo = new THREE.Vector3();
+Bot.onFireVisual = (bot, hit, targetPos) => {
+  if (!bot.gunMesh || !bot.weapon || !targetPos) return;
+  bot.gunMesh.getWorldPosition(_bfFrom);
+  _bfTo.copy(targetPos);
+  _bfTo.y += 1.32; // target chest height (targetPos is at the feet)
+  if (!hit) {
+    _bfTo.x += (Math.random() - 0.5) * 2.2;
+    _bfTo.y += Math.random() * 0.8;
+    _bfTo.z += (Math.random() - 0.5) * 2.2;
+  }
+  if (!bot.weapon.stealth) showTracer(_bfFrom, _bfTo, bot.weapon.tracerColor, bot.weapon.velocity);
+  spawnImpact(_bfFrom, 'flash');
+};
+
 // V7.14 cloud drift: the band rotates a fraction of a degree
 // per second — clouds cross the sky slowly enough to feel
 // like weather, not a carousel. Cached lookup, Δ0 cost.
@@ -1503,6 +1592,11 @@ function shoot() {
     if (results.length) {
       const hit = results[0];
       _end.copy(hit.point);
+      // V7.30: physical feedback AT the hit point — a soldier
+      // hit puffs dark red, a world/device hit kicks dust; an
+      // explosive hit has its own explosion, so it skips both.
+      if (hit.object.userData.botRef || hit.object.userData.dogRef) spawnImpact(hit.point, 'hit');
+      else if (!hit.object.userData.explosive) spawnImpact(hit.point, 'dust');
       const bot = hit.object.userData.botRef;
       if (bot && !bot.dead) {
         hitAny = true;
@@ -3051,6 +3145,7 @@ function tick() {
     }
     stepOnlineVehicles(dt, me); // R2-5: own-vehicle prediction + prompts
     stepTracers(dt); // V7.12: traveling streaks (shared with offline tick)
+    stepImpacts(dt); // V7.30: impact puffs + bot muzzle flashes
     stepSkyDrift(dt); // V7.14: cloud band drift
     stepWaterDrift(dt); // V7.18: reservoir texture drift
     vignette.style.opacity = Math.max(0, vignette.style.opacity - dt * 1.6);
@@ -3250,6 +3345,7 @@ function tick() {
 
     // tracers travel + fade (V7.12 streaks)
     stepTracers(dt);
+    stepImpacts(dt); // V7.30: impact puffs + bot muzzle flashes
     stepSkyDrift(dt); // V7.14: cloud band drift
     stepWaterDrift(dt); // V7.18: reservoir texture drift
     vignette.style.opacity = Math.max(0, vignette.style.opacity - dt * 1.6);
