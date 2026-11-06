@@ -1241,9 +1241,28 @@ export function buildWorld(scene) {
         cx + tx * sx * w + rx * sz * d, -2, cz + tz * sx * w + rz * sz * d]);
       const apex = [cx + tx * apexOff, h, cz + tz * apexOff];
       corners.forEach(c => { positions.push(...c); tmp.copy(flank).offsetHSL(0, 0, (hash(v) - 0.5) * 0.06); colors.push(tmp.r, tmp.g, tmp.b); v++; });
+      // V7.32 SHOULDER RING: a 4-face pyramid reads as a paper
+      // triangle from any distance — the horizon's most "fake"
+      // silhouette. A mid-flank ring at ~55% height, bowed
+      // slightly outward with per-corner hash jitter, breaks
+      // each face into two planes with different light and an
+      // irregular outline. Same merged mesh, same draw call;
+      // +4 verts / +8 tris per peak (~+150 tris total).
+      const mid0 = v;
+      const shoulder = flank.clone().lerp(cap, 0.35);
+      for (let f = 0; f < 4; f++) {
+        const c = corners[f];
+        const t = 0.55, bow = 0.52 + (hash(v * 3 + 11) - 0.5) * 0.1;
+        const axX = cx + tx * apexOff * t, axZ = cz + tz * apexOff * t;
+        positions.push(axX + (c[0] - axX) * bow, -2 + (h + 2) * t, axZ + (c[2] - axZ) * bow);
+        tmp.copy(shoulder).offsetHSL(0, 0, (hash(v) - 0.5) * 0.07); colors.push(tmp.r, tmp.g, tmp.b); v++;
+      }
       positions.push(...apex); colors.push(cap.r, cap.g, cap.b); v++;
-      const apexIdx = v - 1, base0 = apexIdx - 4;
-      for (let f = 0; f < 4; f++) indices.push(base0 + f, base0 + (f + 1) % 4, apexIdx);
+      const apexIdx = v - 1, base0 = mid0 - 4;
+      for (let f = 0; f < 4; f++) {
+        const b0i = base0 + f, b1i = base0 + (f + 1) % 4, m0i = mid0 + f, m1i = mid0 + (f + 1) % 4;
+        indices.push(b0i, b1i, m1i, b0i, m1i, m0i, m0i, m1i, apexIdx);
+      }
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
