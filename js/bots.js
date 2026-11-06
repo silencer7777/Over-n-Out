@@ -383,6 +383,7 @@ export class Bot {
   static smokeFilter = null;
   static playerPerceptionMult = 1;
   static playerStanceMult = 1; // U6-10: host-set stance hit multiplier vs the player
+  static onFireVisual = null; // V7.30: host-set presentation hook (bot, hit, targetPos) — renders tracer + muzzle flash for solo bot fire
   // team (V4, Atlas): 'hostile' (default — every existing caller)
   // or 'friendly' (slate camo, green rig/visor) for co-op /
   // friendly-fire modes. Visual only: AI, hit volumes and the
@@ -1047,6 +1048,7 @@ export class Bot {
         this.burstLeft--;
         this.shotAge = 0; // U12-01: a shot was fired — this shooter is revealed on the minimap
         sfx.enemyShot(dist, this.weapon.sound);
+        let shotHit = false; // V7.30: presentation hook result (below)
         if (hasLOS) {
           // Base: existing range formula. Shape: first shot loosest, later
           // shots tighten; burst-1 weapons use a flat 0.95 instead.
@@ -1064,11 +1066,18 @@ export class Bot {
           if (Math.random() < chance) {
             const raw = this.weapon.bot.damageMin
               + Math.random() * (this.weapon.bot.damageMax - this.weapon.bot.damageMin);
+            shotHit = true;
             onShoot(raw * falloffFactor(this.weapon, dist));
           }
         } else {
           this.burstShotIndex++;
         }
+        // V7.30: solo bot fire was INVISIBLE — sound and damage
+        // arrived with no tracer and no muzzle flash (online
+        // bots already got tracers from server events). The
+        // host installs Bot.onFireVisual to render the shot;
+        // presentation only, the damage path above is untouched.
+        if (Bot.onFireVisual && hasLOS) Bot.onFireVisual(this, shotHit, playerPos);
       }
     } else if (this.burstCooldown <= 0 && hasLOS && aimed) {
       // Only start a burst once aimed up. While still aiming (or without
