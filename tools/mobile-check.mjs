@@ -140,7 +140,7 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   const touch = readFileSync(new URL('../js/touchcontrols.js', import.meta.url), 'utf8');
-  eq(html.includes('id="build-stamp"') && html.includes('BUILD V7.32'), true, 'T7 menu build stamp present (cache witness)'); // named re-pin: witness V7.31 -> V7.32 (realism train: horizon peak shoulders)
+  eq(html.includes('id="build-stamp"') && html.includes('BUILD V7.33'), true, 'T7 menu build stamp present (cache witness)'); // named re-pin: witness V7.32 -> V7.33 (iPhone rotate: DEPLOY landscape request + Rotation Lock hint)
   eq(html.includes('name="ono-build" content="V7"'), true, 'T7 ono-build meta present'); // V7 named re-pin: witness 15 -> V7
   eq(main.includes('__onoBuild'), true, 'T7 build number exposed for support reads');
   eq(main.includes("matchMedia('(orientation: portrait)')") && main.includes("'pageshow'"), true, 'T7 redundant iOS fit triggers present');
@@ -560,6 +560,76 @@ eq(isTouchDevice(null, null), false, 'T1 headless env is not');
     && mainSrc.includes('aim: effAimNow') && mainSrc.includes('manualAim = true'),
     'T17h wiring: composite in frame(), walker + online sample consume it, RMB feeds the manual channel');
   chk(htmlSrc.includes('FIRE</b> TO AIM DOWN SIGHTS'), 'T17i menu hint teaches fire-to-aim (both hint variants)');
+}
+
+// --- T18 · IPHONE ROTATE (V7.33): the owner's phone report —
+// "it doesn't rotate on my phone automatically; it does on the
+// tablet." Two layers are pinned here. (a) Wiring: DEPLOY itself
+// makes the landscape request inside the tap (before, only the
+// optional LANDSCAPE button/pill did, so auto-rotate depended
+// on a side button); platforms with no fullscreen/orientation-
+// lock API (iPhone Safari) get body.rotate-manual, under which
+// the rotate prompt shows its Rotation Lock hint line — the
+// one iOS switch no web page can override; and the
+// orientationchange refit series runs out to 1000 ms for the
+// iPhone landscape chrome settle. (b) Behaviour: an iPhone-
+// class viewport (393x852 portrait <-> 852x393 landscape)
+// flipped through the REAL TouchControls binding — the stick
+// viewport (left-45% claim zone) must follow the turn on BOTH
+// the resize and orientationchange re-feeds, or the stick zone
+// would keep portrait geometry in a landscape match.
+{
+  const chk = (c, m) => { if (c) ok(m); else fail(m); };
+  const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+  chk(main.includes('goLandscape(); touchStartOrResume();'), 'T18a DEPLOY tap makes the landscape request (auto-rotate on the main path)');
+  chk(main.includes('AUTO_ROTATE_OK') && main.includes("classList.add('rotate-manual')"), 'T18b no-auto-rotate platforms are detected at boot (rotate-manual)');
+  chk(html.includes('rp-lockhint') && css.includes('body.rotate-manual #rotate-prompt .rp-lockhint'), 'T18c Rotation Lock hint exists and renders only for rotate-manual platforms');
+  chk(main.includes('setTimeout(fitRenderer, 1000)'), 'T18d orientation refit series runs to 1000 ms (iPhone chrome settle)');
+  const { TouchControls } = await import('../js/touchcontrols.js');
+  class FakeClassList {
+    constructor() { this.set = new Set(); }
+    add(c) { this.set.add(c); }
+    remove(c) { this.set.delete(c); }
+    toggle(c, force) { if (force === undefined) { this.set.has(c) ? this.set.delete(c) : this.set.add(c); } else if (force) this.set.add(c); else this.set.delete(c); }
+    contains(c) { return this.set.has(c); }
+  }
+  class FakeEl {
+    constructor(tag) { this.tagName = tag; this.children = []; this.parentNode = null; this.classList = new FakeClassList(); this.style = {}; this.listeners = {}; this.textContent = ''; this._className = ''; }
+    get className() { return this._className; }
+    set className(v) { this._className = v; this.classList.set = new Set(String(v).split(/\s+/).filter(Boolean)); }
+    setAttribute() {}
+    appendChild(c) { c.parentNode = this; this.children.push(c); return c; }
+    addEventListener(type, fn, opts) { (this.listeners[type] ||= []).push({ fn, capture: !!(opts && opts.capture) }); }
+  }
+  const fakeDoc = {
+    body: new FakeEl('body'),
+    createElement: tag => new FakeEl(tag),
+    addEventListener() {},
+  };
+  const winListeners = {};
+  const fakeWin = {
+    innerWidth: 393, innerHeight: 852, // iPhone-class portrait CSS viewport
+    addEventListener(type, fn) { (winListeners[type] ||= []).push(fn); },
+  };
+  const fireWin = type => { for (const fn of winListeners[type] || []) fn(); };
+  const input = { forward: false, back: false, left: false, right: false, sprint: false, jump: false, aim: false };
+  const tc = new TouchControls({
+    doc: fakeDoc, win: fakeWin, input,
+    slots: [{ label: 'AR' }],
+    hooks: {
+      look() {}, setFire() {}, setAim() {}, reload() {}, lethal() {}, tactical() {},
+      streak() {}, weapon() {}, pause() {}, stance() {}, interact() {}, orient() {}, emote() {}, firstTouch() {},
+    },
+  });
+  chk(tc.core.viewportW === 393, 'T18e binding seeds the stick viewport at phone portrait width (393)');
+  fakeWin.innerWidth = 852; fakeWin.innerHeight = 393; // the physical turn
+  fireWin('orientationchange');
+  chk(tc.core.viewportW === 852, 'T18f orientationchange re-feeds the landscape width (852)');
+  fakeWin.innerWidth = 393; fakeWin.innerHeight = 852; // turn back
+  fireWin('resize');
+  chk(tc.core.viewportW === 393, 'T18g resize re-feeds the portrait width on the way back (393)');
 }
 
 if (failures) { console.error(`\nmobile-check: ${failures} failure(s)`); process.exit(1); }
