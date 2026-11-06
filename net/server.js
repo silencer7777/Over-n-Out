@@ -59,6 +59,11 @@ import {
 // to the Coordinator: XP_VALUES should absorb this key, at
 // which point this table can retire.
 const XP_EXTRA = { uavDenial: 75 };
+
+// Log-line flattening for _viol (see the call site): strips
+// control characters (incl. CR/LF) and caps length so a
+// client-shaped string can never forge or split a log entry.
+const _logSafe = (v, n) => String(v).replace(/[\u0000-\u001f\u007f]+/g, ' ').slice(0, n);
 function xpPrice(source) {
   return XP_VALUES[source] !== undefined ? XP_VALUES[source] : XP_EXTRA[source];
 }
@@ -186,7 +191,16 @@ export class GameServer {
     const total = (this.violations.get(playerId) || 0) + 1;
     this.violations.set(playerId, total);
     if (total <= LIMITS.VIOLATION_LOG_BUDGET) {
-      const line = `[violation] player=${String(playerId)} room=${room ? room.code : '-'} kind=${kind}${detail ? ' — ' + detail : ''}`;
+      // Log-injection hygiene (Nov 6, 2026): several call sites
+      // pass client-supplied strings as kind/detail (msg.t,
+      // msg.mode, msg.map) — a hostile client could embed
+      // newlines and forge entries in whatever log sink the
+      // operator uses. Every interpolated value is flattened to
+      // a single line and length-capped HERE, at the source, so
+      // all sinks (console, file, collector) are safe. The file
+      // logger (net/violation-log.js) sanitises again at the
+      // sink and hash-chains what it stores.
+      const line = `[violation] player=${_logSafe(playerId, 64)} room=${room ? _logSafe(room.code, 32) : '-'} kind=${_logSafe(kind, 32)}${detail ? ' — ' + _logSafe(detail, 120) : ''}`;
       if (typeof this.logger === 'function') this.logger(line);
       else console.warn(line);
     }
