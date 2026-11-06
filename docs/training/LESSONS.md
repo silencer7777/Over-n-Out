@@ -270,7 +270,9 @@ with a source commit/report. No lesson without evidence.
     (`t_`) placements stay literal — some still share plane values
     (e.g. Ops north 39.97) and are build-session scope to fold in.
     (Training, Nov 2, 2026; HQ west re-anchor landed Nov 4, 2026
-    — see Lesson 33 for its collision history — gate pin Fri Nov 6)
+    — see Lesson 33 for its collision history — gate pin designed
+    Fri Nov 6, 2026 as FA1/FA2 in that day's log and deferred by
+    a dirty tree; lands next clean session)
 32. **Pin rebuild determinism pre-update, against literals and a
     fresh instance.** `elapsed` is instance-level and survives
     `teardown`/`build`, and sway reads it — so a rebuilt instance
@@ -339,6 +341,20 @@ with a source commit/report. No lesson without evidence.
     Stage 2 spec section, not a faked mode. Search the tree
     first; ship verification and the missing seam, and spec the
     rest in the owner's own doc. (V7.19)
+41. **Pinning known-stale values is a drift alarm, not an
+    endorsement — label it, or don't pin it.** A gate pin freezes
+    whatever values it names, including values already known to
+    be stale (the `FACADE_ANCHORS` Ops planes are pre-U6-12
+    growth). Pinning them as-is is legitimate ONLY when the
+    check's header states plainly that it alarms on unannounced
+    movement — not that the values are correct — and carries
+    the named re-pin obligation: when the owning session
+    re-anchors those values by decision, the expected literals
+    change in the same commit (the T1 named re-pin precedent,
+    Lesson 38). An unlabelled pin enshrines drift as truth; a
+    pin that silently skips the stale keys leaves exactly the
+    drift-prone values unalarmed. (Training, Nov 6, 2026; FA1
+    design)
 
 ## Retired / do not carry forward (corrected Oct 25, 2026, Reviewer audit)
 
