@@ -1,0 +1,23 @@
+{
+  "tag": "v7.28-wide",
+  "mode": "waves",
+  "build": "V7.28",
+  "maps": {
+    "compound": [
+      "compound-0-wide.png"
+    ],
+    "forest": [
+      "forest-0-wide.png"
+    ],
+    "snow": [
+      "snow-0-wide.png"
+    ],
+    "mars": [
+      "mars-0-wide.png"
+    ],
+    "orbital": [
+      "orbital-0-wide.png"
+    ]
+  },
+  "errors": []
+}
