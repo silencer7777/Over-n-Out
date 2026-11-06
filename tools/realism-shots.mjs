@@ -119,6 +119,22 @@ try {
     await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: rect.x, y: rect.y, button: 'left', clickCount: 1 });
     await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: rect.x, y: rect.y, button: 'left', clickCount: 1 });
     await waitFor(() => evalJs(`(() => { const h = document.getElementById('hud'); return h && !h.classList.contains('hidden'); })()`), 25000, 'hud ' + map);
+    // Pointer lock re-centers the cursor — the warp from the
+    // button (below center) to screen center lands as one huge
+    // look-UP mouse delta and slams the camera into the sky
+    // (observed in the first series: every frame stared at the
+    // sun). Cancel it by walking the mouse from center back to
+    // the button position in small steps — the exact inverse
+    // delta — so the net look input is ~zero and the view
+    // stays on the authored level heading.
+    {
+      const dx = rect.x - WIDTH / 2, dy = rect.y - HEIGHT / 2;
+      const steps = 24;
+      for (let i = 1; i <= steps; i++) {
+        await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: WIDTH / 2 + dx * (i / steps), y: HEIGHT / 2 + dy * (i / steps) });
+        await sleep(16);
+      }
+    }
     if (WIDE_ONLY) {
       // Scenery doesn't change during the countdown — one spawn
       // frame is the whole evidence set for this mode.
