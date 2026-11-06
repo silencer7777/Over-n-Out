@@ -495,6 +495,15 @@ body.touch-mode #stats-top { top:calc(10px + env(safe-area-inset-top)); right:ca
   box-shadow: 0 8px 24px rgba(0,0,0,.45);
 }
 #rotate-prompt .rp-text span { display: block; font-size: 10px; font-weight: 700; color: #9fd8a8; letter-spacing: .22em; margin-top: 2px; }
+/* V7.33: Rotation Lock hint — hidden everywhere except
+   body.rotate-manual (set by main.js only on touch platforms
+   with no fullscreen / orientation-lock API, i.e. iPhone
+   Safari). Amber, wider measure, wraps to two lines on a
+   phone-width pill instead of stretching it off-screen. */
+#rotate-prompt .rp-text .rp-lockhint { display: none; }
+body.rotate-manual #rotate-prompt .rp-lockhint {
+  display: block; max-width: 250px; color: #ffd34d; letter-spacing: .1em; line-height: 1.6;
+}
 #rotate-prompt .rp-icon { position: relative; width: 40px; height: 40px; flex: 0 0 auto; }
 #rotate-prompt .rp-arc {
   position: absolute; inset: 0; border-radius: 50%;
