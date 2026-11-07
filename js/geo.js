@@ -24,6 +24,65 @@ const _p = new THREE.Vector3();
 const _s = new THREE.Vector3();
 const _c = new THREE.Color();
 
+// roundedPrismGeometry(w, h, d, r, taper) — V7.34 CHARACTER
+// REBUILD: a vertical prism whose XZ cross-section is a
+// rectangle (w × d) with rounded corners (radius r, 4 arc
+// steps per corner), centred on the origin, height h along
+// Y. The top ring is scaled by `taper` (XZ) so a shell can
+// narrow toward the ankle / shoulder. Smooth-shaded
+// (computeVertexNormals over shared ring verts — the cap
+// edge softens too, which is the point: no crate-flat faces,
+// no sharp vertical corners). ~60 tris. This is the shell
+// that finally sits OVER the soldier hit-core boxes: prior
+// passes put rounded overlays INSIDE the cores (invisible);
+// a rounded-rect cross-section envelops a box core with
+// only ~+0.02 m of margin, where an ellipse fat enough to
+// cover the box corners would bloat the figure.
+export function roundedPrismGeometry(w, h, d, r, taper = 1) {
+  const hw = w / 2, hd = d / 2, cr = Math.min(r, hw, hd);
+  const pts = []; // perimeter, CCW seen from +Y
+  const corners = [
+    [hw - cr, -hd + cr, -Math.PI / 2], [hw - cr, hd - cr, 0],
+    [-hw + cr, hd - cr, Math.PI / 2], [-hw + cr, -hd + cr, Math.PI],
+  ];
+  for (const [cx, cz, a0] of corners) {
+    for (let i = 0; i <= 4; i++) {
+      const a = a0 + (i / 4) * (Math.PI / 2);
+      pts.push([cx + cr * Math.cos(a), cz + cr * Math.sin(a)]);
+    }
+  }
+  // de-duplicate consecutive arc endpoints shared between corners
+  const per = [];
+  for (const p of pts) {
+    const q = per[per.length - 1];
+    if (!q || Math.abs(q[0] - p[0]) > 1e-6 || Math.abs(q[1] - p[1]) > 1e-6) per.push(p);
+  }
+  if (per.length > 1) {
+    const f = per[0], l = per[per.length - 1];
+    if (Math.abs(f[0] - l[0]) < 1e-6 && Math.abs(f[1] - l[1]) < 1e-6) per.pop();
+  }
+  const n = per.length;
+  const posArr = [];
+  for (const s of [1, taper]) { // bottom ring (scale 1), top ring (taper)
+    const y = s === 1 ? -h / 2 : h / 2;
+    for (const [x, z] of per) posArr.push(x * s, y, z * s);
+  }
+  const topC = posArr.length / 3; posArr.push(0, h / 2, 0);
+  const botC = posArr.length / 3; posArr.push(0, -h / 2, 0);
+  const idx = [];
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    idx.push(i, n + i, j, j, n + i, n + j);       // sides
+    idx.push(topC, n + j, n + i);                  // top cap fan
+    idx.push(botC, i, j);                          // bottom cap fan
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(posArr, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
 export function mergeColoredParts(parts) {
   const pos = [];
   const nor = [];
