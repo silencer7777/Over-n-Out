@@ -15,7 +15,7 @@
 // hardcoded, and no other file gains network surface.
 
 import * as THREE from 'three';
-import { mergeColoredParts } from './geo.js';
+import { mergeColoredParts, roundedPrismGeometry } from './geo.js';
 import { getWeapon } from './weapons.js';
 import { createVehicleActor } from './equipment.js'; // R2-5: online vehicle actors
 import { getCharacter, isCharacterId, KIT_STORIES } from './characters.js';
@@ -44,14 +44,14 @@ function buildPuppetMesh(friendly, weaponId, charId = null) {
   }
   const parts = [];
   const P = (geo, color, x, y, z) => parts.push({ geo, color, x, y, z });
-  P(box(0.56, 0.62, 0.32), C.suit, 0, 0.93, 0);              // torso
+  P(roundedPrismGeometry(0.60, 0.66, 0.36, 0.13), C.suit, 0, 0.93, 0); // torso (V7.34 REBUILD: rounded-corner shell — puppets were raw boxes throughout, the blockiest figures in the game)
   P(box(0.50, 0.40, 0.10), C.gear, 0, 0.98, 0.18);           // chest rig
   P(box(0.44, 0.50, 0.16), C.gear, 0, 0.95, -0.22);          // pack
-  P(box(0.16, 0.55, 0.16), C.suit, -0.36, 0.92, 0);          // arms
-  P(box(0.16, 0.55, 0.16), C.suit, 0.36, 0.92, 0);
-  P(box(0.30, 0.30, 0.30), C.skin, 0, 1.42, 0);              // head
-  P(box(0.36, 0.14, 0.36), C.gear, 0, 1.60, 0);             // helmet
-  P(box(0.26, 0.06, 0.02), friendly ? C.friendlyVisor : C.hostileVisor, 0, 1.44, 0.155); // visor
+  P(new THREE.CylinderGeometry(0.085, 0.075, 0.55, 12), C.suit, -0.36, 0.92, 0); // arms (V7.34: tapered cylinders, not slabs)
+  P(new THREE.CylinderGeometry(0.085, 0.075, 0.55, 12), C.suit, 0.36, 0.92, 0);
+  P(new THREE.SphereGeometry(0.185, 18, 12), C.skin, 0, 1.42, 0); // head (V7.34: a sphere, not a cube)
+  P(new THREE.CylinderGeometry(0.205, 0.215, 0.15, 20), C.gear, 0, 1.60, 0); // helmet (V7.34: round shell over the sphere)
+  P(box(0.26, 0.06, 0.02), friendly ? C.friendlyVisor : C.hostileVisor, 0, 1.44, 0.178); // visor (V7.34: re-seated on the head sphere)
   const tint = getWeapon(weaponId).tint;
   P(box(0.07, 0.11, 0.62), tint, 0.18, 1.02, -0.28);         // gun body (weapon-tinted)
   P(box(0.04, 0.04, 0.30), C.dark, 0.18, 1.06, -0.70);       // barrel
@@ -70,8 +70,8 @@ function buildPuppetMesh(friendly, weaponId, charId = null) {
   for (const s of [-1, 1]) {
     const lp = [];
     const LP = (geo, color, x, y, z) => lp.push({ geo, color, x, y, z });
-    LP(box(0.30, 0.62, 0.20), C.suitDark, s * 0.11, 0.31, 0);   // leg
-    LP(box(0.34, 0.16, 0.24), C.boot, s * 0.11, 0.05, -0.02);   // boot
+    LP(roundedPrismGeometry(0.21, 0.62, 0.24, 0.08), C.suitDark, s * 0.11, 0.31, 0); // leg (V7.34 REBUILD: rounded-corner shell; the old 0.30-wide boxes overlapped at the inner thigh)
+    LP(roundedPrismGeometry(0.22, 0.16, 0.30, 0.06), C.boot, s * 0.11, 0.08, -0.02); // boot (V7.34: rounded shell, seated on the ground plane)
     const legGeo = mergeColoredParts(lp);
     legGeo.translate(-s * 0.11, -HIP_Y, 0);
     const leg = new THREE.Mesh(legGeo, mat);
