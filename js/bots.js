@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { collide } from './world.js';
 import { getWeapon } from './weapons.js';
-import { mergeColoredParts } from './geo.js';
+import { mergeColoredParts, roundedPrismGeometry } from './geo.js';
 import { buildBotGun } from './gunmodels.js';
 import { getCamo } from './camo.js';
 import { characterOutfit } from './characters.js';
@@ -234,16 +234,15 @@ function buildBotLeg(pal = BOT_PALETTES.hostile, s = 1) {
   _part(L, _sph(0.105, 10, 7), pal.gear, s * 0.145, 0.52, -0.13, 0, 0, 0, 0.82, 0.95, 0.45);   // knee pad (V6-3: domed; front reach matched to the old pad) (U12: 10x7)
   _part(L, _box(0.19, 0.30, 0.05), pal.gear, s * 0.145, 0.30, -0.135);           // shin guard (V4 kit)
   _part(L, _box(0.22, 0.10, 0.25), pal.camo, s * 0.145, 0.90, 0);                 // thigh pocket block (V5: trimmed)
-  _part(L, _cylT(0.128, 0.104, 0.44, 14), pal.camo, s * 0.145, 0.66, 0);          // thigh (U5-05: tapered overlay — the leg reads as a limb, not a crate; the hit-core box inside is untouched) (U9: 11 seg) (U12: 14 seg)
-  _part(L, _cylT(0.100, 0.080, 0.34, 14), pal.camoDark, s * 0.145, 0.27, 0);      // shin (U5-05: tapered overlay, slim to the boot) (U9: 11 seg) (U12: 14 seg)
+  _part(L, roundedPrismGeometry(0.28, 0.46, 0.32, 0.10, 0.94), pal.camo, s * 0.145, 0.67, 0); // thigh shell (V7.34 REBUILD: rounded-corner prism ENVELOPING the leg core — cross-section proven to contain the core's corners; the old U5/U9/U12 tapered cylinders sat INSIDE the box and never showed)
+  _part(L, roundedPrismGeometry(0.27, 0.42, 0.31, 0.095, 0.92), pal.camoDark, s * 0.145, 0.27, 0); // shin shell (V7.34 REBUILD: same treatment down to the boot)
   if (s > 0) {
     _part(L, _box(0.10, 0.22, 0.09), pal.dark, 0.265, 0.86, -0.02);               // thigh holster, right (V4 kit)
     _part(L, _box(0.235, 0.035, 0.27), pal.dark, 0.145, 0.90, 0);                 // holster thigh strap, right (V7.6: the drop-leg rig is strapped to the leg, not floating beside it)
   } else {
     _part(L, _box(0.17, 0.20, 0.06), pal.gear, -0.145, 0.80, -0.145);              // drop-leg pouch, left (U6-06v: kit asymmetry — soldiers are not mirrored)
   }
-  _part(L, _cylT(0.082, 0.068, 0.16, 12), pal.camoDark, s * 0.145, 0.17, 0);     // ankle taper (U6-06v: the shin narrows into the boot — no peg legs) (U9: 10 seg) (U12: 12 seg)
-  _part(L, _cylT(0.100, 0.108, 0.09, 12), pal.gear, s * 0.145, 0.155, 0);     // boot collar (U12: the boot cuffs over the ankle taper — footwear, not a peg in a block)
+  // (V7.34: the U6 ankle taper and U12 boot collar were removed — both cylinders sat inside the leg core / shin shell and could not show; the shin shell now tapers into the boot.)
   _part(L, _sph(0.115, 11, 8), pal.camo, s * 0.145, 0.93, 0, 0, 0, 0, 1.0, 0.85, 1.05); // hip joint (U9: the leg balls into the pelvis — no shelf joint) (U12: 11x8)
   _part(L, _sph(0.095, 10, 7), pal.camoDark, s * 0.145, 0.30, 0.05, 0, 0, 0, 0.95, 1.5, 0.95); // calf mass (U9: muscle behind the shin, not a peg) (U12: 10x7)
   const geo = mergeColoredParts(L);
@@ -288,10 +287,9 @@ function buildBotTorso(pal = BOT_PALETTES.hostile) {
   const L = [];
   _part(L, _box(0.66, 0.72, 0.38), pal.camo, 0, 1.11, 0);                           // torso core (hitbox — V3 box, camo cloth) — HIT CORE, byte-identical
   _part(L, _box(0.52, 0.22, 0.32), pal.camoDark, 0, 0.84, 0);                       // pelvis / belt line (V5: hips narrower than shoulders — human ratio)
-  _part(L, _sph(0.20, 9, 6), pal.camoDark, 0, 0.86, 0, 0, 0, 0, 1.5, 0.55, 0.92);   // hip mass (U5-05: the pelvis rounds into the thighs — no shelf edge)
-  _part(L, _cylT(0.315, 0.255, 0.52, 16), pal.camo, 0, 1.13, 0, 0, 0, 0, 1.06, 1, 0.62); // ribcage (U9: tapered, flattened barrel over the core — the flat slab sides die; the front tucks inside the vest, the sides round out) (U12: 16 seg)
-  _part(L, _cylT(0.270, 0.290, 0.14, 14), pal.gear, 0, 0.93, 0, 0, 0, 0, 1.0, 1, 0.62); // waist sash (U12: the belt line tapers between pelvis and ribcage — a waist, not stacked crates; inside the ribcage envelope)
-  _part(L, _box(0.12, 0.07, 0.03), pal.steel, 0, 0.86, -0.185);                     // belt buckle (V4 kit)
+  _part(L, roundedPrismGeometry(0.74, 0.54, 0.46, 0.13, 0.97), pal.camo, 0, 1.24, 0); // chest shell (V7.34 REBUILD: rounded-corner prism ENVELOPING the torso core — cross-section proven to contain the core's corners; replaces the U9 ribcage + U5 hip mass, whose radii left the core's flat faces and corners exposed)
+  _part(L, roundedPrismGeometry(0.72, 0.30, 0.44, 0.10, 0.95), pal.camoDark, 0, 0.90, 0); // abdomen shell (V7.34 REBUILD: the waist reads as a tapered rounded mass, not the core's lower slab; replaces the U12 waist sash, which sat inside the core)
+  _part(L, _box(0.12, 0.07, 0.03), pal.steel, 0, 0.86, -0.235);                     // belt buckle (V4 kit) (V7.34: re-seated on the abdomen shell's front face)
   _part(L, _sph(0.10, 10, 8), pal.accentDark, 0, 1.17, -0.222, 0, 0, 0, 2.9, 2.7, 0.55); // plate vest front (U9: molded curve inside the old slab's envelope — a plate, not a fridge door) — FACTION colour (readability carrier)
   _part(L, _box(0.09, 0.44, 0.30), pal.accentDark, -0.315, 1.17, 0, 0, 0.28);       // vest wrap panel L (V5: the vest wraps a torso, not a fridge door)
   _part(L, _box(0.09, 0.44, 0.30), pal.accentDark, 0.315, 1.17, 0, 0, -0.28);       // vest wrap panel R
@@ -335,7 +333,7 @@ function buildBotTorso(pal = BOT_PALETTES.hostile) {
 function buildBotHead(pal = BOT_PALETTES.hostile) {
   const L = [];
   _part(L, _box(0.34, 0.36, 0.34), pal.skin, 0, 1.66, 0);                           // head core (hitbox — V3 box) — HIT CORE, byte-identical
-  _part(L, _sph(0.168, 18, 12), pal.skin, 0, 1.65, -0.012, 0, 0, 0, 1.0, 1.06, 0.96); // face (U5-05: rounded skull mass over the core — a head, not a block; visor at z -0.185 stays proud) (U9: 14x10) (U12: 18x12)
+  _part(L, _sph(0.188, 20, 14), pal.skin, 0, 1.65, -0.012, 0, 0, 0, 1.0, 1.06, 0.96); // face (V7.34 REBUILD: ellipsoid enlarged past the head core's half-width — at the old r 0.168 the sphere sat INSIDE the 0.34 core and the cube read; visor at z -0.185 stays proud of the new surface) (U5-05/U9/U12 lineage)
   _part(L, _box(0.045, 0.075, 0.032), pal.skin, 0, 1.628, -0.180);                  // nose (U6-06v: the face gains a profile — reads as a person in silhouette at range)
   for (const s of [-1, 1]) _part(L, _sph(0.046, 8, 6), pal.skin, s * 0.172, 1.66, 0.005, 0, 0, 0, 0.55, 1.0, 0.8); // ears (U6-06v) (U9: 8x6)
   _part(L, _sph(0.13, 8, 6), pal.skin, 0, 1.545, -0.055, 0, 0, 0, 1.05, 0.5, 0.85);  // jaw / chin mass (U6-06v: the lower face rounds into the jaw guard)
