@@ -91,5 +91,28 @@ const PROTO = await import(join(ROOT, 'net/protocol.js'));
   else fail(`CH5 wiring missing: ${bad.join(', ')}`);
 }
 
+// CH6 — V7.34 CHARACTER REBUILD (slice 1): the rounded shells
+// that ENVELOP the hit cores are wired in both figure
+// builders, and the geo helper is exported. (Hit-core
+// byte-identity itself is smoke D9's pin; this pin stops a
+// future pass quietly reverting to bare boxes / buried
+// overlays.)
+{
+  const geo = readFileSync(join(ROOT, 'js/geo.js'), 'utf8');
+  const bots = readFileSync(join(ROOT, 'js/bots.js'), 'utf8');
+  const online = readFileSync(join(ROOT, 'js/online.js'), 'utf8');
+  const checks = {
+    geoExport: geo.includes('export function roundedPrismGeometry'),
+    legShells: bots.includes('roundedPrismGeometry(0.28, 0.46, 0.32') && bots.includes('roundedPrismGeometry(0.27, 0.42, 0.31'),
+    torsoShells: bots.includes('roundedPrismGeometry(0.74, 0.54, 0.46') && bots.includes('roundedPrismGeometry(0.72, 0.30, 0.44'),
+    headShell: bots.includes('_sph(0.188, 20, 14)'),
+    puppetShells: online.includes('roundedPrismGeometry(0.60, 0.66, 0.36') && online.includes('roundedPrismGeometry(0.21, 0.62, 0.24'),
+  };
+  const bad = Object.entries(checks).filter(([, v]) => !v).map(([k]) => k);
+  if (bad.length === 0)
+    ok('CH6 rebuild shells: geo export + leg/torso/head shells in bots.js + torso/leg shells in online.js puppets');
+  else fail(`CH6 rebuild shells missing: ${bad.join(', ')}`);
+}
+
 if (failures) { console.error(`characters-check: ${failures} FAIL`); process.exit(1); }
 console.log('characters-check: all pass');
