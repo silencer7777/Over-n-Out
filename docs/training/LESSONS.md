@@ -25,15 +25,20 @@ with a source commit/report. No lesson without evidence.
 
 1. **Lighting was locked — Brett lifted the lock Oct 28, 2026; U7 is the
    new baseline.** The pre-U7 lock (sha `a40a3f79c85670a6`, exposure 1.10,
-   shadow 4096) is superseded, corrected here Nov 1, 2026. Current tree:
-   `js/lighting.js` sha `38cded1a06271631`, exposure per-profile (compound
-   1.10, forest 1.08, snow 1.08, mars 1.06), shadowExtent 86 on all
-   profiles, normalBias 0.35 (`js/main.js:69`), shadow map still 4096.
+   shadow 4096) is superseded, corrected here Nov 1, 2026. Current tree
+   (corrected Nov 8, 2026 — the Nov 1 sha went stale when V7.25 added
+   the Orbital profile to `js/lighting.js`): `js/lighting.js` sha
+   `e2f31ad6b7e9b4e3` (full sha256 `e2f31ad6b7e9b4e3764811b88a4c4b98c2893a9a1ec43784f479de35afe8aef8`,
+   Lead-verified Nov 8), exposure per-profile (compound
+   1.10, forest 1.08, snow 1.08, mars 1.06, orbital 1.08), shadowExtent 86 on all
+   profiles, normalBias 0.35 (`js/main.js:73` — pin corrected Nov 8,
+   2026; an earlier form cited :69), shadow map still 4096.
    Lighting moves only on Brett's order, never as free tuning, and every
    profile must still clear the never-too-dark floor (SHADOW_FLOOR 0.36,
    judged by the smoke L-suite). The v6-metrics LIGHTING TOUCHED warning
    fires against the stale V6 baseline — expected, not a regression.
-   (U7 spec `96d7723`; U7-04 `2808fd3`/`ad081ab`; Training, Nov 1, 2026)
+   (U7 spec `96d7723`; U7-04 `2808fd3`/`ad081ab`; Training, Nov 1, 2026;
+   sha + orbital profile corrected Training, Nov 8, 2026)
 2. **Playtest feedback outranks the ledger table.** Ledger slots are
    deliberately under-specified; re-sequence each cycle from Brett.
    (The V6-spine scope bound expired when V7 superseded it Oct 30.)
@@ -63,7 +68,11 @@ with a source commit/report. No lesson without evidence.
    Forest CLIENT sustained 161 calls / 292,578 tris, static 78 calls /
    232,450 tris, 45 casters / 201,120 caster tris, shadow-pass est.
    231 calls / 255,840 tris — headroom is 4 calls vs the 165 veto and
-   7,422 tris vs 300k. Forest LAYOUT is a different instrument:
+   7,422 tris vs 300k. Snapshot note, Nov 8, 2026: the Nov 7 REALISM
+   measurement supersedes the Forest sustained figure — 161 calls /
+   292,530 tris after the console-wall landing (baseline 292,506 + 24,
+   headroom 4 calls / 7,470 tris); the Nov 5 static/caster figures
+   above were not re-measured Nov 7 and stand as dated, not current. Forest LAYOUT is a different instrument:
    sustained 108 / 268,096, static 25 / 207,968, 16 casters / 197,608
    caster tris, shadow 149 / 252,328 — never mix client and layout.
    All five client maps now sit at 147–162 sustained calls (Mars 162
@@ -94,6 +103,16 @@ with a source commit/report. No lesson without evidence.
     remains casting is core canopy/bush/thicket/trunk, whose
     removal is a visible realism decision for Verity/Brett, not a
     training optimisation. (Training, Nov 5, 2026)
+42. **A named room is judged against the game's own smallest
+    furnished comparator.** The HQ's NE ops room held only a
+    crate while the smaller Comms Shed shipped a PM panel + GC
+    console screen — the headquarters read as a closet beside
+    its own shed. Copy the comparator's pattern 1:1 (sizes,
+    embed/proud, centre offset) into the existing merged
+    buckets; the pattern's own arithmetic is the placement
+    proof, and the cost is the pattern's cost, not a new
+    design's. (Training, Nov 7, 2026; HQ NE console wall,
+    +24 tris / +12 caster tris, Δ0 calls on all five maps)
 
 ## C. Measurement honesty
 
@@ -159,10 +178,16 @@ with a source commit/report. No lesson without evidence.
 
 ## D. Build discipline
 
-12. **Hit cores are law.** Soldier rounding mostly inscribes the old
-    silhouette; variation is colour/skin/wear only — no per-bot geometry or
-    scale. Proof is required for any soldier/gun change. (V6-3 chars
-    report, `c165ce4`; ledger Update 4)
+12. **Hit cores are law.** The hit cores themselves are byte-identical
+    and do not move — that is the law. The visible shells around them
+    changed at V7.34 (corrected Nov 8, 2026): the pre-V7.34 wording
+    "soldier rounding mostly inscribes the old silhouette" no longer
+    describes the tree — V7.34's rounded shells ENVELOP the cores, the
+    head ellipsoid is enlarged PAST the core, and buried in-core
+    overlays were removed, while the cores stayed byte-identical
+    (smoke D9). Variation is colour/skin/wear only — no per-bot
+    geometry or scale. Proof is required for any soldier/gun change.
+    (V6-3 chars report, `c165ce4`; ledger Update 4; V7.34 `5e76b3e`)
 13. **One data table, both sides.** Player and bots draw from
     `js/weapons.js`, so balance cannot drift and the server validates
     against the same table. Never hard-code weapon stats in shooting code.
@@ -272,7 +297,11 @@ with a source commit/report. No lesson without evidence.
     (Training, Nov 2, 2026; HQ west re-anchor landed Nov 4, 2026
     — see Lesson 33 for its collision history — gate pin designed
     Fri Nov 6, 2026 as FA1/FA2 in that day's log and deferred by
-    a dirty tree; lands next clean session)
+    a dirty tree. Wording corrected Nov 8, 2026: an earlier form of
+    this note said the pin "lands next clean session" — Nov 7 was
+    a clean full session and the pin did not land (that day was
+    REALISM); the pin is queued for the next clean TEST CRAFT
+    session, scheduled Fri Nov 13, 2026)
 32. **Pin rebuild determinism pre-update, against literals and a
     fresh instance.** `elapsed` is instance-level and survives
     `teardown`/`build`, and sway reads it — so a rebuilt instance
