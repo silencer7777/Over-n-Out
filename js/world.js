@@ -1058,6 +1058,25 @@ export function buildWorld(scene) {
     GW.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.05), color: 0xffffff, x: FACADE_ANCHORS.hqNorthX[1], y: FACADE_ANCHORS.winY, z: FACADE_ANCHORS.hqPanelNorthZ });
     GC.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.05), color: 0xffffff, x: FACADE_ANCHORS.hqSouthX[0], y: FACADE_ANCHORS.hqPanelY, z: FACADE_ANCHORS.hqPanelSouthZ });
     GW.push({ geo: new THREE.BoxGeometry(0.94, 0.84, 0.05), color: 0xffffff, x: FACADE_ANCHORS.hqNorthX[0], y: FACADE_ANCHORS.hqPanelY, z: FACADE_ANCHORS.hqPanelNorthZ });
+    // Training REALISM (Nov 7, Verity review): the HQ's ground-
+    // floor NE ops room held only a crate — the Comms Shed and
+    // Relay Tower both ship a console, the HQ ops room shipped
+    // none. The Comms Shed console pattern copied 1:1 onto the
+    // north wall's interior face (z 37.65 = wall centre 37.5 +
+    // 0.15 half-thickness): PM panel (0.9 x 0.6 x 0.06) at
+    // (-8, 1.4, 37.67) spans z 37.64..37.70 (0.01 embed, 0.05
+    // proud, as Comms at face 53.80); GC screen (0.6 x 0.34 x
+    // 0.05) at (-8, 1.45, 37.71) spans z 37.685..37.735 (0.015
+    // seated into the panel front 37.70; centre +0.04 from the
+    // panel's, as Comms). Clearances: panel x span -8.45..-7.55
+    // — the interior window panel at x -11 (span -11.47..-10.53)
+    // is 2.08 m clear, the north door gap (x -6.4..-5) 1.15 m
+    // clear, the NE crate (x span -5.4..-3.2) 2.15 m clear.
+    // VISUAL ONLY, merged into the existing PM/GC buckets: +0
+    // draw calls, +24 tris, +12 caster tris (the panel mesh
+    // casts; glass never casts), no collider/worlddata change.
+    PM.push({ geo: new THREE.BoxGeometry(0.9, 0.6, 0.06), color: 0x8f979e, x: -8, y: 1.4, z: 37.67 });
+    GC.push({ geo: new THREE.BoxGeometry(0.6, 0.34, 0.05), color: 0xffffff, x: -8, y: 1.45, z: 37.71 });
     // ---- Comms Shed (centre 24, 56; walls y 0..2.4, roof top 2.6) ----
     // Roof fascia on all four edges.
     t_(new THREE.BoxGeometry(6.5, 0.18, 0.16), trimB, 24, 2.52, 53.22);
