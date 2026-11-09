@@ -836,3 +836,28 @@ The V7 deferral, landed per map by the map crews' pattern.
   All five gates green on the git-archive snapshot;
   spec-audit clean. Perf unchanged (no new casters; vehicle
   actors are mid-match only, same as solo).
+
+## V7.34 — Full Character Rebuild, slice 1 (Nov 7, ~06:00 PT)
+
+Brett's Option 3 recalibration decision (Nov 6) + his
+V7.33 verdict ("still very blocky… a lot of room for
+improvement") made the rebuild the active work order.
+**v0.7.34, BUILD V7.34, live sha256-verified** (7 key
+files exact vs the gated snapshot). Root cause: prior
+rounded overlays sat INSIDE the hit-core boxes (shin
+cylinder r≤0.100 vs core half-depth 0.125; face sphere
+r0.168 vs core half-width 0.17) — the flat boxes still
+drew the silhouette. Shipped: geo.js
+`roundedPrismGeometry` (containment + normals proven);
+thigh/shin + chest/abdomen shells enveloping the leg and
+torso cores in bots.js, buried overlays removed, belt
+buckle re-seated; head ellipsoid 0.168→0.188; online
+puppets rebuilt the same way. Hit cores byte-identical
+(D9 ✓); per-bot 8 calls (Δ0), tris 6,102→6,080; maps
+Δ0 calls, all ≤165/≤300k. Gates 11/11 on tree + snapshot
+(+ soak, security-log-check); characters-check CH6 pins
+the shells. Report:
+`docs/sessions/v7.34-character-rebuild-report.md`.
+Acceptance is Brett's playtest — no C2 re-score claimed
+(harness still can't frame a soldier); slice 2 awaits
+his verdict, per the process gate.
